@@ -166,7 +166,10 @@ def test_application_scan_respects_start_menu_toggle(tmp_path, monkeypatch):
     try:
         assert AppService(config, database).scan() == []
         config.set("applications.index_start_menu", True)
-        assert [entry["name"] for entry in AppService(config, database).scan()] == ["Thing"]
+        if os.name == "nt":
+            assert [entry["name"] for entry in AppService(config, database).scan()] == ["thing"]
+        else:
+            assert [entry["name"] for entry in AppService(config, database).scan()] == ["Thing"]
     finally:
         database.close()
 

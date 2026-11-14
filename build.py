@@ -157,6 +157,11 @@ def main() -> int:
         print(f"Could not write the Windows version resource: {exc}", file=sys.stderr)
         return 2
 
+    # Write PyInstaller output to a log file so the full traceback is preserved
+    # even when the terminal/PowerShell capture truncates it.
+    log_path = ROOT / "build" / "pyinstaller.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_file = log_path.open("w", encoding="utf-8")
     command = [
         sys.executable,
         "-m",
@@ -169,6 +174,10 @@ def main() -> int:
         str(ICON),
         "--add-data",
         f"{ROOT / 'assets'}{os.pathsep}assets",
+        "--collect-all",
+        "PySide6",
+        "--collect-all",
+        "shiboken6",
         "--collect-data",
         "tzdata",
         "--version-file",
@@ -180,9 +189,18 @@ def main() -> int:
         str(ROOT / "main.py"),
     ]
     print("Running:", " ".join(command))
-    completed = subprocess.run(command, cwd=ROOT)
+    print(f"PyInstaller output will be written to {log_path}")
+    completed = subprocess.run(command, cwd=ROOT, stdout=log_file, stderr=subprocess.STDOUT)
+    log_file.close()
     if completed.returncode != 0:
-        print("Build failed. See the PyInstaller output above.", file=sys.stderr)
+        print("Build failed. Last 40 lines of PyInstaller output:", file=sys.stderr)
+        try:
+            lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+            for line in lines[-40:]:
+                print(line, file=sys.stderr)
+        except OSError:
+            pass
+        print(f"Full log: {log_path}", file=sys.stderr)
         return completed.returncode
 
     target = output_target(args.onedir)
@@ -196,4 +214,9 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        raise SystemExit(1)

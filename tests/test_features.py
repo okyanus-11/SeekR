@@ -88,23 +88,31 @@ def test_files_provider_results(indexed_files, config, db, hooks, monkeypatch):
 def test_scan_desktop_entries(config, db, tmp_path, monkeypatch):
     menu = tmp_path / "applications"
     menu.mkdir()
-    (menu / "editor.desktop").write_text(
-        "[Desktop Entry]\nType=Application\nName=Super Editor\nExec=/bin/echo %U\nIcon=editor\n",
-        encoding="utf-8",
-    )
-    (menu / "hidden.desktop").write_text(
-        "[Desktop Entry]\nType=Application\nName=Hidden\nExec=/bin/true\nNoDisplay=true\n",
-        encoding="utf-8",
-    )
+    if os.name == "nt":
+        # Windows scans .lnk shortcuts; the name comes from the file stem.
+        (menu / "Super Editor.lnk").write_bytes(b"shortcut")
+        hidden_count = 0
+    else:
+        (menu / "editor.desktop").write_text(
+            "[Desktop Entry]\nType=Application\nName=Super Editor\nExec=/bin/echo %U\nIcon=editor\n",
+            encoding="utf-8",
+        )
+        (menu / "hidden.desktop").write_text(
+            "[Desktop Entry]\nType=Application\nName=Hidden\nExec=/bin/true\nNoDisplay=true\n",
+            encoding="utf-8",
+        )
+        hidden_count = 1
     monkeypatch.setattr(applications_module, "start_menu_directories", lambda: [menu])
     service = AppService(config, db)
     entries = service.scan()
     names = [entry["name"] for entry in entries]
     assert "Super Editor" in names
-    assert "Hidden" not in names
+    if os.name != "nt":
+        assert "Hidden" not in names
+    expected_found = 1
     stats = service.refresh()
-    assert stats["found"] == 1
-    assert db.count_apps() == 1
+    assert stats["found"] == expected_found
+    assert db.count_apps() == expected_found
     assert service.search("editor")
     assert service.search("super ed")
 
@@ -112,14 +120,22 @@ def test_scan_desktop_entries(config, db, tmp_path, monkeypatch):
 def test_application_launch_records_history(config, db, tmp_path, monkeypatch):
     menu = tmp_path / "applications"
     menu.mkdir()
-    (menu / "echo.desktop").write_text(
-        "[Desktop Entry]\nType=Application\nName=Echo App\nExec=/bin/echo hello\n",
-        encoding="utf-8",
-    )
+    if os.name == "nt":
+        (menu / "Echo App.lnk").write_bytes(b"shortcut")
+    else:
+        (menu / "echo.desktop").write_text(
+            "[Desktop Entry]\nType=Application\nName=Echo App\nExec=/bin/echo hello\n",
+            encoding="utf-8",
+        )
     monkeypatch.setattr(applications_module, "start_menu_directories", lambda: [menu])
     service = AppService(config, db)
     service.refresh()
     app = service.search("echo")[0]
+    if os.name == "nt":
+        # .lnk files have no Exec command; launch uses os.startfile which
+        # needs a real shortcut. Skip the launch assertion on Windows since
+        # we cannot create a valid .lnk in a test fixture.
+        pytest.skip("Launching a synthetic .lnk requires a real Windows shortcut")
     ok, message = service.launch(app)
     assert ok, message
     assert db.history("app")

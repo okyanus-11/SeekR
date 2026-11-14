@@ -26,7 +26,7 @@ class SingleInstance(QObject):
         self._server: QLocalServer | None = None
         self._sockets: list[QLocalSocket] = []
 
-    def notify_existing(self, timeout_ms: int = 300) -> bool:
+    def notify_existing(self, timeout_ms: int = 1000) -> bool:
         """Return True if an existing instance accepted our message."""
         socket = QLocalSocket()
         socket.connectToServer(self.key)
@@ -34,6 +34,8 @@ class SingleInstance(QObject):
             return False
         socket.write(b"show")
         socket.waitForBytesWritten(timeout_ms)
+        # Give the server time to process the message before closing.
+        socket.waitForReadyRead(timeout_ms)
         socket.disconnectFromServer()
         return True
 
@@ -62,14 +64,23 @@ class SingleInstance(QObject):
             socket.readyRead.connect(lambda s=socket: self._read_request(s))
             socket.disconnected.connect(lambda s=socket: self._cleanup_socket(s))
             if socket.bytesAvailable() == 0:
-                socket.waitForReadyRead(200)
+                socket.waitForReadyRead(500)
             self._read_request(socket)
+            # On Windows the data may arrive slightly after the first read;
+            # retry once after a short wait.
+            if socket.bytesAvailable() > 0:
+                self._read_request(socket)
 
     def _read_request(self, socket: QLocalSocket) -> None:
         try:
             if socket.bytesAvailable() <= 0:
                 return
             message = bytes(socket.readAll()).decode("utf-8", "ignore").strip()
+            # If the message is incomplete, wait briefly for more data.
+            if message and message != "show" and socket.waitForReadyRead(200):
+                extra = bytes(socket.readAll()).decode("utf-8", "ignore").strip()
+                if extra:
+                    message = (message + extra).strip()
         except Exception:  # pragma: no cover - defensive
             return
         # Only an explicit "show" request is honoured; an empty read (for
