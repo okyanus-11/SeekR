@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Build / packaging
+build/
+dist/
+SeekR.build/
+SeekR.dist/
+*.manifest.bak
+__pyinstaller/
+
+# Local application data (never commit user data)
+config.json
+seekr.db
+seekr.db-wal
+seekr.db-shm
+*.sqlite
+*.sqlite3
+logs/
+*.log
+
+# Secrets / local env
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
