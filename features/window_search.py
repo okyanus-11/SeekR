@@ -13,6 +13,8 @@ from core.logging_setup import get_logger
 from core.models import ResultAction, SearchResult
 from core.search_engine import SearchProvider
 
+from . import util
+
 log = get_logger(__name__)
 
 SW_RESTORE = 9
@@ -21,26 +23,61 @@ WS_EX_TOOLWINDOW = 0x00000080
 
 SUPPORTED = os.name == "nt"
 
+if os.name == "nt":  # pragma: no cover - Windows only
+    from ctypes import wintypes
+
+    _WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+else:  # A distinct type keeps the annotations importable off Windows.
+    _WNDENUMPROC = ctypes.CFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+
+
+def _user32():
+    """Load user32 with pointer-sized signatures (HWND is 64-bit on x64)."""
+    from ctypes import wintypes
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    user32.EnumWindows.argtypes = [_WNDENUMPROC, wintypes.LPARAM]
+    user32.EnumWindows.restype = wintypes.BOOL
+    user32.IsWindowVisible.argtypes = [wintypes.HWND]
+    user32.IsWindowVisible.restype = wintypes.BOOL
+    get_long = getattr(user32, "GetWindowLongPtrW", user32.GetWindowLongW)
+    get_long.argtypes = [wintypes.HWND, ctypes.c_int]
+    get_long.restype = ctypes.c_ssize_t
+    user32.GetWindowTextLengthW.argtypes = [wintypes.HWND]
+    user32.GetWindowTextLengthW.restype = ctypes.c_int
+    user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+    user32.GetWindowTextW.restype = ctypes.c_int
+    user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+    user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+    user32.IsIconic.argtypes = [wintypes.HWND]
+    user32.IsIconic.restype = wintypes.BOOL
+    user32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
+    user32.ShowWindow.restype = wintypes.BOOL
+    user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+    user32.SetForegroundWindow.restype = wintypes.BOOL
+    user32.SwitchToThisWindow.argtypes = [wintypes.HWND, wintypes.BOOL]
+    user32.SwitchToThisWindow.restype = None
+    user32.GetForegroundWindow.restype = wintypes.HWND
+    return user32
+
 
 def list_windows() -> list[dict[str, Any]]:
     """Return visible top-level windows with titles."""
     if not SUPPORTED:
         return []
     try:
-        user32 = ctypes.WinDLL("user32", use_last_error=True)
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        user32 = _user32()
     except OSError as exc:  # pragma: no cover - Windows only
         log.warning("Could not load user32: %s", exc)
         return []
 
     windows: list[dict[str, Any]] = []
-    callback_type = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
 
     def _callback(hwnd, _lparam):  # pragma: no cover - native callback
         try:
             if not user32.IsWindowVisible(hwnd):
                 return True
-            style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+            style = getattr(user32, "GetWindowLongPtrW", user32.GetWindowLongW)(hwnd, GWL_EXSTYLE)
             if style & WS_EX_TOOLWINDOW:
                 return True
             length = user32.GetWindowTextLengthW(hwnd)
@@ -72,13 +109,13 @@ def list_windows() -> list[dict[str, Any]]:
             log.debug("Window enumeration callback failed", exc_info=True)
         return True
 
-    callback = callback_type(_callback)
+    # Keep a reference to the callback for the whole enumeration; freeing it with
+    # GlobalFree (as the previous implementation did) was invalid.
+    callback = _WNDENUMPROC(_callback)
     try:
         user32.EnumWindows(callback, 0)
     except Exception as exc:  # pragma: no cover
         log.warning("EnumWindows failed: %s", exc)
-    finally:
-        kernel32.GlobalFree(ctypes.cast(callback, ctypes.c_void_p))
     return windows
 
 
@@ -86,16 +123,19 @@ def switch_to_window(hwnd: int) -> tuple[bool, str]:
     """Bring a window to the foreground."""
     if not SUPPORTED:
         return False, "Window switching is only supported on Windows"
+    target = int(hwnd or 0)
+    if target <= 0:
+        return False, "This window is no longer available"
     try:
-        user32 = ctypes.WinDLL("user32", use_last_error=True)
-        if user32.IsIconic(hwnd):
-            user32.ShowWindow(hwnd, SW_RESTORE)
-        else:
-            user32.ShowWindow(hwnd, SW_RESTORE)
-        if user32.SetForegroundWindow(hwnd):
+        user32 = _user32()
+        if user32.IsIconic(target):
+            user32.ShowWindow(target, SW_RESTORE)
+        if util.force_foreground(target):
             return True, "Switched window"
-        user32.SwitchToThisWindow(hwnd, True)
-        return True, "Switched window"
+        user32.SwitchToThisWindow(target, True)
+        if user32.GetForegroundWindow() == target:
+            return True, "Switched window"
+        return False, "Windows blocked switching to that window; try clicking it directly"
     except Exception as exc:  # pragma: no cover
         log.warning("Could not switch to window %s: %s", hwnd, exc)
         return False, f"Could not switch to the window: {exc}"

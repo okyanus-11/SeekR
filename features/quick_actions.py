@@ -10,6 +10,7 @@ from core.database import Database
 from core.fuzzy import fuzzy_score
 from core.logging_setup import get_logger
 from core.models import ResultAction, SearchResult
+from core.paths import known_folder
 from core.search_engine import SearchProvider
 
 from . import util
@@ -67,10 +68,13 @@ class QuickActionService:
         """Create a few real, path-based actions on first run."""
         if self.db.list_quick_actions():
             return
+        home = Path.home()
+        desktop = known_folder("desktop") or home / "Desktop"
+        downloads = known_folder("downloads") or home / "Downloads"
         defaults = [
-            ("Home folder", "open_dir", str(Path.home()), "Open your home directory"),
-            ("Desktop", "open_dir", str(Path.home() / "Desktop"), "Open the desktop folder"),
-            ("Downloads", "open_dir", str(Path.home() / "Downloads"), "Open the downloads folder"),
+            ("Home folder", "open_dir", str(home), "Open your home directory"),
+            ("Desktop", "open_dir", str(desktop), "Open the desktop folder"),
+            ("Downloads", "open_dir", str(downloads), "Open the downloads folder"),
         ]
         for title, kind, target, description in defaults:
             if Path(target).is_dir():

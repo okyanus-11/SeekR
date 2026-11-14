@@ -80,7 +80,12 @@ def open_snipping_tool() -> tuple[bool, str]:
     """Launch the Windows snipping overlay."""
     if os.name != "nt":
         return False, "The Snipping Tool is only available on Windows"
-    return util.run_detached(["explorer.exe", "ms-screenclip:"])
+    try:
+        os.startfile("ms-screenclip:")  # type: ignore[attr-defined]
+        return True, "Opened the Snipping Tool"
+    except OSError:
+        # Older shells sometimes need Explorer to resolve the protocol.
+        return util.run_detached(["explorer.exe", "ms-screenclip:"])
 
 
 def list_screenshots(config: ConfigManager, limit: int = 50) -> list[Path]:
@@ -89,7 +94,14 @@ def list_screenshots(config: ConfigManager, limit: int = 50) -> list[Path]:
         files = [path for path in directory.iterdir() if path.suffix.lower() == ".png"]
     except OSError:
         return []
-    files.sort(key=lambda path: path.stat().st_mtime, reverse=True)
+
+    def _mtime(path: Path) -> float:
+        try:
+            return path.stat().st_mtime
+        except OSError:
+            return 0.0
+
+    files.sort(key=_mtime, reverse=True)
     return files[:limit]
 
 
@@ -136,10 +148,15 @@ class ScreenshotProvider(SearchProvider):
             )
         recent = list_screenshots(self.config, limit=5)
         for index, path in enumerate(recent):
+            try:
+                modified = path.stat().st_mtime
+                size = path.stat().st_size
+            except OSError:
+                continue
             results.append(
                 self.make_result(
                     title=path.name,
-                    subtitle=f"Saved {util.format_ago(path.stat().st_mtime)}  ·  {util.format_bytes(path.stat().st_size)}",
+                    subtitle=f"Saved {util.format_ago(modified)}  ·  {util.format_bytes(size)}",
                     category="Screenshot",
                     score=0.7 - index * 0.02,
                     primary=lambda p=str(path): self.hooks.open_path(p),

@@ -58,17 +58,24 @@ class SingleInstance(QObject):
             socket = self._server.nextPendingConnection()
             if socket is None:
                 return
+            self._sockets.append(socket)
             socket.readyRead.connect(lambda s=socket: self._read_request(s))
             socket.disconnected.connect(lambda s=socket: self._cleanup_socket(s))
-            socket.waitForReadyRead(200)
+            if socket.bytesAvailable() == 0:
+                socket.waitForReadyRead(200)
             self._read_request(socket)
 
     def _read_request(self, socket: QLocalSocket) -> None:
         try:
+            if socket.bytesAvailable() <= 0:
+                return
             message = bytes(socket.readAll()).decode("utf-8", "ignore").strip()
         except Exception:  # pragma: no cover - defensive
-            message = ""
-        if message in {"show", ""}:
+            return
+        # Only an explicit "show" request is honoured; an empty read (for
+        # example a second readyRead after the payload was consumed) must not
+        # raise the launcher a second time.
+        if message == "show":
             self.show_requested.emit()
 
     def _cleanup_socket(self, socket: QLocalSocket) -> None:
@@ -82,8 +89,9 @@ class SingleInstance(QObject):
             QLocalServer.removeServer(self.key)
             self._server = None
         for socket in list(self._sockets):
+            self._sockets.remove(socket)
+            socket.abort()
             socket.deleteLater()
-        self._sockets.clear()
 
 
 __all__ = ["SingleInstance"]

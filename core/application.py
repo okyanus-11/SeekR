@@ -12,7 +12,7 @@ from PySide6.QtCore import QObject, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
-from features import util
+from features import system_info, util
 from features.applications import AppService, ApplicationsProvider
 from features.bookmarks import BookmarksProvider
 from features.calculator import CalculatorProvider, CalculatorService, UnitProvider
@@ -73,6 +73,7 @@ class SeekRApplication(QObject, UIHooks):
         self.launcher: Optional[LauncherWindow] = None
         self.hotkey: Optional[HotkeyManager] = None
         self.tray: Optional[QSystemTrayIcon] = None
+        self._tray_menu: Optional[QMenu] = None
         self.clipboard_monitor: Optional[ClipboardMonitor] = None
         self._settings_window = None
         self._tools_window = None
@@ -129,6 +130,17 @@ class SeekRApplication(QObject, UIHooks):
 
     # -------------------------------------------------------------------- start
     def start(self, show_window: bool = True, register_hotkey: bool = True) -> None:
+        from . import startup as startup_integration
+
+        # The registry/autostart entry is the source of truth for this switch,
+        # so reconcile a stale config value (for example after moving the exe).
+        try:
+            actual_startup = startup_integration.is_enabled()
+            if bool(self.config.get("general.start_with_windows", False)) != actual_startup:
+                self.config.set("general.start_with_windows", actual_startup)
+        except Exception:
+            log.debug("Could not reconcile the startup setting", exc_info=True)
+
         apply_theme(self.app, self.config)
         self.launcher = LauncherWindow(self)
         self.index_progress.connect(self.launcher.show_progress)
@@ -143,6 +155,9 @@ class SeekRApplication(QObject, UIHooks):
         self._prune_data()
         self.config.subscribe(self._on_config_changed)
         self.app.aboutToQuit.connect(self.shutdown)
+        # Prime the cached GPU probe so the first sys: lookup has data without
+        # ever running PowerShell/WMI on the GUI thread.
+        system_info.warm_up()
 
         if show_window:
             self.launcher.show_launcher()
@@ -165,6 +180,8 @@ class SeekRApplication(QObject, UIHooks):
         self.notify(message, "warning")
 
     def _create_tray(self) -> None:
+        if self.tray is not None:
+            return
         if not self.config.get("general.show_tray_icon", True):
             return
         if not QSystemTrayIcon.isSystemTrayAvailable():
@@ -173,6 +190,9 @@ class SeekRApplication(QObject, UIHooks):
         self.tray = QSystemTrayIcon(app_icon(64), self)
         self.tray.setToolTip(f"{APP_NAME} {APP_VERSION}")
         menu = QMenu()
+        # QSystemTrayIcon does not take ownership of the menu, so keep a
+        # reference or Python could collect it and leave a dead tray menu.
+        self._tray_menu = menu
         menu.addAction("Open SeekR", self.show_launcher)
         menu.addSeparator()
         menu.addAction("Settings…", lambda: self.open_settings("general"))
@@ -190,9 +210,23 @@ class SeekRApplication(QObject, UIHooks):
         if reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick):
             self.toggle_launcher()
 
+    def apply_hotkey(self, value: str) -> tuple[bool, str]:
+        """Register *value* and report whether Windows accepted it."""
+        if os.name != "nt":
+            return True, "Hotkey saved (global hotkeys are Windows-only)"
+        if self.hotkey is None:
+            self._setup_hotkey()
+        if self.hotkey is None:  # pragma: no cover - defensive
+            return False, "The hotkey manager could not be created"
+        if self.hotkey.register(value):
+            return True, f"Hotkey set to {self.hotkey.current or value}"
+        return False, self.hotkey.last_error or "Windows could not register that hotkey"
+
     # ------------------------------------------------------------------- index
     def _auto_index(self) -> None:
-        if self.app_service.refresh_needed() or self.db.count_apps() == 0:
+        first_run = self.db.count_apps() == 0
+        stale_allowed = bool(self.config.get("applications.refresh_on_start", False))
+        if first_run or (stale_allowed and self.app_service.refresh_needed()):
             self.refresh_applications()
         if not self.config.get("files.enabled", True) or not self.config.get("files.auto_index", True):
             return
@@ -301,11 +335,12 @@ class SeekRApplication(QObject, UIHooks):
     # ------------------------------------------------------------------ config
     def _on_config_changed(self, path: str, _value: Any) -> None:
         if path == "*" or path.startswith("appearance.") or path.startswith("general.language"):
+            apply_theme(self.app, self.config)
             if self.launcher is not None:
-                apply_theme(self.app, self.config)
                 self.launcher.refresh_texts()
-                if self.launcher.isVisible():
-                    self.launcher.show_launcher()
+                # Repaint/re-measure without reopening the launcher: reopening
+                # would clear the query while the user drags a slider.
+                self.launcher.refresh_appearance()
         if path in {"general.hotkey", "*"} and self.hotkey is not None:
             self.hotkey.register(str(self.config.get("general.hotkey", "Alt+Space")))
         if path in {"clipboard.enabled", "privacy.clipboard_history", "clipboard.poll_interval_ms", "*"}:
@@ -313,8 +348,13 @@ class SeekRApplication(QObject, UIHooks):
             self.clipboard_monitor = None
             self._start_clipboard_monitor()
         if path in {"general.show_tray_icon", "*"}:
-            if self.tray is not None:
-                self.tray.setVisible(bool(self.config.get("general.show_tray_icon", True)))
+            wanted = bool(self.config.get("general.show_tray_icon", True))
+            if wanted and self.tray is None:
+                # The tray may have been disabled at startup; create it on demand
+                # instead of leaving the setting silently broken.
+                self._create_tray()
+            elif self.tray is not None:
+                self.tray.setVisible(wanted)
 
     # -------------------------------------------------------------------- hooks
     def _dialog_parent(self):

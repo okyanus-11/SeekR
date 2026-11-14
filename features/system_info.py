@@ -9,6 +9,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import threading
 import time
 from typing import Any
 
@@ -35,7 +36,9 @@ def cpu_info() -> dict[str, Any]:
     try:
         physical = psutil.cpu_count(logical=False)
         logical = psutil.cpu_count(logical=True)
-        percent = psutil.cpu_percent(interval=0.15)
+        # interval=None never blocks: the module-level priming call makes the
+        # first reading meaningful and later calls report since-last-call use.
+        percent = psutil.cpu_percent(interval=None)
         frequency = None
         with_freq = psutil.cpu_freq()
         if with_freq is not None:
@@ -164,16 +167,19 @@ def os_info() -> dict[str, Any]:
     }
 
 
-def _run_quiet(args: list[str], timeout: float = 8.0) -> str:
+def _run_quiet(args: list[str], timeout: float = 8.0, encoding: str | None = None) -> str:
+    options: dict[str, Any] = {
+        "capture_output": True,
+        "text": True,
+        "errors": "replace",
+        "timeout": timeout,
+        "creationflags": util.hidden_process_flags(),
+        "check": False,
+    }
+    if encoding:
+        options["encoding"] = encoding
     try:
-        completed = subprocess.run(
-            args,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            creationflags=util.hidden_process_flags(),
-            check=False,
-        )
+        completed = subprocess.run(args, **options)
         return (completed.stdout or "").strip()
     except (OSError, subprocess.SubprocessError):
         return ""
@@ -218,10 +224,12 @@ def _windows_gpus() -> list[dict[str, Any]]:
             "-NoProfile",
             "-NonInteractive",
             "-Command",
+            "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; "
             "Get-CimInstance Win32_VideoController | "
             "Select-Object Name,AdapterRAM,DriverVersion | ConvertTo-Json -Compress",
         ],
-        timeout=12,
+        timeout=10,
+        encoding="utf-8",
     )
     if not output:
         return []
@@ -273,23 +281,60 @@ def _linux_gpus() -> list[dict[str, Any]]:
     return found
 
 
-def gpu_info() -> list[dict[str, Any]]:
-    try:
-        if os.name == "nt":
-            gpus = _windows_gpus()
-            usage = {gpu["name"].lower(): gpu for gpu in _nvidia_smi_gpus()}
-            for gpu in gpus:
-                match = usage.get(gpu["name"].lower())
-                if match:
-                    gpu["utilization"] = match["utilization"]
-                    gpu["memory_used"] = match["memory_used"]
-                    gpu["memory_total"] = gpu["memory_total"] or match["memory_total"]
-            return gpus
-        if sys.platform.startswith("linux"):
-            return _linux_gpus()
-    except Exception as exc:
-        log.warning("GPU information unavailable: %s", exc)
+_GPU_TTL_SECONDS = 30.0
+_gpu_lock = threading.Lock()
+_gpu_cache: dict[str, Any] = {"value": [], "loaded_at": 0.0, "loading": False}
+
+
+def _collect_gpus() -> list[dict[str, Any]]:
+    if os.name == "nt":
+        gpus = _windows_gpus()
+        usage = {gpu["name"].lower(): gpu for gpu in _nvidia_smi_gpus()}
+        for gpu in gpus:
+            match = usage.get(gpu["name"].lower())
+            if match:
+                gpu["utilization"] = match["utilization"]
+                gpu["memory_used"] = match["memory_used"]
+                gpu["memory_total"] = gpu["memory_total"] or match["memory_total"]
+        return gpus
+    if sys.platform.startswith("linux"):
+        return _linux_gpus()
     return []
+
+
+def gpu_info() -> list[dict[str, Any]]:
+    """Return cached GPU data and refresh it in the background.
+
+    Querying Windows GPUs shells out to PowerShell/WMI, which can take
+    seconds. The search UI must never wait for that, so the first call returns
+    the previous snapshot (possibly empty) and a daemon thread refreshes it.
+    """
+    now = time.time()
+    with _gpu_lock:
+        snapshot = [dict(item) for item in _gpu_cache["value"]]
+        fresh = now - float(_gpu_cache["loaded_at"]) < _GPU_TTL_SECONDS
+        if fresh or _gpu_cache["loading"]:
+            return snapshot
+        _gpu_cache["loading"] = True
+
+    def refresh() -> None:
+        try:
+            value = _collect_gpus()
+        except Exception as exc:  # pragma: no cover - platform dependent
+            log.warning("GPU information unavailable: %s", exc)
+            value = []
+        with _gpu_lock:
+            _gpu_cache["value"] = value
+            _gpu_cache["loaded_at"] = time.time()
+            _gpu_cache["loading"] = False
+
+    threading.Thread(target=refresh, name="seekr-gpu-info", daemon=True).start()
+    return snapshot
+
+
+def warm_up() -> None:
+    """Start the GPU probe without blocking the caller."""
+    gpu_info()
 
 
 def snapshot() -> dict[str, Any]:
@@ -455,5 +500,6 @@ __all__ = [
     "uptime_seconds",
     "os_info",
     "gpu_info",
+    "warm_up",
     "SystemInfoProvider",
 ]

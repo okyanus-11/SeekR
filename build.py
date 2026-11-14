@@ -55,6 +55,14 @@ VSVersionInfo(
 """
 
 
+def output_target(onedir: bool, platform: str | None = None) -> Path:
+    """Return the expected artifact path for the selected build layout."""
+    executable = f"{APP_NAME}.exe" if (platform or os.name) == "nt" else APP_NAME
+    if onedir:
+        return ROOT / "dist" / APP_NAME / executable
+    return ROOT / "dist" / executable
+
+
 def ensure_icon() -> None:
     if ICON.exists():
         return
@@ -117,6 +125,8 @@ def main() -> int:
         "tzdata",
         "--version-file",
         str(version_resource()),
+        "--specpath",
+        str(ROOT / "build"),
         "--onedir" if args.onedir else "--onefile",
         "--console" if args.console else "--windowed",
         str(ROOT / "main.py"),
@@ -127,7 +137,7 @@ def main() -> int:
         print("Build failed. See the PyInstaller output above.", file=sys.stderr)
         return completed.returncode
 
-    target = ROOT / "dist" / (f"{APP_NAME}.exe" if os.name == "nt" else APP_NAME)
+    target = output_target(args.onedir)
     if target.exists():
         print(f"Built {target} ({target.stat().st_size / (1024 * 1024):.1f} MiB)")
     else:

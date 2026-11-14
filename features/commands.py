@@ -124,6 +124,10 @@ class CommandService:
         return [entry for _, entry in scored[:limit]]
 
     def needs_confirmation(self, entry: CommandEntry) -> bool:
+        # Both the global safety switch (Settings → General) and the command
+        # specific confirmation flag must allow the action.
+        if not self.config.get("general.confirm_destructive_actions", True):
+            return False
         if not self.config.get("commands.confirm_destructive", True):
             return False
         return entry.confirmation
@@ -180,6 +184,7 @@ class CommandService:
                 args,
                 capture_output=True,
                 text=True,
+                errors="replace",
                 timeout=timeout,
                 creationflags=util.hidden_process_flags(),
                 check=False,
@@ -215,6 +220,16 @@ class CommandService:
 
     def _sleep(self, args: list[str]) -> CommandOutcome:
         if os.name == "nt":
+            try:
+                import ctypes
+
+                # SetSuspendState(hibernate=False, force=False, wake=False)
+                # sleeps on normal Windows configurations and needs no shell.
+                if ctypes.windll.powrprof.SetSuspendState(False, False, False):
+                    return CommandOutcome(True, "Suspending…")
+                log.info("SetSuspendState returned false; falling back to rundll32")
+            except Exception:
+                log.debug("SetSuspendState unavailable", exc_info=True)
             return self._detached(
                 ["rundll32.exe", "powrprof.dll,SetSuspendState", "0,1,0"], "Suspending…"
             )
@@ -224,6 +239,13 @@ class CommandService:
 
     def _lock(self, args: list[str]) -> CommandOutcome:
         if os.name == "nt":
+            try:
+                import ctypes
+
+                if ctypes.windll.user32.LockWorkStation():
+                    return CommandOutcome(True, "Session locked")
+            except Exception:
+                log.debug("LockWorkStation unavailable", exc_info=True)
             return self._detached(["rundll32.exe", "user32.dll,LockWorkStation"], "Session locked")
         if util.which("loginctl"):
             return self._detached(["loginctl", "lock-session"], "Session locked")
@@ -280,7 +302,7 @@ class CommandService:
     def _empty_recycle(self, args: list[str]) -> CommandOutcome:
         if os.name != "nt":
             return self._unsupported("Emptying the Recycle Bin")
-        return self._capture(
+        outcome = self._capture(
             [
                 "powershell.exe",
                 "-NoProfile",
@@ -290,6 +312,9 @@ class CommandService:
             ],
             timeout=60,
         )
+        if not outcome.success and "empty" in outcome.message.lower():
+            return CommandOutcome(True, "The Recycle Bin was already empty")
+        return outcome
 
     # -------------------------------------------------------------- validation
     def validate_custom(self, data: dict) -> tuple[bool, str]:

@@ -116,7 +116,8 @@ class AppService:
         """Scan the Start Menu (or XDG menus) and return application records."""
         entries: list[dict] = []
         seen_paths: set[str] = set()
-        directories = start_menu_directories()
+        use_start_menu = bool(self.config.get("applications.index_start_menu", True))
+        directories = start_menu_directories() if use_start_menu else []
         total = max(1, len(directories))
 
         for index, directory in enumerate(directories):
@@ -149,6 +150,12 @@ class AppService:
             except OSError as exc:
                 log.warning("Could not scan %s: %s", directory, exc)
 
+        custom_directories = self._custom_directories()
+        if custom_directories:
+            if progress:
+                progress(45, "Scanning additional application folders")
+            entries.extend(self._scan_custom_directories(custom_directories, progress))
+
         if os.name == "nt" and self.config.get("applications.scan_program_files", False):
             if progress:
                 progress(55, "Scanning Program Files")
@@ -163,23 +170,99 @@ class AppService:
             progress(80, f"Discovered {len(result)} applications")
         return result
 
-    def _scan_program_files(self, progress: Callable[[int, str], None] | None = None) -> list[dict]:
+    def _custom_directories(self) -> list[Path]:
+        directories: list[Path] = []
+        for raw in self.config.get("applications.directories", []) or []:
+            text = str(raw).strip()
+            if not text:
+                continue
+            path = Path(text).expanduser()
+            if path.is_dir():
+                directories.append(path)
+        return directories
+
+    def _scan_custom_directories(
+        self,
+        roots: list[Path],
+        progress: Callable[[int, str], None] | None = None,
+    ) -> list[dict]:
+        """Scan user-chosen folders for shortcuts and executables."""
+        entries: list[dict] = []
+        seen: set[str] = set()
+        suffixes = {".lnk", ".exe"} if os.name == "nt" else {".desktop"}
+        for root in roots:
+            for current, dirnames, filenames in os.walk(root, onerror=lambda _error: None):
+                depth = current[len(str(root)):].count(os.sep)
+                if depth >= 4:
+                    dirnames[:] = []
+                dirnames[:] = [name for name in dirnames if not name.startswith(".")]
+                for filename in filenames:
+                    suffix = Path(filename).suffix.lower()
+                    if suffix not in suffixes:
+                        continue
+                    if suffix == ".exe" and any(
+                        marker in filename.lower() for marker in _SKIP_EXE_MARKERS
+                    ):
+                        continue
+                    full = Path(current) / filename
+                    key = str(full).lower()
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    if suffix == ".desktop":
+                        record = _read_desktop_entry(full)
+                    else:
+                        record = {
+                            "name": _clean_name(full.stem),
+                            "path": str(full),
+                            "source": "custom",
+                            "args": "",
+                            "icon_path": str(full),
+                        }
+                    if record:
+                        entries.append(record)
+            if progress:
+                progress(50, f"Found {len(entries)} items in additional folders")
+        return entries
+
+    def _scan_program_files(
+        self,
+        progress: Callable[[int, str], None] | None = None,
+        roots: list[Path] | None = None,
+    ) -> list[dict]:
         """Optionally index executables below Program Files (depth limited)."""
-        roots = [
-            Path(os.environ.get("ProgramFiles", r"C:\Program Files")),
-            Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")),
-            Path(os.environ.get("LOCALAPPDATA", "")) / "Programs",
-        ]
+        if roots is None:
+            roots = []
+            for variable, fallback in (
+                ("ProgramFiles", r"C:\Program Files"),
+                ("ProgramFiles(x86)", r"C:\Program Files (x86)"),
+            ):
+                value = os.environ.get(variable, fallback).strip()
+                if value:
+                    roots.append(Path(value))
+            local_appdata = os.environ.get("LOCALAPPDATA", "").strip()
+            if local_appdata:
+                roots.append(Path(local_appdata) / "Programs")
+
         found: list[dict] = []
+        seen: set[str] = set()
         limit = 4000
         for root in roots:
             if not root or not root.is_dir():
                 continue
-            for current, dirs, files in os.walk(root):
+            def _on_error(error: OSError) -> None:
+                log.debug("Skipping unreadable folder during app scan: %s", error)
+
+            for current, dirs, files in os.walk(root, onerror=_on_error):
                 depth = current[len(str(root)) :].count(os.sep)
                 if depth >= 4:
                     dirs[:] = []
-                dirs[:] = [d for d in dirs if not d.startswith(".") and d.lower() not in {"installer", "resources"}]
+                dirs[:] = [
+                    d
+                    for d in dirs
+                    if not d.startswith(".")
+                    and d.lower() not in {"installer", "resources", "windowsapps", "$recycle.bin"}
+                ]
                 for filename in files:
                     if not filename.lower().endswith(".exe"):
                         continue
@@ -187,6 +270,10 @@ class AppService:
                     if any(marker in lowered for marker in _SKIP_EXE_MARKERS):
                         continue
                     full = os.path.join(current, filename)
+                    key = full.lower()
+                    if key in seen:
+                        continue
+                    seen.add(key)
                     found.append(
                         {
                             "name": _clean_name(Path(filename).stem),
@@ -366,19 +453,38 @@ class ApplicationsProvider(SearchProvider):
         super().__init__(config, db, hooks)
         self.service = service or AppService(config, db)
 
+    _last_index_request = 0.0
+
     def search(self, query: str, limit: int) -> list[SearchResult]:
         if not query.strip():
             return self.suggestions(limit)
-        if self.service.refresh_needed() and self.db.count_apps() == 0 and not self.service.indexing:
-            # First run: index synchronously (a few hundred shortcuts) so the
-            # very first search is not empty; the UI also refreshes in the
-            # background on startup.
-            try:
-                self.service.refresh()
-            except Exception:
-                log.exception("Initial application index failed")
+        if self.db.count_apps() == 0 and self.service.refresh_needed():
+            # Never walk the Start Menu on the GUI thread. Ask the controller
+            # for a background refresh (throttled) and explain the state.
+            self._request_index()
+            return [self._indexing_result()]
         apps = self.service.search(query, limit)
         return [self._result(app, score) for score, app in self._scored(query, apps, limit)]
+
+    def _request_index(self) -> None:
+        now = time.monotonic()
+        if self.service.indexing or now - self._last_index_request < 30.0:
+            return
+        self._last_index_request = now
+        try:
+            self.hooks.refresh_indexes("applications")
+        except Exception:
+            log.debug("Could not request an application index", exc_info=True)
+
+    def _indexing_result(self) -> SearchResult:
+        return self.make_result(
+            title="Indexing applications…",
+            subtitle="SeekR is discovering Start Menu shortcuts in the background",
+            category="Application",
+            score=1.0,
+            primary=lambda: self.hooks.refresh_indexes("applications"),
+            icon_glyph="▣",
+        )
 
     @staticmethod
     def _scored(query: str, apps: Iterable[dict], limit: int):

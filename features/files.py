@@ -22,6 +22,30 @@ log = get_logger(__name__)
 
 _EXT_TOKEN = re.compile(r"\bext:([A-Za-z0-9]+)\b", re.IGNORECASE)
 _BATCH_SIZE = 400
+_FILE_ATTRIBUTE_HIDDEN = 0x2
+_FILE_ATTRIBUTE_SYSTEM = 0x4
+_FILE_ATTRIBUTE_REPARSE_POINT = 0x400
+
+
+def _stat_attributes(stat_result) -> int:
+    return int(getattr(stat_result, "st_file_attributes", 0) or 0)
+
+
+def _windows_hidden(stat_result) -> bool:
+    """True for hidden/system entries on Windows (dot-prefix handled elsewhere)."""
+    attributes = _stat_attributes(stat_result)
+    return bool(attributes & (_FILE_ATTRIBUTE_HIDDEN | _FILE_ATTRIBUTE_SYSTEM))
+
+
+def _is_reparse_directory(entry) -> bool:
+    """Detect junctions/symlinks so indexing cannot follow a cycle."""
+    try:
+        if entry.is_symlink():
+            return True
+        attributes = _stat_attributes(entry.stat(follow_symlinks=False))
+        return bool(attributes & _FILE_ATTRIBUTE_REPARSE_POINT)
+    except OSError:
+        return True
 
 
 class FileIndexer:
@@ -71,6 +95,7 @@ class FileIndexer:
         inserted = 0
         batch: list[dict] = []
         cancelled = False
+        limit_reached = False
         visited_dirs = 0
 
         def flush() -> None:
@@ -110,8 +135,11 @@ class FileIndexer:
                                 lowered = name.lower()
                                 if lowered in excluded_dirs:
                                     continue
-                                if not include_hidden and name.startswith("."):
-                                    continue
+                                if not include_hidden:
+                                    if name.startswith("."):
+                                        continue
+                                    if os.name == "nt" and _windows_hidden(entry.stat(follow_symlinks=False)):
+                                        continue
                                 if include_folders:
                                     batch.append(
                                         {
@@ -124,17 +152,18 @@ class FileIndexer:
                                             "mtime": 0.0,
                                         }
                                     )
-                                if depth < max_depth:
+                                if depth < max_depth and not _is_reparse_directory(entry):
                                     stack.append((entry.path, depth + 1))
                             elif entry.is_file(follow_symlinks=False):
                                 extension = os.path.splitext(name)[1].lower()
                                 if extension in excluded_extensions:
                                     continue
-                                if not include_hidden and name.startswith("."):
-                                    continue
                                 stat_result = entry.stat(follow_symlinks=False)
-                                if stat_result.st_size == 0 and extension == "":
-                                    pass
+                                if not include_hidden:
+                                    if name.startswith("."):
+                                        continue
+                                    if os.name == "nt" and _windows_hidden(stat_result):
+                                        continue
                                 batch.append(
                                     {
                                         "path": entry.path,
@@ -146,8 +175,6 @@ class FileIndexer:
                                         "mtime": stat_result.st_mtime,
                                     }
                                 )
-                                if include_folders is False and name.startswith("."):
-                                    continue
                         except OSError:
                             continue
 
@@ -156,15 +183,15 @@ class FileIndexer:
                         if inserted + len(batch) >= max_files:
                             log.info("File index limit of %s entries reached", max_files)
                             if progress:
-                                progress(100, "Index limit reached")
+                                progress(100, f"Index limit reached ({max_files} entries)")
                             flush()
-                            cancelled = cancelled or True
+                            limit_reached = True
                             stack.clear()
                             break
-                if cancelled:
+                if cancelled or limit_reached:
                     break
             flush()
-            if cancelled:
+            if cancelled or limit_reached:
                 break
 
         flush()
@@ -175,11 +202,15 @@ class FileIndexer:
             "indexed": inserted,
             "directories": visited_dirs,
             "cancelled": cancelled,
+            "limit_reached": limit_reached,
             "seconds": elapsed,
         }
         log.info("File index finished: %s", stats)
         if progress:
-            progress(100, f"Indexed {inserted} items in {elapsed:.1f}s")
+            message = f"Indexed {inserted} items in {elapsed:.1f}s"
+            if limit_reached:
+                message += f" (entry limit {max_files} reached)"
+            progress(100, message)
         return stats
 
 

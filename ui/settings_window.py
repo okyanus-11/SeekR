@@ -377,8 +377,13 @@ class GeneralPage(SettingsPage):
         if not value:
             self.controller.show_error("Hotkey", "Enter a key combination first")
             return
+        ok, message = self.controller.apply_hotkey(value)
+        if not ok:
+            self.controller.show_error("Hotkey unavailable", message)
+            self.hotkey_edit.set_hotkey(str(self.config.get("general.hotkey", "Alt+Space")))
+            return
         self.config.set("general.hotkey", value)
-        self.saved(f"Hotkey set to {self.config.get('general.hotkey')}")
+        self.saved(message)
 
     def _reset_hotkey(self) -> None:
         self.config.set("general.hotkey", "Alt+Space")
@@ -554,9 +559,21 @@ class ApplicationsPage(SettingsPage):
         )
         self.row(
             card,
-            "Refresh on search when empty",
-            "SeekR already indexes on first launch; this keeps the index usable if it is empty.",
+            "Refresh stale index at startup",
+            "Re-scan installed applications when the stored index is older than the refresh interval.",
             bind_switch(self.config, "applications.refresh_on_start"),
+        )
+
+        extra = self.section(
+            "Additional application folders",
+            "Scan portable apps or shortcut folders that are not in the Start Menu.",
+        )
+        extra.add_widget(
+            ListEditor(
+                self.config.get("applications.directories", []) or [],
+                lambda values: self.config.set("applications.directories", values),
+                picker="folder",
+            )
         )
         self.row(card, "Refresh interval", "How often the index is considered stale at startup.", bind_spin(self.config, "applications.refresh_interval_hours", 1, 720, " h"))
 
@@ -629,6 +646,18 @@ class FilesPage(SettingsPage):
             ListEditor(self.config.get("files.excluded_extensions", []), lambda values: self.config.set("files.excluded_extensions", values))
         )
 
+        shots = self.section("Screenshots", "Where the screenshot tool saves captured images.")
+        shot_row = QHBoxLayout()
+        self.screenshot_edit = QLineEdit(str(self.config.get("screenshots.directory", "") or ""))
+        self.screenshot_edit.setPlaceholderText("Default: Pictures\\SeekR")
+        shot_row.addWidget(self.screenshot_edit, 1)
+        shot_row.addWidget(secondary_button("Browse…", self._browse_screenshot_dir))
+        shot_row.addWidget(secondary_button("Use default", self._reset_screenshot_dir))
+        shot_holder = QWidget()
+        shot_holder.setLayout(shot_row)
+        shots.add_widget(shot_holder)
+        self.screenshot_edit.editingFinished.connect(self._save_screenshot_dir)
+
         status = self.section("Index status")
         self.stats_label = label("", "Muted", wrap=True)
         status.add_widget(self.stats_label)
@@ -645,6 +674,32 @@ class FilesPage(SettingsPage):
         status.add_widget(holder)
         self.controller.index_progress.connect(self._on_progress)
         self._refresh_stats()
+
+    def _save_screenshot_dir(self) -> None:
+        from core.paths import default_screenshot_dir
+
+        value = self.screenshot_edit.text().strip()
+        if value and not Path(value).expanduser().is_dir():
+            try:
+                Path(value).expanduser().mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                self.controller.show_error("Screenshot folder", f"Could not use that folder:\n{exc}")
+                self.screenshot_edit.setText(str(self.config.get("screenshots.directory", "")))
+                return
+        self.config.set("screenshots.directory", value or default_screenshot_dir())
+        self.saved("Screenshot folder updated")
+
+    def _browse_screenshot_dir(self) -> None:
+        directory = QFileDialog.getExistingDirectory(self, "Select the screenshot folder")
+        if directory:
+            self.screenshot_edit.setText(directory)
+            self._save_screenshot_dir()
+
+    def _reset_screenshot_dir(self) -> None:
+        from core.paths import default_screenshot_dir
+
+        self.screenshot_edit.setText(default_screenshot_dir())
+        self._save_screenshot_dir()
 
     def _refresh(self) -> None:
         self.controller.refresh_files()

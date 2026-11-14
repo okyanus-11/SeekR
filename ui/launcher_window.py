@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 from typing import Any, Optional
 
@@ -240,8 +241,29 @@ class LauncherWindow(QWidget):
         self.raise_()
         self.activateWindow()
         self.search_input.setFocus(Qt.FocusReason.OtherFocusReason)
+        # Windows may refuse foreground activation from a background process;
+        # retry once the window is mapped so the search box really has focus.
+        self._force_windows_foreground()
+        QTimer.singleShot(0, self._force_windows_foreground)
         self._run_search()
         self._animate_show()
+
+    def _force_windows_foreground(self) -> None:
+        if os.name != "nt" or not self.isVisible():
+            return
+        try:
+            from features import util
+
+            util.force_foreground(int(self.winId()))
+        except Exception:  # pragma: no cover - defensive
+            log.debug("Could not force the launcher to the foreground", exc_info=True)
+
+    def refresh_appearance(self) -> None:
+        """Apply font/size changes without clearing the current query."""
+        self._apply_dimensions()
+        if self.isVisible():
+            self._apply_geometry()
+        self.update()
 
     def _apply_dimensions(self) -> None:
         font_family = str(self.config.get("appearance.font_family", "Segoe UI") or "Segoe UI")
@@ -650,6 +672,9 @@ class LauncherWindow(QWidget):
 
     def _hide_if_inactive(self) -> None:
         if self._menu_open or QApplication.activePopupWidget() is not None:
+            return
+        # Never hide out from under a confirmation/dialog owned by the launcher.
+        if QApplication.activeModalWidget() is not None:
             return
         if self.isVisible() and not self.isActiveWindow():
             self.hide_launcher()

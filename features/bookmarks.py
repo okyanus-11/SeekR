@@ -28,14 +28,22 @@ _CACHE_TTL = 60.0
 def _chromium_roots() -> list[tuple[str, Path]]:
     roots: list[tuple[str, Path]] = []
     if os.name == "nt":
-        local = Path(os.environ.get("LOCALAPPDATA", ""))
-        candidates = [
-            ("Chrome", local / "Google" / "Chrome" / "User Data"),
-            ("Edge", local / "Microsoft" / "Edge" / "User Data"),
-            ("Brave", local / "BraveSoftware" / "Brave-Browser" / "User Data"),
-            ("Vivaldi", local / "Vivaldi" / "User Data"),
-            ("Opera", Path(os.environ.get("APPDATA", "")) / "Opera Software" / "Opera Stable"),
-        ]
+        local_appdata = os.environ.get("LOCALAPPDATA", "").strip()
+        roaming_appdata = os.environ.get("APPDATA", "").strip()
+        local = Path(local_appdata) if local_appdata else None
+        roaming = Path(roaming_appdata) if roaming_appdata else None
+        candidates: list[tuple[str, Path]] = []
+        if local is not None:
+            candidates.extend(
+                [
+                    ("Chrome", local / "Google" / "Chrome" / "User Data"),
+                    ("Edge", local / "Microsoft" / "Edge" / "User Data"),
+                    ("Brave", local / "BraveSoftware" / "Brave-Browser" / "User Data"),
+                    ("Vivaldi", local / "Vivaldi" / "User Data"),
+                ]
+            )
+        if roaming is not None:
+            candidates.append(("Opera", roaming / "Opera Software" / "Opera Stable"))
     elif sys.platform == "darwin":
         support = Path.home() / "Library" / "Application Support"
         candidates = [
@@ -59,7 +67,10 @@ def _chromium_roots() -> list[tuple[str, Path]]:
 
 def _firefox_roots() -> list[Path]:
     if os.name == "nt":
-        base = Path(os.environ.get("APPDATA", "")) / "Mozilla" / "Firefox" / "Profiles"
+        appdata = os.environ.get("APPDATA", "").strip()
+        if not appdata:
+            return []
+        base = Path(appdata) / "Mozilla" / "Firefox" / "Profiles"
     elif sys.platform == "darwin":
         base = Path.home() / "Library" / "Application Support" / "Firefox" / "Profiles"
     else:
@@ -115,7 +126,16 @@ def _read_firefox_bookmarks(profile: Path) -> list[dict]:
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".sqlite") as handle:
             temporary = handle.name
+        # Copy the WAL as well: Firefox keeps recent bookmarks out of the main
+        # database file, and the main file alone can be locked while it runs.
         shutil.copy2(source, temporary)
+        for suffix in ("-wal", "-shm"):
+            sidecar = source.with_name(source.name + suffix)
+            if sidecar.exists():
+                try:
+                    shutil.copy2(sidecar, temporary + suffix)
+                except OSError:
+                    pass
         connection = sqlite3.connect(temporary)
         try:
             rows = connection.execute(

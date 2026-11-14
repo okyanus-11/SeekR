@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 from typing import Any
 
@@ -19,6 +20,28 @@ from . import util
 log = get_logger(__name__)
 
 _CACHE: dict[int, psutil.Process] = {}
+
+#: Terminating any of these can crash or destabilise Windows itself.
+_PROTECTED_NAMES = {
+    "system",
+    "system idle process",
+    "registry",
+    "memory compression",
+    "secure system",
+    "smss.exe",
+    "csrss.exe",
+    "wininit.exe",
+    "winlogon.exe",
+    "services.exe",
+    "lsass.exe",
+    "fontdrvhost.exe",
+}
+
+
+def _is_protected(pid: int, name: str = "") -> bool:
+    if pid in (0, 1, 4) or pid == os.getpid():
+        return True
+    return (name or "").strip().lower() in _PROTECTED_NAMES
 
 
 def list_processes(limit: int | None = None) -> list[dict[str, Any]]:
@@ -93,11 +116,18 @@ def process_details(pid: int) -> dict[str, Any] | None:
 
 def terminate_process(pid: int, force: bool = False) -> tuple[bool, str]:
     """Terminate a process, reporting permission problems clearly."""
-    if pid in (0, 1, 4):
-        return False, "This system process cannot be terminated"
     try:
         proc = psutil.Process(pid)
         name = proc.name()
+    except psutil.NoSuchProcess:
+        return False, f"PID {pid} is no longer running"
+    except psutil.AccessDenied:
+        return False, "Access denied while inspecting that process. Run SeekR as administrator."
+    if _is_protected(pid, name):
+        if pid == os.getpid():
+            return False, "SeekR cannot terminate itself from the process list"
+        return False, f"{name} is a critical system process and cannot be terminated"
+    try:
         proc.terminate()
         try:
             proc.wait(timeout=3)

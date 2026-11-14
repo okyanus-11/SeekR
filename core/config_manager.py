@@ -73,6 +73,7 @@ def default_config() -> dict[str, Any]:
         "applications": {
             "index_start_menu": True,
             "scan_program_files": False,
+            "directories": [],
             "excluded": [],
             "aliases": {},
             "refresh_on_start": False,

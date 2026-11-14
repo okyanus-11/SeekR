@@ -8,9 +8,59 @@ from __future__ import annotations
 
 import os
 import sys
+import uuid
 from pathlib import Path
 
 APP_DIR_NAME = "SeekR"
+
+#: Windows Known Folder ids (stable across Windows versions and languages).
+_KNOWN_FOLDER_IDS = {
+    "desktop": "B4BFCC3A-DB2C-424C-B029-7FE99A87C641",
+    "documents": "FDD39AD0-238F-46AF-ADB4-6C85480369C7",
+    "downloads": "374DE290-123F-4565-9164-39C4925E467B",
+    "pictures": "33E28130-4E1E-4676-835A-98395C3BC3BB",
+}
+
+
+def known_folder(name: str) -> Path | None:
+    """Return a Windows Known Folder (respecting OneDrive redirection).
+
+    ``Path.home() / "Documents"`` is wrong for redirected or localised
+    profiles, so the shell API is used when available. Returns ``None`` off
+    Windows or when the folder cannot be resolved.
+    """
+    if os.name != "nt":
+        return None
+    guid_text = _KNOWN_FOLDER_IDS.get(name.lower())
+    if guid_text is None:
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        shell32 = ctypes.WinDLL("shell32", use_last_error=True)
+        ole32 = ctypes.WinDLL("ole32", use_last_error=True)
+        shell32.SHGetKnownFolderPath.argtypes = [
+            ctypes.c_void_p,
+            wintypes.DWORD,
+            wintypes.HANDLE,
+            ctypes.POINTER(ctypes.c_wchar_p),
+        ]
+        shell32.SHGetKnownFolderPath.restype = ctypes.c_long
+        ole32.CoTaskMemFree.argtypes = [ctypes.c_void_p]
+        guid_buffer = ctypes.create_string_buffer(uuid.UUID(guid_text).bytes_le, 16)
+        path_pointer = ctypes.c_wchar_p()
+        result = shell32.SHGetKnownFolderPath(
+            ctypes.byref(guid_buffer), 0, None, ctypes.byref(path_pointer)
+        )
+        if result != 0 or not path_pointer.value:
+            return None
+        try:
+            return Path(path_pointer.value)
+        finally:
+            ole32.CoTaskMemFree(ctypes.cast(path_pointer, ctypes.c_void_p))
+    except Exception:
+        return None
 
 
 def home() -> Path:
@@ -84,9 +134,13 @@ def is_hidden(path: Path) -> bool:
     if os.name == "nt":
         try:
             import ctypes
+            from ctypes import wintypes
 
-            attrs = ctypes.windll.kernel32.GetFileAttributesW(str(path))
-            if attrs != -1 and attrs & 0x2:  # FILE_ATTRIBUTE_HIDDEN
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel32.GetFileAttributesW.argtypes = [wintypes.LPCWSTR]
+            kernel32.GetFileAttributesW.restype = wintypes.DWORD
+            attrs = kernel32.GetFileAttributesW(str(path))
+            if attrs != 0xFFFFFFFF and attrs & 0x2:  # FILE_ATTRIBUTE_HIDDEN
                 return True
         except Exception:
             return False
@@ -95,17 +149,26 @@ def is_hidden(path: Path) -> bool:
 
 def default_document_dirs() -> list[str]:
     """Return existing common user folders for the default file index."""
-    candidates = [
-        home() / "Desktop",
-        home() / "Documents",
-        home() / "Downloads",
-    ]
+    if os.name == "nt":
+        candidates = [known_folder(name) for name in ("desktop", "documents", "downloads")]
+        resolved = [path for path in candidates if path is not None and path.is_dir()]
+        if resolved:
+            seen: set[str] = set()
+            unique: list[str] = []
+            for path in resolved:
+                key = str(path).lower()
+                if key not in seen:
+                    seen.add(key)
+                    unique.append(str(path))
+            return unique
+    candidates = [home() / "Desktop", home() / "Documents", home() / "Downloads"]
     return [str(path) for path in candidates if path.is_dir()]
 
 
 def default_screenshot_dir() -> str:
-    pictures = home() / "Pictures"
-    return str((pictures if pictures.is_dir() else home()) / "SeekR")
+    pictures = known_folder("pictures") if os.name == "nt" else home() / "Pictures"
+    base = pictures if pictures is not None and pictures.is_dir() else home()
+    return str(base / "SeekR")
 
 
 def default_notes_dir() -> str:
@@ -123,6 +186,7 @@ __all__ = [
     "ensure_app_dirs",
     "expand_path",
     "is_hidden",
+    "known_folder",
     "default_document_dirs",
     "default_screenshot_dir",
 ]

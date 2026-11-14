@@ -64,6 +64,7 @@ class HotkeyManager(QObject):
         self._filter: Optional[_NativeEventFilter] = None
         self._current: Optional[str] = None
         self._installed = False
+        self.last_error: str = ""
         self.available = sys.platform == "win32"
         if self.available:
             try:
@@ -95,6 +96,7 @@ class HotkeyManager(QObject):
         """Register *hotkey* globally, replacing any previous registration."""
         if not self.available or self._user32 is None:
             message = "Global hotkeys require Windows. The launcher can be opened from the tray icon."
+            self.last_error = message
             self.unavailable.emit(message)
             return False
         self.install()
@@ -102,9 +104,15 @@ class HotkeyManager(QObject):
             normalized = normalize_hotkey(hotkey)
             modifiers, virtual_key = parse_hotkey(hotkey)
         except HotkeyError as exc:
+            self.last_error = str(exc)
             self.failed.emit(str(exc))
             return False
 
+        if normalized == self._current:
+            return True
+
+        previous = self._current
+        previous_spec = parse_hotkey(previous) if previous else None
         self.unregister()
         ctypes.set_last_error(0)
         success = self._user32.RegisterHotKey(None, self.HOTKEY_ID, modifiers | MOD_NOREPEAT, virtual_key)
@@ -114,9 +122,27 @@ class HotkeyManager(QObject):
                 error_code, f"Could not register {normalized} (Windows error {error_code})."
             )
             log.warning("Hotkey registration failed: %s", message)
+            # Do not leave the user without a working launcher shortcut: try
+            # to restore the previous registration before reporting failure.
+            if previous is not None and previous_spec is not None:
+                old_modifiers, old_key = previous_spec
+                if self._user32.RegisterHotKey(
+                    None, self.HOTKEY_ID, old_modifiers | MOD_NOREPEAT, old_key
+                ):
+                    self._current = previous
+                    log.info("Restored the previous hotkey %s", previous)
+                else:
+                    # The old combination is gone too; do not report it as
+                    # current, otherwise a later no-op check would lie.
+                    self._current = None
+                    log.warning("Could not restore the previous hotkey %s", previous)
+            else:
+                self._current = None
+            self.last_error = message
             self.failed.emit(message)
             return False
         self._current = normalized
+        self.last_error = ""
         log.info("Registered global hotkey %s", normalized)
         self.registered.emit(normalized)
         return True

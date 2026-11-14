@@ -96,8 +96,9 @@ def main(argv: Optional[list[str]] = None) -> int:
     if instance is not None:
         instance.show_requested.connect(controller.show_launcher)
 
+    start_minimized = bool(config.get("general.start_minimized", False))
     controller.start(
-        show_window=not args.hidden,
+        show_window=not args.hidden and not start_minimized,
         register_hotkey=not args.no_hotkey,
     )
     if args.settings:
@@ -106,6 +107,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         controller.open_tools()
 
     exit_code = app.exec()
+    if instance is not None:
+        instance.close()
     log.info("SeekR exited with code %s", exit_code)
     return exit_code
 

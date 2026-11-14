@@ -79,9 +79,10 @@ def build_ssh_argv(profile: dict[str, Any]) -> list[str]:
 def _terminal_command(ssh_args: list[str]) -> list[str] | None:
     """Wrap ssh arguments in the best available terminal emulator."""
     if os.name == "nt":
-        if util.which("wt.exe"):
-            return ["wt.exe", "new-tab", "--", *ssh_args]
-        if util.which("ssh.exe"):
+        if util.which("wt.exe") or util.which("wt"):
+            terminal = util.which("wt.exe") or "wt.exe"
+            return [terminal, "new-tab", "--", *ssh_args]
+        if util.which("ssh"):
             return ["cmd.exe", "/k", *ssh_args]
         return None
     terminals = [
@@ -104,8 +105,11 @@ def launch_profile(profile: dict[str, Any]) -> tuple[bool, str]:
         ssh_args = build_ssh_argv(profile)
     except ConnectionError_ as exc:
         return False, str(exc)
-    if not util.which("ssh") and os.name != "nt":
-        return False, "The OpenSSH client (ssh) is not installed"
+    ssh_client = util.which("ssh")
+    if ssh_client is None:
+        return False, "The OpenSSH client (ssh) is not installed or not on PATH"
+    if os.name == "nt" and _terminal_command(ssh_args) is None:
+        return False, "No supported terminal was found (Windows Terminal or OpenSSH's cmd.exe)"
     command = _terminal_command(ssh_args)
     if command is None:
         return False, "No supported terminal emulator was found"

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import locale
 import os
 from pathlib import Path
 
@@ -65,10 +66,25 @@ def load_text_preview(path: str | os.PathLike[str], max_bytes: int = 160_000) ->
             data = handle.read(max_bytes)
     except OSError as exc:
         raise QuickLookError(f"Cannot read {target.name}: {exc}") from exc
-    text = data.decode("utf-8", errors="replace")
+    text = _decode_text(data)
     if size > max_bytes:
         text += f"\n\n… preview truncated ({util.format_bytes(size)} total)"
     return text
+
+
+def _decode_text(data: bytes) -> str:
+    """Decode text files the way Windows editors write them."""
+    if data.startswith(b"\xff\xfe"):
+        return data[2:].decode("utf-16-le", errors="replace")
+    if data.startswith(b"\xfe\xff"):
+        return data[2:].decode("utf-16-be", errors="replace")
+    if data.startswith(b"\xef\xbb\xbf"):
+        return data[3:].decode("utf-8", errors="replace")
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        encoding = locale.getpreferredencoding(False) or "utf-8"
+        return data.decode(encoding, errors="replace")
 
 
 def load_image_preview(path: str | os.PathLike[str], max_pixels: int = 2400) -> QPixmap:
