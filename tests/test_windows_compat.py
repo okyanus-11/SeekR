@@ -528,6 +528,103 @@ def test_screenshot_directory_setting_is_used(tmp_path):
     assert target.is_dir()
 
 
+def test_windows_test_uses_temp_file_for_dependency_check():
+    """[REAL] The PowerShell runner must not pass multiline source via python -c."""
+    from pathlib import Path
+
+    script = Path("tools/windows_test.ps1").read_text(encoding="utf-8")
+    assert 'seekr_dep_check.py' in script
+    assert '"-c", $dependencyScript' not in script
+
+
+def test_dependency_checker_succeeds_as_script_file(tmp_path):
+    """[REAL] Running the dependency checker as a .py file (not -c) succeeds."""
+    import subprocess
+
+    venv_python = Path(".venv/Scripts/python.exe")
+    if not venv_python.exists():
+        venv_python = Path(".venv/bin/python")
+    if not venv_python.exists():
+        pytest.skip("No .venv available")
+
+    checker = tmp_path / "seekr_dep_check.py"
+    checker.write_text(
+        'import importlib.util\n'
+        'import sys\n'
+        '\n'
+        'required = [\n'
+        '    ("PySide6", "PySide6"),\n'
+        '    ("psutil", "psutil"),\n'
+        '    ("sympy", "sympy"),\n'
+        '    ("tzdata", "tzdata"),\n'
+        '    ("PyInstaller", "pyinstaller"),\n'
+        '    ("pytest", "pytest"),\n'
+        ']\n'
+        'missing = []\n'
+        'for module, package in required:\n'
+        '    try:\n'
+        '        found = importlib.util.find_spec(module) is not None\n'
+        '    except Exception:\n'
+        '        found = False\n'
+        '    print(f"{package}: {\'OK\' if found else \'MISSING\'}")\n'
+        '    if not found:\n'
+        '        missing.append(package)\n'
+        'print("Python:", sys.version.split()[0])\n'
+        'if missing:\n'
+        '    print("Missing: " + ", ".join(missing))\n'
+        '    sys.exit(1)\n',
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [str(venv_python), str(checker)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    for package in ("PySide6", "psutil", "sympy", "tzdata", "pyinstaller", "pytest"):
+        assert f"{package}: OK" in result.stdout.lower() or f"{package}: OK" in result.stdout
+
+
+def test_dependency_checker_fails_on_missing_package(tmp_path):
+    """[REAL] A missing package makes the checker exit non-zero with a clear message."""
+    import subprocess
+
+    venv_python = Path(".venv/Scripts/python.exe")
+    if not venv_python.exists():
+        venv_python = Path(".venv/bin/python")
+    if not venv_python.exists():
+        pytest.skip("No .venv available")
+
+    checker = tmp_path / "seekr_dep_check.py"
+    checker.write_text(
+        'import importlib.util\n'
+        'import sys\n'
+        '\n'
+        'required = [("definitely_missing_xyz", "definitely-missing-xyz")]\n'
+        'missing = []\n'
+        'for module, package in required:\n'
+        '    try:\n'
+        '        found = importlib.util.find_spec(module) is not None\n'
+        '    except Exception:\n'
+        '        found = False\n'
+        '    print(f"{package}: {\'OK\' if found else \'MISSING\'}")\n'
+        '    if not found:\n'
+        '        missing.append(package)\n'
+        'if missing:\n'
+        '    print("Missing: " + ", ".join(missing))\n'
+        '    sys.exit(1)\n',
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [str(venv_python), str(checker)],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "MISSING" in result.stdout
+    assert "definitely-missing-xyz" in result.stdout
+
+
 def test_windows_paths_survive_config_roundtrip(tmp_path):
     """[REAL] Backslashes and UNC paths are preserved in config.json."""
     config = ConfigManager(tmp_path / "config.json")

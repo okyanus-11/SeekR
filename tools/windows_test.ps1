@@ -262,7 +262,20 @@ if missing:
     print("Missing: " + ", ".join(missing))
     sys.exit(1)
 '@
-    $deps = Invoke-Native "Check required dependencies" $venvPython @("-c", $dependencyScript)
+    # Write the checker to a temporary .py file instead of passing multiline
+    # source through `python -c`. PowerShell 5.1 mangles newlines/quotes in
+    # native command arguments, which produced a Python syntax error.
+    if (-not $env:TEMP) {
+        $env:TEMP = [System.IO.Path]::GetTempPath()
+    }
+    $depCheckPath = Join-Path $env:TEMP "seekr_dep_check.py"
+    try {
+        Set-Content -LiteralPath $depCheckPath -Value $dependencyScript -Encoding UTF8
+        $deps = Invoke-Native "Check required dependencies" $venvPython @($depCheckPath)
+    }
+    finally {
+        Remove-Item -LiteralPath $depCheckPath -Force -ErrorAction SilentlyContinue
+    }
     if ($deps.ExitCode -eq 0) {
         $depsOk = $true
         Add-Result "Required dependencies" "PASS" "All runtime, test and build packages import"
