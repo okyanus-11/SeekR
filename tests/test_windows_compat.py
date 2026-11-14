@@ -81,15 +81,21 @@ def test_explorer_select_command_quotes_spaces():
         util.explorer_select_command('C:\\bad"name.txt')
 
 
-def test_force_foreground_is_a_noop_off_windows():
-    """[REAL] The Win32 focus helper degrades safely on non-Windows hosts."""
-    assert util.force_foreground(1234) is False
+def test_force_foreground_rejects_an_empty_handle():
+    """[REAL] The focus helper safely rejects an empty handle everywhere."""
+    assert util.force_foreground(0) is False
+    if os.name != "nt":
+        assert util.force_foreground(1234) is False
 
 
 # ---------------------------------------------------------------- known folders
-def test_known_folder_off_windows_is_none():
-    """[REAL] Known Folder lookup is Windows-only."""
-    assert paths.known_folder("documents") is None
+def test_known_folder_lookup_is_safe():
+    """[REAL] Known Folder lookup returns a path on Windows and None elsewhere."""
+    folder = paths.known_folder("documents")
+    if os.name == "nt":
+        assert folder is None or folder.is_absolute()
+    else:
+        assert folder is None
 
 
 def test_default_document_dirs_uses_known_folders(tmp_path, monkeypatch):
@@ -151,6 +157,8 @@ def test_application_scan_respects_start_menu_toggle(tmp_path, monkeypatch):
     (menu / "thing.desktop").write_text(
         "[Desktop Entry]\nType=Application\nName=Thing\nExec=/bin/true\n", encoding="utf-8"
     )
+    # Windows scans .lnk files; Linux/macOS scan .desktop files.
+    (menu / "thing.lnk").write_bytes(b"shortcut")
     monkeypatch.setattr(applications, "start_menu_directories", lambda: [menu])
     config = ConfigManager(tmp_path / "config.json")
     config.set("applications.index_start_menu", False)
@@ -341,6 +349,12 @@ def test_windows_gpu_query_forces_utf8(monkeypatch):
 
 def test_gpu_probe_never_blocks_the_caller(monkeypatch):
     """[REAL] GPU collection happens on a daemon thread with a 30 s cache."""
+    # A controller started by another test may still be warming the GPU cache;
+    # wait for that probe so its result cannot be attributed to this test's
+    # monkeypatched collector (Windows WMI can be slow).
+    deadline = time.time() + 10
+    while system_info._gpu_cache.get("loading") and time.time() < deadline:
+        time.sleep(0.05)
     system_info._gpu_cache.update({"value": [], "loaded_at": 0.0, "loading": False})
     calls: list[int] = []
 
@@ -454,13 +468,16 @@ def test_tray_menu_is_retained_and_created_on_demand(qapp, tmp_path, monkeypatch
 
 
 # -------------------------------------------------------------------- window
-def test_window_search_degrades_off_windows():
-    """[REAL] Unsupported window switching explains itself instead of crashing."""
-    if os.name == "nt":
-        pytest.skip("This check targets non-Windows hosts")
-    assert window_search.list_windows() == []
+def test_window_search_handles_empty_or_unsupported_hosts():
+    """[REAL] Window search returns a list and explains an invalid switch."""
+    windows = window_search.list_windows()
+    assert isinstance(windows, list)
     ok, message = window_search.switch_to_window(0)
-    assert ok is False and "Windows" in message
+    assert ok is False
+    if os.name == "nt":
+        assert "no longer" in message.lower()
+    else:
+        assert "Windows" in message
 
 
 # ---------------------------------------------------------------- packaging

@@ -14,6 +14,7 @@ It refuses to claim success if PyInstaller fails.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import os
 import subprocess
 import sys
@@ -23,6 +24,15 @@ from core.version import APP_AUTHOR, APP_COPYRIGHT, APP_DESCRIPTION, APP_NAME, A
 
 ROOT = Path(__file__).resolve().parent
 ICON = ROOT / "assets" / "icons" / "seekr.ico"
+
+#: Import name -> package name shown in the error message.
+REQUIRED_MODULES = (
+    ("PySide6", "PySide6"),
+    ("psutil", "psutil"),
+    ("sympy", "sympy"),
+    ("tzdata", "tzdata"),
+    ("PyInstaller", "pyinstaller"),
+)
 
 VERSION_TEMPLATE = """# UTF-8
 VSVersionInfo(
@@ -63,11 +73,34 @@ def output_target(onedir: bool, platform: str | None = None) -> Path:
     return ROOT / "dist" / executable
 
 
+def missing_modules() -> list[str]:
+    """Return packages needed for a build that are not importable."""
+    missing: list[str] = []
+    for module, package in REQUIRED_MODULES:
+        try:
+            available = importlib.util.find_spec(module) is not None
+        except (ImportError, ModuleNotFoundError, ValueError):
+            available = False
+        if not available:
+            missing.append(package)
+    return missing
+
+
 def ensure_icon() -> None:
-    if ICON.exists():
+    if ICON.is_file():
         return
-    print("Icon asset missing; generating it now…")
-    subprocess.run([sys.executable, str(ROOT / "tools" / "make_icons.py")], cwd=ROOT, check=True)
+    print("Icon asset missing; generating it now...")
+    script = ROOT / "tools" / "make_icons.py"
+    if not script.is_file():
+        raise FileNotFoundError(f"Icon generator not found: {script}")
+    try:
+        completed = subprocess.run([sys.executable, str(script)], cwd=ROOT, check=False)
+    except OSError as exc:
+        raise RuntimeError(f"Could not run the icon generator: {exc}") from exc
+    if completed.returncode != 0 or not ICON.is_file():
+        raise RuntimeError(
+            "Icon generation failed. Run 'python tools/make_icons.py' and inspect the error above."
+        )
 
 
 def version_resource() -> Path:
@@ -94,6 +127,10 @@ def main() -> int:
     parser.add_argument("--console", action="store_true", help="Keep the console window (debugging)")
     args = parser.parse_args()
 
+    if sys.version_info < (3, 10):
+        print("SeekR requires Python 3.10 or newer to build.", file=sys.stderr)
+        return 2
+
     if os.name != "nt":
         print(
             "WARNING: this is not Windows. PyInstaller will build for the current platform,\n"
@@ -101,12 +138,23 @@ def main() -> int:
             file=sys.stderr,
         )
 
-    ensure_icon()
-    try:
-        import PyInstaller  # noqa: F401
-    except ImportError:
-        print("PyInstaller is missing. Install the development requirements first:", file=sys.stderr)
+    missing = missing_modules()
+    if missing:
+        print("Missing build dependencies: " + ", ".join(missing), file=sys.stderr)
+        print("Install them into this interpreter with:", file=sys.stderr)
         print("    pip install -r requirements-dev.txt", file=sys.stderr)
+        return 2
+
+    try:
+        ensure_icon()
+    except (OSError, RuntimeError) as exc:
+        print(f"Cannot build without the application icon: {exc}", file=sys.stderr)
+        return 2
+
+    try:
+        version_path = version_resource()
+    except OSError as exc:
+        print(f"Could not write the Windows version resource: {exc}", file=sys.stderr)
         return 2
 
     command = [
@@ -124,7 +172,7 @@ def main() -> int:
         "--collect-data",
         "tzdata",
         "--version-file",
-        str(version_resource()),
+        str(version_path),
         "--specpath",
         str(ROOT / "build"),
         "--onedir" if args.onedir else "--onefile",
@@ -138,12 +186,13 @@ def main() -> int:
         return completed.returncode
 
     target = output_target(args.onedir)
-    if target.exists():
+    if target.is_file():
         print(f"Built {target} ({target.stat().st_size / (1024 * 1024):.1f} MiB)")
-    else:
-        print(f"Build finished but {target} was not found; inspect dist/ manually.", file=sys.stderr)
-        return 1
-    return 0
+        if os.name == "nt" and target.suffix.lower() == ".exe":
+            print(f"Windows executable: {target}")
+        return 0
+    print(f"Build finished but {target} was not found; inspect dist/ manually.", file=sys.stderr)
+    return 1
 
 
 if __name__ == "__main__":

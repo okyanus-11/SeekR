@@ -19,6 +19,10 @@ semantic versioning.
   screenshot folder.
 - Configurable screenshot folder (Settings → Files) and additional application
   folders (Settings → Applications), backed by persisted settings.
+- A Windows validation runner (`tools/windows_test.ps1`) that creates a
+  virtual environment, installs dependencies, runs checks, builds
+  `dist\SeekR.exe`, verifies its metadata and writes a PASS/FAIL/SKIPPED report.
+- A manual GUI validation checklist (`docs/WINDOWS_MANUAL_TEST.md`).
 - Changelog.
 
 ### Fixed

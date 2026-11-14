@@ -224,19 +224,23 @@ python build.py --onedir                   # Linux build for packaging checks
 Run these on a clean Windows 10 and Windows 11 machine before publishing a
 release and record the results:
 
-1. `py -3.12 -m venv .venv && .venv\Scripts\pip install -r requirements-dev.txt`
+1. Run `tools\windows_test.ps1` from the repository root (it creates the
+   virtual environment, installs dependencies, runs the suite, builds the
+   executable and writes `windows_test_results.txt`).
 2. `.venv\Scripts\python -m pytest -q` — all tests must pass (real Windows run).
 3. `.venv\Scripts\python main.py --version` and `python main.py`.
 4. `.venv\Scripts\python build.py` and `python build.py --onedir`.
 5. Launch `dist\SeekR.exe`: verify no console, first-run data in
    `%APPDATA%\SeekR`, icon in Explorer/taskbar, and no missing-module dialog.
-6. Exercise every Phase 6 item: Alt+Space, Escape, app/file/calculator/web/
+6. Complete `docs/WINDOWS_MANUAL_TEST.md`; automated tests cannot cover the
+   hotkey, tray, DPI or visual behaviour.
+7. Exercise every Phase 6 item: Alt+Space, Escape, app/file/calculator/web/
    command search, settings, all themes, tools pages, clipboard, notes
    persistence, tray, clean exit, restart with preserved settings.
-7. Check hotkey conflict handling with another app owning `Alt+Space`.
-8. Check a non-admin account, a path with spaces and Unicode, a OneDrive-
+8. Check hotkey conflict handling with another app owning `Alt+Space`.
+9. Check a non-admin account, a path with spaces and Unicode, a OneDrive-
    redirected profile, 125%/150%/200% DPI, and a second monitor.
-9. Run `python tools/benchmark.py` and record the hardware/OS in
-   `docs/WINDOWS_PERFORMANCE.md`.
-10. Only then change the README status from "unverified on Windows" to
+10. Run `python tools/benchmark.py` and record the hardware/OS in
+    `docs/WINDOWS_PERFORMANCE.md`.
+11. Only then change the README status from "unverified on Windows" to
     "verified", with the tested Windows versions and date.

@@ -16,6 +16,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 - [Screenshots](#screenshots)
 - [Requirements](#requirements)
 - [Installation](#installation)
+- [Windows validation](#windows-validation)
 - [Running from source](#running-from-source)
 - [Building a standalone executable](#building-a-standalone-executable)
 - [Keyboard shortcuts](#keyboard-shortcuts)
@@ -159,6 +160,63 @@ pip install -r requirements-dev.txt
 
 ---
 
+## Windows validation
+
+Before calling a build a Windows release, run the automated check on the target
+Windows PC, then complete the manual GUI checklist.
+
+### Prerequisites
+
+- Windows 10 or Windows 11, 64-bit.
+- Python 3.10 or newer, 64-bit. **Python 3.12 is recommended.** Install it from
+  <https://www.python.org/downloads/windows/> and tick either “Add python.exe to
+  PATH” or the Python launcher (`py`).
+- Windows PowerShell 5.1 (built in) or PowerShell 7.
+- An internet connection for the first `pip install`, and about 1 GB of free
+  disk space for the virtual environment and build.
+- No administrator rights are required for the test or build.
+- Run the commands from the repository root (the folder containing `main.py`).
+
+### Run the automated Windows checks
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\windows_test.ps1
+```
+
+In PowerShell 7:
+
+```powershell
+pwsh -NoProfile -File .\tools\windows_test.ps1
+```
+
+The script:
+
+1. Verifies it is running on Windows and checks the Python version.
+2. Creates or reuses `.venv` and installs `requirements-dev.txt`.
+3. Verifies all runtime, test and build dependencies import.
+4. Byte-compiles the source.
+5. Runs the complete pytest suite with the native Windows Qt platform.
+6. Checks `python main.py --version`.
+7. Runs `build.py` and verifies `dist\SeekR.exe` and its Windows version
+   metadata.
+
+Each check is printed and saved as **PASS**, **FAIL** or **SKIPPED**. A full
+report is written to **`windows_test_results.txt` in the repository root**. The
+script exits with code `0` only when every required check passes; any failure
+exits with code `1` and remains visible in the report.
+
+> This script does not emulate Windows. It must be run on Windows; the native
+> executable and Win32 integration are still unverified until it passes there.
+
+### Manual GUI checks
+
+Automated checks cannot verify Alt+Space, the tray, DPI, window activation or
+how the app looks. After the automated report says `RESULT: PASS`, work through
+[`docs/WINDOWS_MANUAL_TEST.md`](docs/WINDOWS_MANUAL_TEST.md). Record every row,
+including failures and tests that could not be performed.
+
+---
+
 ## Running from source
 
 ```bash
@@ -182,10 +240,18 @@ Useful flags:
 
 ## Building a standalone executable
 
-```bash
-pip install -r requirements-dev.txt
-python build.py
+On Windows, from the repository root:
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe build.py
 ```
+
+If you have already activated the virtual environment, `python build.py` is
+equivalent. `build.py` checks for Python 3.10+, PySide6, psutil, sympy, tzdata
+and PyInstaller before invoking PyInstaller, and prints the exact pip command if
+something is missing.
 
 The script:
 
@@ -193,8 +259,11 @@ The script:
 2. Writes a Windows version resource (product name, version 1.0.0, copyright) to `build/version_info.txt`.
 3. Runs PyInstaller with `--onefile --windowed`, bundling `assets/` and `tzdata`.
 
-Output on Windows: `dist/SeekR.exe` (use `--onedir` for a folder build,
-`--console` for a debug console). On Linux the same command produces `dist/SeekR`
+Output on Windows: **`dist\SeekR.exe`** — a single-file, windowed GUI build with
+the application icon and version resource, requiring no separately installed
+Python. Use `--onedir` for a troubleshooting folder build at
+`dist\SeekR\SeekR.exe`, or `--console` for a debug build that keeps a console
+window and shows startup errors. On Linux the same command produces `dist/SeekR`
 and `dist/SeekR/SeekR`, which are not Windows executables.
 
 > **Honest note:** the build script and its icon/version metadata were
@@ -331,7 +400,7 @@ SeekR/
 │   ├── tools/data.py           # Clipboard, notes, bookmarks, SSH, actions
 │   ├── components.py  dialogs.py  themes.py  icons.py  i18n.py
 ├── docs/                       # Architecture, audit and performance notes
-├── tools/                      # Icon generator, benchmark
+├── tools/                      # Icon generator, benchmark, Windows test runner
 ├── tests/                      # pytest suite, incl. windows compatibility
 ├── CHANGELOG.md                # Release notes
 └── README.md
@@ -375,8 +444,9 @@ The 26 Windows tests are explicitly labelled `[REAL]`, `[SIMULATED]` or
 `[MOCKED Win32]`; mocked Win32 calls prove control flow, not Windows behaviour.
 Windows-specific behaviour (global hotkey, Start Menu discovery, power schemes,
 Snipping Tool, executable packaging and launch) was not executed on Windows and
-is documented as unverified rather than claimed as tested. Details:
-[docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md).
+is documented as unverified rather than claimed as tested. On Windows, run
+`tools\windows_test.ps1` to execute the same suite and build the executable;
+the full evidence process is in [docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md).
 
 ---
 
@@ -435,6 +505,11 @@ release as tested until that checklist passes on real hardware.
 | Clipboard history not updating | Enable clipboard monitoring on Settings → Clipboard and in Privacy. |
 | Settings window empty/odd after an upgrade | Close SeekR, delete `%APPDATA%\SeekR\config.json` (a backup is created automatically when validation fails). |
 | Logs | `%APPDATA%\SeekR\logs\seekr.log` (rotating). Enable debug logging on Settings → Advanced for detail. |
+| PowerShell script is blocked | Run it with `-ExecutionPolicy Bypass` as shown in [Windows validation](#windows-validation). |
+| `py` not found | Reinstall Python with the Python launcher enabled, or run `python --version` and use a Python on `PATH`. |
+| Build says packages are missing | Run `.venv\Scripts\python.exe -m pip install -r requirements-dev.txt`, then `.venv\Scripts\python.exe build.py`. |
+| `dist\SeekR.exe` is missing | Read the build output in the report; fix the first error (usually a missing package or a locked `dist` folder), then rerun. Use `--console` for a diagnostic build. |
+| Reporting a failure | Include `windows_test_results.txt`, the test ID from `docs/WINDOWS_MANUAL_TEST.md`, `%APPDATA%\SeekR\logs\seekr.log`, Windows version, display scaling and steps to reproduce. Open an issue at <https://github.com/okyanus-11/SeekR/issues>. Never include passwords or private clipboard/note content. |
 
 ---
 
