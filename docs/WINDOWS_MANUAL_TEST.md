@@ -40,6 +40,22 @@ Record this before starting:
 
 Use the **Result** and **Notes** columns in the tables below.
 
+### Installation, upgrade and uninstall
+
+Run these on a clean Windows profile before the GUI checks. Tests I04–I06 cover
+the older-version upgrade that has not been validated yet; skip I04 only if no
+earlier SeekR build is available and record it as N/A.
+
+| ID | Test | Steps | Expected | Result | Notes |
+|---|---|---|---|---|---|
+| I01 | Fresh install | Run `SeekR-Setup-<version>.exe` as a normal user (no administrator elevation). | Installs under `%LOCALAPPDATA%\Programs\SeekR`; Start Menu shortcut and an entry in Settings → Apps appear; no UAC prompt. | | |
+| I02 | Launch installed app | Start SeekR from the Start Menu shortcut. | Launcher appears with no console window; shortcut target is the installed `SeekR.exe`. | | |
+| I03 | Same-version reinstall | Run the same installer again while SeekR is closed. | Completes without error; settings, notes and history are preserved. | | |
+| I04 | Older-version upgrade | Install the previous SeekR build, create data (a note, a clipboard entry with history enabled, a changed hotkey/theme), then run the new installer. | Upgrade completes; binaries and shortcuts are replaced; settings, notes and history are preserved; no duplicate Start Menu or uninstall entries; version in Explorer → Properties → Details matches the new build. | | |
+| I05 | Uninstall preserves data | Uninstall from Settings → Apps. | Binaries, shortcuts and uninstall entry are removed; `%APPDATA%\SeekR` still contains the configuration and database. | | |
+| I06 | Reinstall after uninstall | Reinstall and launch. | Previous settings, notes and history load; nothing is duplicated or lost. | | |
+| I07 | Signing and SmartScreen | Check the downloaded installer and executable in Explorer → Properties → Digital Signatures, and record any SmartScreen prompt on first run. | Result is recorded honestly. These builds are expected to be **unsigned** until a certificate exists; do not describe them as signed or reputation-verified. | | |
+
 ### Launcher and hotkey
 
 | ID | Test | Steps | Expected | Result | Notes |
@@ -54,6 +70,8 @@ Use the **Result** and **Notes** columns in the tables below.
 | L08 | Custom hotkey | Settings → General: set a new combination, apply, close Settings, then use it. | New combination opens SeekR; old one no longer does. | | |
 | L09 | Focus after dialog | Open a confirmation dialog, cancel it, return to SeekR. | Launcher remains visible and accepts keyboard input. | | |
 | L10 | DPI and monitors | Repeat L01–L03 on each monitor and at 100%, 125%, 150% and 200% scaling if available. | Window is readable, fully on-screen, not clipped, and appears where expected. | | |
+| L11 | Repeated activation | With SeekR running and hidden, launch `dist\SeekR.exe` five times in a row, waiting about a second between launches. Repeat with SeekR visible and focused. | Every launch exits immediately and the existing launcher appears in front with the search box focused. Never two windows, never a silent no-op, never a window that flashes and disappears. | | |
+| L12 | Activation from different sources | Raise the launcher once each via `Alt+Space`, the tray **Open SeekR** action, and a second executable launch, after giving another application focus in between. | All three bring the window forward and focus the search box. | | |
 
 ### Application discovery and launching
 

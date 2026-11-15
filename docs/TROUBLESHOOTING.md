@@ -34,6 +34,21 @@ secrets while capture is enabled. Clear history from the Clipboard tools page
 if you no longer want those entries retained; deleting rows is not a secure
 erasure guarantee for database files or backups.
 
+## Launching SeekR again does not bring the window forward
+
+SeekR runs a single instance: a second launch asks the running copy to show its
+window and then exits with code 0. Windows can refuse to hand the foreground to
+a background process, so the running copy retries activation for about a second
+rather than hiding again. If the window still does not appear:
+
+- Confirm the process is running (notification area or Task Manager). A second
+  launch that exits immediately is expected, not a crash.
+- Check for a full-screen or always-on-top window covering the launcher.
+- Start SeekR with `--debug` and look for launcher activation messages in
+  `%APPDATA%\SeekR\logs\seekr.log`.
+- `--allow-multiple` bypasses the single-instance check; use it only for
+  development, never to work around a genuine failure.
+
 ## Configuration or database problems
 
 Close SeekR before manually copying or moving its data folder. If configuration

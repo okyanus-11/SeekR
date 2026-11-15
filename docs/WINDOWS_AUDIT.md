@@ -34,7 +34,8 @@ database plus sentinel survived uninstall. The visible GUI calculated
 `calc: 2+2` as `4`. A configured alternate global hotkey worked, but repeated
 packaged show requests did not consistently make the launcher visible in this
 scripted test; the machine's default `Alt+Space` was already owned by another
-application. Linux CI, older-version upgrade, signing/SmartScreen and several
+application. The repeated-activation cause was identified and fixed after this
+run; see "Post-validation fix: repeated packaged activation" below. Linux CI, older-version upgrade, signing/SmartScreen and several
 native shell behaviors remain unverified. See the final evidence below.
 
 ## Method
@@ -234,12 +235,14 @@ published.
 
 ### FAIL / UNVERIFIED
 
-- **FAIL — repeat packaged GUI activation was inconsistent.** A second
-  process logged that it had forwarded a show request; one packaged activation
-  was observed, but later scripted repeated launches exited successfully
-  without a visible primary window. This does not invalidate the passing
-  process-isolated socket tests, but user-facing repeated activation is not
-  release-verified and needs manual retest on a clean Windows desktop.
+- **FAIL (cause fixed afterwards, re-test pending) — repeat packaged GUI
+  activation was inconsistent.** A second process logged that it had forwarded
+  a show request; one packaged activation was observed, but later scripted
+  repeated launches exited successfully without a visible primary window. The
+  cause was located after that run and is documented under "Post-validation
+  fix: repeated packaged activation" below. This does not invalidate the
+  passing process-isolated socket tests, but user-facing repeated activation is
+  not release-verified and needs manual retest on a clean Windows desktop.
 - **UNVERIFIED — older-version upgrade.** Only same-version reinstall was
   possible without an earlier installer.
 - **UNVERIFIED — Linux CI.** WSL is installed without a Linux distribution;
@@ -253,6 +256,146 @@ published.
   `.lnk` enumeration and launching, Windows power/screenshot APIs, startup
   registry toggle, browser profiles, clipboard integration, multi-monitor/DPI,
   Windows 10, and packaged performance.
+
+## Linux CI-equivalent run (2026-11-15, post-takeover)
+
+Environment: Ubuntu 24.04 container, Python 3.12.3, PySide6 6.12.0,
+`QT_QPA_PLATFORM=offscreen`. A minimal container image does not ship the Qt
+system libraries, so `libegl1`, `libglvnd0`, `libxkbcommon0`, `libfontconfig1`,
+`libfreetype6`, `libpng16-16t64` and `libbrotli1` were extracted locally for
+this run; the GitHub Actions workflow now installs the required set explicitly
+instead of relying on the runner image.
+
+- `pytest -q`: **171 passed, 0 failed, 0 skipped** against the code as handed
+  over, then **176 passed** after the activation and quit regression tests
+  described below.
+- `python -m compileall -q core features ui tests main.py build.py`: clean.
+- `python main.py --version`: `SeekR 1.0.0`.
+- `python build.py` (Linux, not Windows): `dist/SeekR`, a 73.0 MiB one-file
+  build.
+
+This is a real Linux run of the current code. It does not replace the Windows
+runs above and says nothing about Windows-only APIs.
+
+## Post-validation fix: repeated packaged activation (2026-11-15)
+
+The Windows run above recorded that a second process logged a forwarded show
+request while the running instance did not consistently make its window
+visible. Inspecting the activation path found four defects (A–D), all in SeekR's
+own code rather than in PySide6 or the installer. A fifth, unrelated defect (E)
+was found while smoke-testing the frozen build.
+
+| # | Defect | Fix | Evidence |
+|---|---|---|---|
+| A | `LauncherWindow.show_launcher()` never stopped the "hide when focus is lost" timer. Windows refuses `SetForegroundWindow` from a process that did not receive the last input event, so a programmatically raised window could be visible but inactive, and the deactivation timer then hid it 140 ms later: a request that was forwarded successfully producing no visible window. | Showing the launcher cancels any pending hide and opens a 1.0 s activation grace period. While it runs, a visible-but-inactive window retries foreground activation every 120 ms instead of hiding. The deadline is absolute, so retries always terminate, and the grace is skipped once `WindowActivate` confirms activation, so clicking away still hides the window. | `test_show_survives_a_refused_foreground_activation` (SIMULATED Windows activation refusal), `test_hide_on_focus_loss_still_hides_after_the_activation_grace` (REAL Qt) |
+| B | A fade-out still in flight when a show request arrived could complete and hide the window that had just been re-shown. | Hide operations are generation-stamped; a fade superseded by a show no longer hides anything. | `test_a_superseded_hide_animation_cannot_hide_a_reshown_launcher` (REAL Qt animation) |
+| C | The launching process asked the running instance to raise its window without transferring its own permission to take the foreground. | `SingleInstance.notify_existing()` calls `AllowSetForegroundWindow(ASFW_ANY)` first, best effort and Windows only. | Code review, and a no-op off Windows verified by the full suite. **UNVERIFIED on Windows.** |
+| D | `SeekRApplication.show_launcher()` discarded a request silently when the launcher had not been constructed yet. | Logs a warning instead of failing silently. No request can be dropped in practice: no event-loop work runs between the single-instance server starting and the signal being connected. | `test_single_instance_show_request_reveals_the_launcher` (REAL socket) |
+| E | **Quitting did not quit.** `SeekRApplication.quit()` called `app.quit()`, which was a no-op for the entire application lifetime once the controller was running: the event loop survived a `quit()` issued at 100, 300, 600, 900, 1200, 2000 and 3000 ms (7 of 7 runs), while `app.exit(0)` stopped it in all 6 runs at the same delays. The tray's **Quit SeekR** action therefore left the process running. | The quit path calls `app.exit(0)` directly, the primitive that `quit()` is documented to be equivalent to. | `test_controller_quit_stops_the_event_loop` (REAL Qt event loop, subprocess with its own watchdog so a regression fails instead of hanging). Confirmed to fail with the old `app.quit()` and pass with `app.exit(0)`. |
+
+### End-to-end packaged check (Linux, offscreen Qt)
+
+The frozen `dist/SeekR` one-file build was started with `--hidden --no-hotkey`
+and an isolated `SEEKR_HOME`. Five consecutive `./dist/SeekR` launches each
+logged `SeekR is already running; asked the existing instance to show` and
+exited with code 0; the primary logged `Show request received from another
+instance` five times, stayed alive, and recorded no exception (5 forwarded, 5
+handled). This verifies that the packaged forwarding path and the new
+activation code execute cleanly in a frozen build, and it closes the
+diagnostic gap that made the original failure hard to read. It is **not**
+evidence about Windows foreground behaviour, which still requires a real
+Windows desktop.
+
+One harness detail matters for future validation: a PyInstaller one-file
+program runs as a bootloader parent plus a child (and the child can spawn
+further children), so killing the PID you started leaves the real application
+running. The earlier note in this document about a leftover PyInstaller child
+has the same cause. Kill the whole process group, or close SeekR from its own
+Quit action, rather than a single PID.
+
+The quit defect above was found while smoke-testing this frozen binary and is
+reproducible in source mode as well. The reproduction is on Linux with
+offscreen Qt; whether Windows behaves identically has not been established
+here, but `exit(0)` is the primitive `quit()` is documented to be equivalent
+to, so calling it directly is safe on every platform. The
+frozen build was not re-run through a tray-initiated quit because the packaged
+build exposes no non-interactive quit hook; that path needs manual confirmation
+on a desktop (manual tests T04 and T09).
+
+## Second post-validation fix: Windows single-instance forwarding (2026-11-15)
+
+A Windows 11 build of the patched tree (Python 3.12.10, PySide6 6.12.0,
+PyInstaller 6.22.3) exposed a defect that Linux cannot reproduce:
+`test_single_instance_forwards_only_one_show` failed deterministically (0/5 in
+isolation) with `notify_existing()` returning `False`. Stage instrumentation
+showed the socket connected, the four-byte payload was accepted, and the
+primary emitted `show_requested` on every run: only the return value was wrong.
+
+Cause: `notify_existing()` treated `waitForBytesWritten()` as proof of
+delivery. Qt returns `False` from that call when the write buffer is already
+empty, which is what Windows does for a write this small. `main.py` then took
+the `False` branch, so instead of forwarding and exiting, the second process
+called `listen()`. That runs `QLocalServer.removeServer(key)`, destroying the
+running instance's socket name, and started a second application instance with
+its own window, database connection and hotkey registration.
+
+That explains the reported symptom class better than a pure focus problem. The
+activation grace period added earlier therefore fixes the visible-but-inactive
+case only; it is not the complete explanation.
+
+Fix: only wait for pending bytes when `bytesToWrite() > 0`; an empty buffer
+means the payload has already been handed to the OS. Linux after the change:
+`176 passed`, and `-k single_instance` `2 passed`. **Not yet re-verified on
+Windows** - the rebuilt executable has to demonstrate it.
+
+The previously recorded Windows baseline of 169 passed / 2 skipped is
+inconsistent with this result, because neither the failing test nor the
+`waitForBytesWritten` gate changed between that commit and the tree tested
+here. Either that baseline did not execute this test, or it referred to
+different code.
+
+## Third post-validation fix: Windows single-instance connect retry (2026-11-15)
+
+The Windows offscreen reproduction of `test_single_instance_forwards_only_one_show`
+still reported `notify_existing() -> False` even after the second fix: stage
+instrumentation showed `connect=True`, `bytesToWrite=4`, `waitBW=True` and
+`received=1` (the primary did emit `show_requested`), yet the call returned
+`False`. The flush gate added by the second fix was therefore not the whole
+story — the second process never reached it.
+
+Cause: under the offscreen QPA the event dispatcher pumps pipe events more
+slowly, so `connectToServer` + `waitForConnected` can fail spuriously on the
+first attempt even though a retry (or a separate probe) connects and the
+request is delivered. The earlier "connect=True" in the diagnostic was a
+separate probe, not the call's own connection. `waitForBytesWritten` likewise
+reports `False` for a buffer already handed to the OS.
+
+Fix: `notify_existing()` now retries `connectToServer`/`waitForConnected`
+within the overall timeout budget (sleeping briefly between attempts) and
+ignores the `waitForBytesWritten` return value, only using it to push the
+payload through. Linux after the change: `176 passed`, `-k single_instance`
+`2 passed`. **Not yet re-verified on Windows** — the rebuilt executable has
+ to demonstrate it, and the offscreen reproduction is the proxy test.
+
+## Remaining release blockers after this work
+
+1. **Native Windows re-validation of repeated activation** (manual tests L06,
+   L11, L12) after the fix above. The regression tests simulate the Windows
+   activation refusal; they do not perform it.
+2. **Real older-version upgrade** (manual tests I04–I06). The installer's
+   in-place upgrade and user-data preservation are correct by inspection and
+   same-version reinstall passed, but no upgrade from an earlier build has been
+   run.
+3. **Clean-machine default hotkey** (`Alt+Space`) and possibly-unavailable
+   combinations (L02, L07, L08).
+4. **Signing and SmartScreen** (I07). Both artifacts are unsigned by design at
+   this stage; no certificate exists.
+5. **Windows 10** and **visible GUI/native shell behaviour** (L01–L12, S01–S20,
+   T01–T11) beyond the checks already recorded above.
+6. **Git tag does not match the released code.** The `v1.0.0` tag still points
+   at commit `2e4f1a9`, while `main` has moved on to the release-preparation
+   commit. Tagging, release notes and artifacts must be reconciled before
+   publishing; that decision was deliberately left to the repository owner.
 
 ## Residual risks
 

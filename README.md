@@ -4,7 +4,7 @@
 
 SeekR is a native desktop application built with Python and PySide6. It searches your applications and files, evaluates expressions, opens websites, runs safe commands, previews documents, manages clipboard history and notes, and bundles a set of everyday developer utilities — all from one floating window.
 
-**Current version:** 1.0.0 · **License:** MIT
+**Current version:** 1.0.1 · **License:** MIT
 
 > Plugins are **not** part of 1.0.0. The Settings → Plugins page shows the planned marketplace as *Coming Soon*; no plugin code is loaded or executed.
 
@@ -141,13 +141,15 @@ the Start Menu shortcut targeted the installed executable, and isolated
 for `calc: 2+2`. The Python 3.12.10 Windows suite passed with two documented
 platform skips.
 
-This is not a public release. A true upgrade from an older installer, Linux CI,
-code signing/SmartScreen, and several native shell integrations remain
-unverified. `Alt+Space` was already registered by another application on the
-validation PC; an alternate hotkey registered and toggled correctly, but
-repeated packaged show requests did not consistently make the window visible
-in scripted testing. See [the Windows audit](docs/WINDOWS_AUDIT.md) for the
-full checklist. For a build from source, see
+This is not a public release. A true upgrade from an older installer, code
+signing/SmartScreen, and several native shell integrations remain unverified.
+`Alt+Space` was already registered by another application on the validation
+PC, so an alternate hotkey was used instead. Repeated packaged launch activation
+was inconsistent in that run: the request was forwarded but the window did not
+reliably appear. The cause was identified and fixed afterwards, but the fix
+still needs re-testing on a Windows desktop. See
+[the Windows audit](docs/WINDOWS_AUDIT.md) for the full checklist. For a build
+from source, see
 [Building a standalone executable](#building-a-standalone-executable), then:
 
 1. After a successful local build, place `SeekR.exe` in a folder you control (for example `%LOCALAPPDATA%\Programs\SeekR`).
@@ -218,11 +220,13 @@ report is written to **`windows_test_results.txt` in the repository root**. The
 script exits with code `0` only when every required check passes; any failure
 exits with code `1` and remains visible in the report.
 
-On Windows 11 build 26300, the full suite passed with 168 tests and 2
-documented skips. The process-isolated single-instance forwarding regression
-test ran as part of that suite. Automated checks do not verify native GUI
-behavior; the Win32 hotkey, tray, window switching, and Snipping Tool experience
-have not been manually verified. See [Windows compatibility](#windows-compatibility).
+On Windows 11 build 26300, the full suite passed with 169 tests at Python 3.12
+(168 at Python 3.14) and 2 documented skips. The process-isolated
+single-instance forwarding regression test ran as part of that suite. The Linux
+suite passes **176 tests** on Ubuntu 24.04 with offscreen Qt. Automated checks
+do not verify native GUI behavior; the Win32 hotkey, tray, window switching, and
+Snipping Tool experience have not been manually verified. See
+[Windows compatibility](#windows-compatibility).
 
 ### Manual GUI checks
 
@@ -282,11 +286,12 @@ Python. Use `--onedir` for a troubleshooting folder build at
 window and shows startup errors. On Linux the same command produces `dist/SeekR`
 and `dist/SeekR/SeekR`, which are not Windows executables.
 
-> Windows 11 build 26300: the automated suite passed (168 passed, 2 skipped),
-> the 62.8 MiB `dist\SeekR.exe` was built and its metadata checked, a hidden
-> frozen-app startup smoke test passed, and the installer compiled with Inno
-> Setup 6.7.3. Interactive Windows shell/GUI behavior and clean-profile
-> installation remain unverified. See [Windows compatibility](#windows-compatibility).
+> Windows 11 build 26300: the automated suite passed (169 passed, 2 skipped at
+> Python 3.12), the 62.8 MiB `dist\SeekR.exe` was built and its metadata
+> checked, a hidden frozen-app startup smoke test passed, and the installer
+> compiled with Inno Setup 6.7.3. Interactive Windows shell/GUI behavior and
+> clean-profile installation remain unverified. See
+> [Windows compatibility](#windows-compatibility).
 
 ---
 
@@ -457,6 +462,11 @@ GUI tests require a Qt platform; on a headless machine use:
 QT_QPA_PLATFORM=offscreen pytest
 ```
 
+On Ubuntu 24.04 with Python 3.12 and `QT_QPA_PLATFORM=offscreen`, the current
+suite passes **176 tests** with no failures or skips. Five regression tests
+(four for repeated activation, one for quitting) were added after the Windows
+validation run above and have not yet run on Windows.
+
 The Windows suite passed on Windows 11 build 26300; mocked or source-level
 checks do not establish native GUI behavior. In particular, real-display
 capture and the Snipping Tool's save destination are not established by tests.
@@ -476,12 +486,11 @@ and [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 ## Windows compatibility
 
-Automated tests, a frozen-app startup smoke test, executable packaging and
-installer compilation ran on Windows 11 build 26300. Native Win32 hotkey, tray,
-window-switching, and Snipping Tool UX have not been manually verified, and
-tests do not establish real-display capture or where Snipping Tool saves
-captures. The installer was compiled but not installed, and no release has been
-published. See
+Automated tests, a frozen-app startup smoke test, executable packaging,
+installer compilation, and install/reinstall/uninstall ran on Windows 11 build
+26300. Native Win32 hotkey, tray, window-switching, and Snipping Tool UX have
+not been manually verified, and tests do not establish real-display capture or
+where Snipping Tool saves captures. No release has been published. See
 [docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md) for the evidence and
 [docs/WINDOWS_MANUAL_TEST.md](docs/WINDOWS_MANUAL_TEST.md) for the checklist.
 
@@ -511,7 +520,7 @@ troubleshooting guidance.
 
 ## Known limitations
 
-- **Windows verification:** automated tests, a frozen-app startup smoke test, executable packaging and installer compilation ran on Windows 11 build 26300. Native hotkey, tray, window switching, Snipping Tool UX, visible-window behavior and clean-profile install/uninstall remain unverified manually; Windows 10 was not tested. See [docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md) for the verified/unverified split.
+- **Windows verification:** automated tests, a frozen-app startup smoke test, executable packaging, installer compilation, and install/reinstall/uninstall ran on Windows 11 build 26300. Native hotkey, tray, window switching, Snipping Tool UX and Windows 10 remain unverified manually. Repeated launch activation was inconsistent in that run; the cause was fixed afterwards and needs re-confirmation on a desktop. See [docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md) for the verified/unverified split.
 - **Language:** Settings offers English and Türkçe; in 1.0.0 only the launcher shell is translated. Tool and settings pages remain English. This is a documented partial feature, not a stub.
 - **GPU utilisation:** shown only when the platform exposes it (NVML/`nvidia-smi` or Windows counters); otherwise the UI says it is unavailable rather than inventing a number.
 - **Bookmarks:** browsers must be closed or use readable profile files; encrypted/locked stores are skipped with a message.

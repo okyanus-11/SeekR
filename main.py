@@ -94,7 +94,14 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     controller = SeekRApplication(app, config, database)
     if instance is not None:
-        instance.show_requested.connect(controller.show_launcher)
+
+        def show_from_other_instance() -> None:
+            # Logged in the primary so a Windows validation run can tell a
+            # forwarded request apart from one the window never honoured.
+            log.info("Show request received from another instance")
+            controller.show_launcher()
+
+        instance.show_requested.connect(show_from_other_instance)
 
     start_minimized = bool(config.get("general.start_minimized", False))
     controller.start(

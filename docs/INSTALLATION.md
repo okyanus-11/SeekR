@@ -19,9 +19,19 @@ Release is explicitly published, CI artifacts are not a permanent public
 download. Do not treat a branch build as a signed or SmartScreen-reputation
 verified installer.
 
+### Upgrading
+
+Run the newer `SeekR-Setup-<version>.exe` over the existing installation. Inno
+Setup upgrades in place: it replaces the binaries and shortcuts, remembers the
+previously chosen install directory (`UsePreviousAppDir` is on by default), and
+never touches `%APPDATA%\SeekR`, so settings, notes and clipboard history
+survive. Only a same-version reinstall has been validated so far; a real upgrade
+from an earlier build is still on the release checklist as tests I04–I06 in
+[WINDOWS_MANUAL_TEST.md](WINDOWS_MANUAL_TEST.md).
+
 ## Run from source
 
-Requires Python 3.12 or newer on Windows or Linux:
+Requires Python 3.10 or newer (3.12 recommended) on Windows or Linux:
 
 ```powershell
 py -3.12 -m venv .venv

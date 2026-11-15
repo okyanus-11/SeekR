@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
 import pytest
 
 from PySide6.QtCore import QEvent, Qt
@@ -246,3 +252,143 @@ def test_settings_persist_switch_toggle(qapp, controller):
     reloaded = ConfigManager(config.path)
     assert reloaded.get("search.typo_tolerance") is False
     config.set("search.typo_tolerance", True)
+
+
+# ------------------------------------- repeated packaged activation (v1.0.0)
+def _pump(qapp, seconds: float) -> None:
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        qapp.processEvents()
+        time.sleep(0.01)
+
+
+def test_show_survives_a_refused_foreground_activation(qapp, controller, monkeypatch):
+    """[SIMULATED Windows] A show request must not be undone by focus-loss hiding.
+
+    Windows refuses ``SetForegroundWindow`` from a background process, so a
+    launcher raised by a second instance's socket message can end up visible
+    but *not* active. The deactivation timer that hides the launcher when the
+    user clicks away must not swallow that programmatic show; otherwise a
+    repeated launch logs "request forwarded" while nothing appears.
+    """
+    launcher = controller.launcher
+    launcher.show_launcher()
+    qapp.processEvents()
+    assert launcher.isVisible()
+
+    # The desktop just took the focus away, and Windows then refuses to hand it
+    # back when the second instance asks for the window.
+    monkeypatch.setattr(launcher, "isActiveWindow", lambda: False)
+    launcher.changeEvent(QEvent(QEvent.Type.WindowDeactivate))
+    launcher.show_launcher()
+    qapp.processEvents()
+
+    _pump(qapp, 0.5)
+    assert launcher.isVisible(), "a forwarded show request was hidden by focus loss"
+
+
+def test_hide_on_focus_loss_still_hides_after_the_activation_grace(qapp, controller, monkeypatch):
+    """[REAL] The activation grace period must not disable hide-on-focus-loss."""
+    launcher = controller.launcher
+    launcher.show_launcher()
+    qapp.processEvents()
+    monkeypatch.setattr(launcher, "isActiveWindow", lambda: False)
+    # The grace window has already elapsed, so a genuine focus loss hides it.
+    launcher._activation_deadline = time.monotonic() - 1.0
+    launcher.changeEvent(QEvent(QEvent.Type.WindowDeactivate))
+
+    _pump(qapp, 0.5)
+    assert not launcher.isVisible(), "hide-on-focus-loss stopped working"
+
+
+def test_a_superseded_hide_animation_cannot_hide_a_reshown_launcher(qapp, controller):
+    """[REAL Qt animation] A show during the hide fade must win."""
+    launcher = controller.launcher
+    controller.config.set("appearance.animations", True)
+    controller.config.set("appearance.animation_duration", 400)
+    try:
+        launcher.show_launcher()
+        qapp.processEvents()
+        assert launcher.isVisible()
+
+        launcher.hide_launcher()          # starts a ~200 ms fade out
+        launcher.show_launcher()          # a second instance arrives mid-fade
+        _pump(qapp, 0.6)                  # let the stale animation finish
+
+        assert launcher.isVisible(), "a stale hide animation hid the re-shown launcher"
+    finally:
+        controller.config.set("appearance.animations", False)
+
+
+def test_controller_quit_stops_the_event_loop(tmp_path):
+    """[REAL Qt event loop, subprocess] Quit must actually end the application.
+
+    ``QCoreApplication.quit()`` is a no-op once the controller is running, which
+    made the tray's Quit action do nothing; ``SeekRApplication.quit()`` therefore
+    calls ``exit(0)`` directly. The script has its own watchdog timer so a
+    regression fails instead of hanging the suite.
+    """
+    script = """
+import os, sys, time
+from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QApplication
+from core.application import SeekRApplication
+from core.config_manager import ConfigManager
+from core.database import Database
+from core.paths import ensure_app_dirs
+
+ensure_app_dirs()
+app = QApplication(["seekr-quit-test"])
+cfg = ConfigManager(); db = Database()
+cfg.set("general.show_tray_icon", False)
+cfg.set("files.auto_index", False)
+cfg.set("files.enabled", False)
+controller = SeekRApplication(app, cfg, db)
+controller._create_tray = lambda: None
+controller.start(show_window=True, register_hotkey=False)
+QTimer.singleShot(1200, controller.quit)
+QTimer.singleShot(6000, lambda: os._exit(3))
+started = time.monotonic()
+code = app.exec()
+print(f"QUIT_OK {code} {time.monotonic() - started:.2f}", flush=True)
+"""
+    env = dict(os.environ)
+    env["QT_QPA_PLATFORM"] = "offscreen"
+    env["SEEKR_HOME"] = str(tmp_path / "home")
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        timeout=40,
+        env=env,
+    )
+    assert result.returncode == 0, (
+        f"quit() did not stop the event loop: stdout={result.stdout!r} stderr={result.stderr!r}"
+    )
+    assert "QUIT_OK 0" in result.stdout, result.stdout
+
+
+def test_single_instance_show_request_reveals_the_launcher(qapp, controller):
+    """[REAL socket] A forwarded show request makes a hidden launcher visible."""
+    from core.single_instance import SingleInstance
+
+    key = f"SeekR.GuiTest.{os.getpid()}.{time.time_ns()}"
+    primary = SingleInstance(key)
+    secondary = SingleInstance(key)
+    primary.show_requested.connect(controller.show_launcher)
+    try:
+        assert primary.listen() is True
+        controller.launcher.hide_launcher()
+        qapp.processEvents()
+        assert not controller.launcher.isVisible()
+
+        assert secondary.notify_existing() is True
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline and not controller.launcher.isVisible():
+            qapp.processEvents()
+            time.sleep(0.01)
+        assert controller.launcher.isVisible(), "the forwarded show request was ignored"
+    finally:
+        secondary.close()
+        primary.close()

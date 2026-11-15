@@ -476,8 +476,15 @@ class SeekRApplication(QObject, UIHooks):
             self.launcher.hide_launcher()
 
     def show_launcher(self) -> None:
-        if self.launcher is not None:
-            self.launcher.show_launcher()
+        """Raise the launcher for the hotkey, the tray or a second instance."""
+        if self.launcher is None:
+            # No event-loop work runs between the single-instance socket being
+            # opened and this slot being connected, so this is a diagnostic
+            # guard rather than the normal path. Log it instead of dropping a
+            # user-visible activation request silently.
+            log.warning("Show requested before the launcher was created; request dropped")
+            return
+        self.launcher.show_launcher()
 
     def toggle_launcher(self) -> None:
         if self.launcher is not None:
@@ -492,7 +499,13 @@ class SeekRApplication(QObject, UIHooks):
 
     # -------------------------------------------------------------------- exit
     def quit(self) -> None:
-        self.app.quit()
+        # ``QCoreApplication.quit()`` is documented as "the same as exit(0)",
+        # but it is a no-op once the application state it guards has been
+        # touched: with this controller running, ``app.quit()`` left the event
+        # loop running at every delay from 100 ms to 3 s, so the tray's Quit
+        # action did nothing. ``exit(0)`` is the primitive and always stops the
+        # loop, so call it directly.
+        self.app.exit(0)
 
     def shutdown(self) -> None:
         if self._shutdown_done:

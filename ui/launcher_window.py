@@ -45,6 +45,14 @@ log = get_logger(__name__)
 _MARGIN = 16
 _ROW_HEIGHT = 58
 
+#: How long a programmatically shown launcher keeps retrying activation before
+#: "hide when focus is lost" is allowed to hide it again. Windows may refuse
+#: ``SetForegroundWindow`` when a second instance asks the running process to
+#: show its window; without this grace period the deactivation timer hides the
+#: window again a moment later, so the request looks ignored.
+_ACTIVATION_GRACE = 1.0
+_ACTIVATION_RETRY_MS = 120
+
 
 class LauncherWindow(QWidget):
     """Frameless, keyboard-first search window."""
@@ -61,6 +69,9 @@ class LauncherWindow(QWidget):
         self._action_index: Optional[int] = None
         self._menu_open = False
         self._hiding = False
+        self._hide_generation = 0
+        self._activation_deadline = 0.0
+        self._activation_confirmed = False
         self._status_timer = QTimer(self)
         self._status_timer.setSingleShot(True)
         self._status_timer.timeout.connect(lambda: self.status_label.clear())
@@ -228,6 +239,13 @@ class LauncherWindow(QWidget):
     # ---------------------------------------------------------------- show
     def show_launcher(self) -> None:
         self._hiding = False
+        # Any fade-out still in flight belongs to an earlier hide; a show that
+        # arrives mid-animation must win.
+        self._hide_generation += 1
+        # A pending focus-loss hide must not undo the request we are serving.
+        self._hide_timer.stop()
+        self._activation_confirmed = self.isActiveWindow()
+        self._activation_deadline = time.monotonic() + _ACTIVATION_GRACE
         self._apply_dimensions()
         self._apply_geometry()
         self._reset_action_selection()
@@ -301,17 +319,23 @@ class LauncherWindow(QWidget):
             return
         duration = int(self.config.get("appearance.animation_duration", 150) or 0)
         if not self.config.get("appearance.animations", True) or duration <= 0:
+            self._hide_timer.stop()
             self.hide()
             return
         self._hiding = True
+        self._hide_generation += 1
+        generation = self._hide_generation
         animation = QPropertyAnimation(self, b"windowOpacity", self)
         animation.setDuration(max(60, duration // 2))
         animation.setStartValue(self.windowOpacity())
         animation.setEndValue(0.0)
-        animation.finished.connect(self._finish_hide)
+        animation.finished.connect(lambda g=generation: self._finish_hide(g))
         animation.start(QAbstractAnimation.DeletionPolicy.DeleteWhenStopped)
 
-    def _finish_hide(self) -> None:
+    def _finish_hide(self, generation: Optional[int] = None) -> None:
+        if generation is not None and generation != self._hide_generation:
+            # A show_launcher() call superseded this fade; keep the window up.
+            return
         self.hide()
         self.setWindowOpacity(1.0)
         self._hiding = False
@@ -667,6 +691,7 @@ class LauncherWindow(QWidget):
             if self.config.get("general.hide_on_focus_loss", True):
                 self._hide_timer.start(140)
         elif event.type() == QEvent.Type.WindowActivate:
+            self._activation_confirmed = True
             self._hide_timer.stop()
         super().changeEvent(event)
 
@@ -676,8 +701,20 @@ class LauncherWindow(QWidget):
         # Never hide out from under a confirmation/dialog owned by the launcher.
         if QApplication.activeModalWidget() is not None:
             return
-        if self.isVisible() and not self.isActiveWindow():
-            self.hide_launcher()
+        if not self.isVisible() or self.isActiveWindow():
+            return
+        # The window was raised programmatically (hotkey, tray or a second
+        # instance) but the desktop has not granted it the foreground yet. Keep
+        # asking instead of hiding the launcher the user just requested. The
+        # deadline is absolute, so this retry loop always terminates, and it is
+        # skipped once activation succeeded, so clicking away still hides it.
+        if not self._activation_confirmed and time.monotonic() < self._activation_deadline:
+            log.debug("Launcher is visible but not active yet; retrying foreground activation")
+            self._force_windows_foreground()
+            self.activateWindow()
+            self._hide_timer.start(_ACTIVATION_RETRY_MS)
+            return
+        self.hide_launcher()
 
     def closeEvent(self, event) -> None:  # noqa: N802
         event.ignore()

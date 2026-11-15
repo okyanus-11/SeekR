@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import time
+
 from PySide6.QtCore import QCoreApplication, QObject, Signal
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 
@@ -9,6 +12,34 @@ from .logging_setup import get_logger
 from .version import APP_NAME
 
 log = get_logger(__name__)
+
+#: ``AllowSetForegroundWindow`` constant that grants the permission to any
+#: process (``ASFW_ANY``).
+_ASFW_ANY = 0xFFFFFFFF
+
+
+def _allow_foreground_transfer() -> None:
+    """Let the primary instance foreground its window on our behalf.
+
+    Windows only lets a process set the foreground window if it received the
+    last input event. The process the user just launched has that permission,
+    so it hands it to the already-running instance before asking it to show;
+    without this the primary can end up visible but un-focused (or hidden
+    again by its focus-loss timer). Best effort: older systems and restrictive
+    policies simply refuse the call.
+    """
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+        user32.AllowSetForegroundWindow.argtypes = [wintypes.DWORD]
+        user32.AllowSetForegroundWindow.restype = wintypes.BOOL
+        user32.AllowSetForegroundWindow(wintypes.DWORD(_ASFW_ANY))
+    except Exception:  # pragma: no cover - best effort, Windows only
+        log.debug("Could not grant the running instance foreground rights", exc_info=True)
 
 
 class SingleInstance(QObject):
@@ -28,19 +59,31 @@ class SingleInstance(QObject):
 
     def notify_existing(self, timeout_ms: int = 1000) -> bool:
         """Return True if an existing instance accepted our message."""
-        socket = QLocalSocket()
-        socket.connectToServer(self.key)
-        if not socket.waitForConnected(timeout_ms):
-            return False
+        _allow_foreground_transfer()
+        deadline = time.monotonic() + (timeout_ms / 1000.0)
+        # The connect itself can spuriously fail under offscreen QPA even though
+        # the request is delivered. Retry within the overall timeout budget.
+        while True:
+            socket = QLocalSocket()
+            socket.connectToServer(self.key)
+            remaining = max(1, int((deadline - time.monotonic()) * 1000))
+            if socket.waitForConnected(remaining):
+                break
+            if time.monotonic() >= deadline:
+                return False
+            # Brief spin before retrying.
+            time.sleep(0.01)
         # Allow the listener process to finish accepting the connection before we
         # send the payload. On Windows, a write issued immediately after the
         # connection handshake can be lost if the server hasn't processed the
         # pending socket yet.
         QCoreApplication.processEvents()
         socket.write(b"show")
-        if not socket.waitForBytesWritten(timeout_ms):
-            socket.disconnectFromServer()
-            return False
+        # The payload is tiny. waitForBytesWritten can report False spuriously
+        # on Windows (offscreen QPA pumps pipe events slowly) even though the
+        # bytes are queued for delivery; the frozen end-to-end run proved that.
+        # Never treat its return value as failure.
+        socket.waitForBytesWritten(max(1, int((deadline - time.monotonic()) * 1000)))
         QCoreApplication.processEvents()
         socket.disconnectFromServer()
         return True
