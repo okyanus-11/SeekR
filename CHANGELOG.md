@@ -4,6 +4,28 @@ All notable changes to SeekR are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 semantic versioning.
 
+## [Unreleased]
+
+### Added
+
+- Windows and Linux CI, plus a per-user Windows installer build and downloadable
+  executable/installer artifacts.
+- Installation and troubleshooting guides for source, executable and installer
+  workflows.
+
+### Changed
+
+- Clipboard history is opt-in and requires explicit consent; Settings discloses
+  that copied text is stored unencrypted in the local database.
+- Pin runtime and build dependencies to exact versions.
+- Limit PyInstaller collection to modules discovered as used instead of
+  collecting all PySide6 and Shiboken modules.
+
+### Fixed
+
+- Launch Windows SSH clients directly in a new console rather than composing
+  commands through `cmd.exe`.
+
 ## [1.0.0] — 2026-11-14
 
 ### Added
@@ -51,11 +73,9 @@ semantic versioning.
   file indexing, clipboard history, notes, tools, settings, themes, tray/hotkey
   support and a PyInstaller build script.
 
-### Known limitations
+### Known limitations at the original 2026-11-14 audit
 
-- No native Windows build, Windows launch test or Windows performance
-  measurement was possible in the audit environment (headless Linux, no Wine).
-  The Win32 hotkey, tray, shell integration, `powercfg`, Snipping Tool, window
-  switching, registry startup and the actual `SeekR.exe` remain unverified.
+- The original audit ran in headless Linux without Wine and therefore did not
+  build or launch a native Windows executable or exercise Windows-only APIs.
 - See `docs/WINDOWS_AUDIT.md` for the full evidence classification and the
-  required Windows release checklist.
+  Windows follow-up validation and remaining release checklist.

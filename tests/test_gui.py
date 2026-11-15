@@ -92,6 +92,39 @@ def test_launcher_opens_and_searches(qapp, controller):
     assert launcher._action_index is None
 
 
+def test_icon_store_evicts_least_recently_used_paths(qapp, tmp_path):
+    from PySide6.QtGui import QIcon
+
+    from ui.icons import IconStore
+
+    class CountingIconProvider:
+        def __init__(self):
+            self.calls = {}
+
+        def icon(self, file_info):
+            path = file_info.fileName()
+            self.calls[path] = self.calls.get(path, 0) + 1
+            return QIcon()
+
+    store = IconStore()
+    provider = CountingIconProvider()
+    store._provider = provider
+    paths = [tmp_path / f"icon-{index}.exe" for index in range(513)]
+    for path in paths[:512]:
+        path.touch()
+        store.icon_for(str(path))
+    paths[512].touch()
+
+    store.icon_for(str(paths[0]))
+    store.icon_for(str(paths[512]))
+    store.icon_for(str(paths[0]))
+    store.icon_for(str(paths[1]))
+
+    assert len(store._cache) == 512
+    assert provider.calls[paths[0].name] == 1
+    assert provider.calls[paths[1].name] == 2
+
+
 def test_launcher_execution_copies_and_hides(qapp, controller):
     launcher = controller.launcher
     launcher.show_launcher()
@@ -143,6 +176,12 @@ def test_settings_window_pages(qapp, controller):
     assert any("PLUGIN MARKETPLACE" in text for text in texts)
     assert any("COMING SOON" in text for text in texts)
     assert any("Extend SeekR" in text for text in texts)
+    window.open_page("clipboard")
+    clipboard_text = " ".join(
+        item.text() for item in window.pages["clipboard"].findChildren(QLabel)
+    )
+    assert "unencrypted" in clipboard_text
+    assert "SQLite" in clipboard_text
 
     window.open_page("appearance")
     controller.config.set("appearance.theme", "catppuccin_mocha")
@@ -169,6 +208,7 @@ def test_tools_window_pages(qapp, controller):
 
 def test_tools_clipboard_and_notes(qapp, controller):
     service = controller.clipboard_service
+    controller.config.set("privacy.clipboard_history", True)
     service.capture("settings smoke test")
     controller.open_tools("clipboard")
     qapp.processEvents()

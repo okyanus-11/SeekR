@@ -16,8 +16,11 @@ from __future__ import annotations
 
 import ctypes
 import os
+import queue
 import struct
+import subprocess
 import sys
+import threading
 import time
 import types
 from pathlib import Path
@@ -413,7 +416,7 @@ def test_critical_processes_are_protected():
 
 # ------------------------------------------------------------ single instance
 def test_single_instance_forwards_only_one_show(qapp):
-    """[REAL] A second process raises the launcher exactly once."""
+    """[REAL] A second instance in the same process raises the launcher once."""
     key = f"SeekR.Test.{os.getpid()}.{time.time_ns()}"
     primary = SingleInstance(key)
     secondary = SingleInstance(key)
@@ -433,6 +436,124 @@ def test_single_instance_forwards_only_one_show(qapp):
     finally:
         secondary.close()
         primary.close()
+
+
+def test_single_instance_forwards_repeated_shows_from_other_processes():
+    """[REAL subprocess] Repeated launches after listener startup each reach it."""
+    key = f"SeekR.Test.{os.getpid()}.{time.time_ns()}"
+    request_count = 5
+    root = Path(__file__).resolve().parents[1]
+    primary_script = """
+import sys
+from PySide6.QtCore import QCoreApplication
+from core.single_instance import SingleInstance
+
+app = QCoreApplication(["seekr-single-instance-primary"])
+instance = SingleInstance(sys.argv[1])
+expected = int(sys.argv[2])
+received = 0
+
+def on_show():
+    global received
+    received += 1
+    print(f"SHOW {received}", flush=True)
+    if received >= expected:
+        app.quit()
+
+instance.show_requested.connect(on_show)
+if not instance.listen():
+    print("LISTEN FAILED", flush=True)
+    sys.exit(2)
+print("READY", flush=True)
+exit_code = app.exec()
+instance.close()
+sys.exit(exit_code)
+"""
+    client_script = """
+import sys
+from core.single_instance import SingleInstance
+
+accepted = SingleInstance(sys.argv[1]).notify_existing(timeout_ms=3000)
+print("NOTIFY OK" if accepted else "NOTIFY FAILED", flush=True)
+sys.exit(0 if accepted else 1)
+"""
+    output: queue.Queue[str | None] = queue.Queue()
+    primary = subprocess.Popen(
+        [sys.executable, "-c", primary_script, key, str(request_count)],
+        cwd=root,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+    )
+    assert primary.stdout is not None
+
+    def forward_output() -> None:
+        for line in primary.stdout:
+            output.put(line.rstrip("\r\n"))
+        output.put(None)
+
+    reader = threading.Thread(target=forward_output, daemon=True)
+    reader.start()
+    observed: list[str] = []
+    try:
+        startup_deadline = time.monotonic() + 10
+        while time.monotonic() < startup_deadline and "READY" not in observed:
+            try:
+                line = output.get(timeout=min(0.1, startup_deadline - time.monotonic()))
+            except queue.Empty:
+                if primary.poll() is not None:
+                    break
+                continue
+            if line is None:
+                break
+            observed.append(line)
+        assert "READY" in observed, f"Listener did not become ready: {observed!r}"
+
+        # Launch clients immediately after READY, then repeatedly without a delay
+        # to exercise connection setup and successive listener accepts.
+        for launch in range(request_count):
+            result = subprocess.run(
+                [sys.executable, "-c", client_script, key],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            assert result.returncode == 0, (
+                f"Client launch {launch + 1} failed: "
+                f"stdout={result.stdout!r}, stderr={result.stderr!r}"
+            )
+            assert result.stdout.strip().endswith("NOTIFY OK"), result.stdout
+
+        primary.wait(timeout=10)
+        while True:
+            try:
+                line = output.get(timeout=1)
+            except queue.Empty:
+                break
+            if line is None:
+                break
+            observed.append(line)
+
+        assert primary.returncode == 0
+        expected_output = ["READY", *(f"SHOW {number}" for number in range(1, request_count + 1))]
+        assert observed == expected_output
+    finally:
+        if primary.poll() is None:
+            primary.terminate()
+            try:
+                primary.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                primary.kill()
+                primary.wait(timeout=3)
+        reader.join(timeout=3)
+        try:
+            primary.stdout.close()
+        finally:
+            from PySide6.QtNetwork import QLocalServer
+
+            QLocalServer.removeServer(key)
 
 
 # --------------------------------------------------------------------- tray

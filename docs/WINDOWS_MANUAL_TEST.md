@@ -122,7 +122,7 @@ Use the **Result** and **Notes** columns in the tables below.
 | S01 | Settings pages | Open Settings and visit every page: General, Appearance, Search, Applications, Files, Web, Calculator, Commands, Clipboard, Privacy, Advanced, Plugins, About. | Every page renders without errors; Plugins clearly says Coming Soon with no fake install action. | | |
 | S02 | Persistence | Change a visible setting (for example result count or font size), close and restart SeekR. | Setting is preserved. | | |
 | S03 | Hotkey settings | Change the hotkey and restart. | New hotkey persists and registers. | | |
-| S04 | Screenshot folder | Settings → Files → Screenshots: choose a folder, take a screenshot via Tools → Screenshots. | Folder is created/used; Snipping Tool opens; saved image appears. | | |
+| S04 | Screenshot folder | Settings → Files → Screenshots: choose a folder and use SeekR's full-screen capture; separately open Snipping Tool for a region capture and choose its save location in the Snipping Tool UI. | SeekR's Qt capture saves a PNG in the configured folder. Snipping Tool opens separately; SeekR does not guarantee its save destination. | | |
 | S05 | Theme: Dark | Settings → Appearance: select Dark. | Launcher, Settings and Tools use the dark theme immediately. | | |
 | S06 | Theme: Light | Select Light. | All open windows repaint light; text remains readable. | | |
 | S07 | Theme: AMOLED | Select AMOLED. | True-black surfaces; readable contrast. | | |

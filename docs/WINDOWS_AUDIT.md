@@ -1,12 +1,14 @@
 # Windows compatibility audit — SeekR 1.0.0
 
-Date: 2026-11-14
+Initial audit: 2026-11-14
+
+Windows follow-up: 2026-11-15
 
 ## Scope and environment
 
-This audit inspected every source module, the test suite, the build script and
-the runtime assets of SeekR 1.0.0. The audit host was a **headless Linux x86-64
-container** (Python 3.12.3, PySide6 6.12.0, psutil 7.2.2, SymPy 1.14.0,
+The source audit inspected every source module, the test suite, the build
+script and the runtime assets of SeekR 1.0.0. Its host was a **headless Linux
+x86-64 container** (Python 3.12.3, PySide6 6.12.0, psutil 7.2.2, SymPy 1.14.0,
 SQLite with WAL). It had:
 
 - no Windows installation or Windows VM,
@@ -18,16 +20,22 @@ Consequently this document distinguishes three kinds of evidence:
 
 | Label | Meaning |
 |---|---|
-| **REAL** | Executed in this environment against real files, SQLite, Qt widgets or the real Python standard library. |
+| **REAL** | Executed in the referenced environment against real files, SQLite, Qt widgets or the real Python standard library. |
 | **SIMULATED** | Windows path/argument/registry behaviour exercised by injecting Windows semantics (for example `os.name == "nt"` or `windows=True`) into real code. |
 | **MOCKED Win32** | Code that calls a Win32 API was exercised with a fake implementation of that API. This proves the call sequence and error handling, not Windows behaviour. |
 | **UNVERIFIED** | Requires Windows and was not executed. It must not be treated as tested. |
 
-**Bottom line:** the application code was deeply audited and repaired, and its
-cross-platform logic is covered by 154 passing tests. A genuine Windows
-`SeekR.exe` was **not** built or launched, and no Windows-only API was executed
-on Windows. The Windows release therefore remains *unverified* until the
-checklist at the end of this document is run on real Windows 10/11 hardware.
+**Final release-validation status (2026-11-15):** On Windows 11 build 26300,
+Python 3.12.10 passed **169 tests, 2 skipped**; the Python 3.12 executable and
+installer were built and version-checked. The installer was installed,
+same-version reinstalled, visibly launched, and uninstalled; the Start Menu
+shortcut and uninstaller entry were checked, and an isolated `%APPDATA%`
+database plus sentinel survived uninstall. The visible GUI calculated
+`calc: 2+2` as `4`. A configured alternate global hotkey worked, but repeated
+packaged show requests did not consistently make the launcher visible in this
+scripted test; the machine's default `Alt+Space` was already owned by another
+application. Linux CI, older-version upgrade, signing/SmartScreen and several
+native shell behaviors remain unverified. See the final evidence below.
 
 ## Method
 
@@ -94,7 +102,7 @@ checklist at the end of this document is run on real Windows 10/11 hardware.
 | 26 | Firefox bookmarks ignored the WAL file, so recent bookmarks were missing or the copy was inconsistent. | Copy `places.sqlite` together with `-wal`/`-shm` before reading. | Code review |
 | 27 | Commands ignored `general.confirm_destructive_actions`, decoded output strictly, and relied on Unix-only signals for sleep/lock. | Honour the setting, decode with replacement, use ctypes on Windows with a portable fallback, improve Recycle Bin messages. | Code review; command tests |
 | 28 | GPU/system information blocked the GUI thread with PowerShell/WMI, and CPU sampling blocked for 150 ms per refresh. | Non-blocking CPU sampling, cached GPU snapshot refreshed by a daemon thread, UTF-8 PowerShell output and `errors="replace"`. | `test_gpu_probe_never_blocks` and `test_windows_gpu_query_forces_utf8` (MOCKED subprocess) |
-| 29 | SSH detection and terminal launching used Unix assumptions on Windows. | Detect `ssh.exe`/OpenSSH and use Windows Terminal or `cmd` appropriately. | Code review |
+| 29 | SSH detection and terminal launching used Unix assumptions on Windows. | Detect `ssh.exe`/OpenSSH; use Windows Terminal when available or launch `ssh` directly in a new console without constructing a `cmd.exe` command. | Code review |
 | 30 | Default screenshot, quick-action and notes locations used POSIX assumptions. | Known-folder/`%APPDATA%` based defaults. | Path tests |
 
 ### Configuration, database and build
@@ -108,6 +116,36 @@ checklist at the end of this document is run on real Windows 10/11 hardware.
 | 35 | The Windows icon and version metadata were not structurally validated. | Generated multi-size ICO; parsed it and the version resource with PyInstaller's parsers. | Build validation below |
 
 ## Verification actually performed
+
+### Windows follow-up (2026-11-15)
+
+Environment: Windows 11 build 26300, PowerShell 5.1, Python 3.14.7,
+PySide6 6.12.0. This is a real Windows run, separate from the initial Linux
+audit above.
+
+- `tools\windows_test.ps1`: **11 PASS, 0 FAIL, 1 SKIPPED**. It installed and
+  checked dependencies, byte-compiled sources, ran the full suite, checked
+  `main.py --version`, built `dist\SeekR.exe` and verified its version metadata.
+- `pytest -q -ra`: **168 passed, 2 skipped**. The skips are
+  `tests/test_commands.py:47` (only meaningful off Windows) and
+  `tests/test_features.py:184` (requires a real Windows shortcut). The
+  process-isolated repeated-show regression test also ran in this Windows
+  suite.
+- `python -m pip check`: no broken requirements. `python main.py --version`
+  printed `SeekR 1.0.0`.
+- PyInstaller built a **62.8 MiB** Windows one-file executable. Windows file
+  metadata reports `ProductName=SeekR` and `ProductVersion=1.0.0`.
+- The frozen app started with `--hidden --no-hotkey` using an isolated
+  `SEEKR_HOME` and created its startup log. A later process audit found that
+  the earlier smoke test had left a PyInstaller child running; PID 20728 was
+  identified and stopped during final validation. The earlier smoke test
+  therefore did not establish reliable child-process cleanup.
+- `ISCC.exe` 6.7.3 compiled `dist\installer\SeekR-Setup-1.0.0.exe` without
+  warnings after updating the architecture identifiers.
+
+The local Python version was 3.14.7, not the Python 3.12 configured in CI. The
+Linux CI job and current post-hardening changes have not been run locally on
+Linux; the earlier 154-test Linux result belongs to the initial audit.
 
 ### Test suite
 
@@ -153,58 +191,86 @@ The generated `assets/icons/seekr.ico` contains seven PNG-compressed entries
 (16, 24, 32, 48, 64, 128, 256 px); PyInstaller's Windows icon reader accepts
 all of them. The generated `build/version_info.txt` parses as a
 `VSVersionInfo` with product name `SeekR`, version `1.0.0`, description,
-company, copyright and original filename `SeekR.exe`. On Windows, PyInstaller
-will embed these resources; the .exe itself has **not** been produced here.
+company, copyright and original filename `SeekR.exe`. The initial Linux audit
+could not produce a Windows executable; the subsequent native Windows build
+and metadata verification are recorded above.
 
-## Not verified (requires Windows)
+## Final release validation (2026-11-15)
 
-The following must be treated as unverified until run on real Windows 10/11:
+Environment: Windows 11 build 26300, Python 3.12.10, PyInstaller 6.22.3,
+Inno Setup 6.7.3. No files were committed or pushed and no release was
+published.
 
-1. Building `dist/SeekR.exe` with the Windows PyInstaller bootloader and
-   embedding the icon/version resource into the PE file.
-2. Launching that `.exe` (including no console window, no Python required,
-   first-run directory creation in `%APPDATA%\SeekR`, and clean exit).
-3. Global `Alt+Space` and configurable hotkeys via `RegisterHotKey`, conflict
-   detection, and hotkey release on exit.
-4. Tray icon visibility, context menu, show/hide, and quit through the Windows
-   shell notification area.
-5. Start Menu `.lnk` enumeration, COM resolution, extracted icons, launching
-   shortcuts with spaces in paths, and UWP/WindowsApps entries.
-6. Window enumeration and switching through the real Win32 API, including
-   elevated windows and multiple monitors.
-7. `powercfg` scheme listing/switching with real Windows power schemes.
-8. Snipping Tool overlay (`ms-screenclip:`) and saved screenshot files.
-9. Start-with-Windows via the `HKCU\...\Run` key, including upgrading the
-   executable path.
-10. Clipboard monitoring under the Windows clipboard, including image
-    clipboard content and locked-clipboard retries.
-11. Browser profile discovery (Chrome/Edge/Brave/Firefox) on real profiles,
-    including locked/WAL databases.
-12. GPU/WMI/PowerShell system information on real hardware, and CPU/memory
-    readings under Windows.
-13. Frameless-window activation/focus, click-outside-to-hide, Escape, DPI
-    scaling, multi-monitor placement and animations.
-14. Named-pipe single-instance forwarding (the code uses Qt's local socket,
-    which maps to a named pipe on Windows; only the Linux backend was run).
-15. Windows notifications/balloon messages and their suppression settings.
-16. Antivirus/SmartScreen behaviour, code signing and long-path (>260 chars)
-    support. SeekR does not ship a long-path manifest; deep paths may fail.
-17. Any Windows performance number. None is reported in
-    `docs/WINDOWS_PERFORMANCE.md`.
+### PASS
+
+- `QT_QPA_PLATFORM=windows python -m pytest -q -ra` in the isolated Python
+  3.12.10 environment: **169 passed, 2 skipped**. Skips:
+  `tests/test_commands.py:47` (only meaningful off Windows) and
+  `tests/test_features.py:184` (requires a real Windows shortcut).
+- The process-isolated repeated-show regression test passed as part of that
+  suite; separate packaged GUI activation results are recorded below.
+- `python -m compileall -q core features ui tests` and `python -m pip check`.
+- Python 3.12 Windows build produced `dist\SeekR.exe` (63,839,004 bytes).
+  Explorer version metadata reports `ProductName=SeekR`,
+  `ProductVersion=1.0.0`, and `FileVersion=1.0.0`. PyInstaller's archive
+  reader found 850 entries and the embedded `assets\icons\seekr.ico` and
+  `assets\icons\seekr.png`.
+- Inno Setup compiled `dist\installer\SeekR-Setup-1.0.0.exe`
+  (65,132,673 bytes). Its product name/version are SeekR/1.0.0. Both artifacts
+  are **unsigned**.
+- The installer used its documented default per-user path,
+  `%LOCALAPPDATA%\Programs\SeekR`; the Start Menu shortcut resolved to the
+  installed `SeekR.exe`, and the 1.0.0 uninstall entry was present.
+- First visible packaged launch appeared after **20.14 seconds** in this
+  environment. The GUI search `calc: 2+2` visibly displayed `4`.
+- Same-version reinstall completed successfully. Uninstall removed the
+  binaries, shortcuts and registry entry (directory cleanup completed
+  shortly after the uninstaller returned). A database and sentinel under an
+  isolated `%APPDATA%\SeekR` test profile remained intact.
+- A non-conflicting `Ctrl+Alt+Shift+F11` registered and hid/showed the
+  launcher. The machine's default `Alt+Space` was already registered by
+  another application; SeekR reported that conflict rather than claiming
+  success.
+
+### FAIL / UNVERIFIED
+
+- **FAIL — repeat packaged GUI activation was inconsistent.** A second
+  process logged that it had forwarded a show request; one packaged activation
+  was observed, but later scripted repeated launches exited successfully
+  without a visible primary window. This does not invalidate the passing
+  process-isolated socket tests, but user-facing repeated activation is not
+  release-verified and needs manual retest on a clean Windows desktop.
+- **UNVERIFIED — older-version upgrade.** Only same-version reinstall was
+  possible without an earlier installer.
+- **UNVERIFIED — Linux CI.** WSL is installed without a Linux distribution;
+  Docker and Podman are unavailable. The current workflow was not pushed or
+  run remotely.
+- **UNVERIFIED — default hotkey on a clean machine.** `Alt+Space` was occupied
+  on this host. A custom hotkey worked; test the default on a clean desktop.
+- **UNVERIFIED — signing and SmartScreen.** Both local artifacts report
+  `NotSigned`; no signing certificate or reputation check was available.
+- **UNVERIFIED — tray interactions**, clean user-initiated quit, Start Menu
+  `.lnk` enumeration and launching, Windows power/screenshot APIs, startup
+  registry toggle, browser profiles, clipboard integration, multi-monitor/DPI,
+  Windows 10, and packaged performance.
 
 ## Residual risks
 
 - **Mocked Win32 signatures can still be wrong in detail.** The 64-bit HWND
   and `GetFileAttributesW` signatures were corrected against the Windows API
-  documentation, but only a Windows run can prove them.
+  documentation, but the automated suite does not individually verify every
+  call against the live API.
 - **COM/shell behaviour** (`.lnk` icons, Start Menu, tray) can differ between
   Windows versions, shell replacements and locked-down enterprise profiles.
 - **Frozen Windows imports** can differ from Linux. PyInstaller's Windows
-  analysis was not run; a missing hidden import would only appear there.
+  analysis, visible installed first launch and isolated-profile installation
+  passed, but optional feature paths and other profile configurations were not
+  exhaustively tested.
 - **PNG-compressed icons** are accepted by current PyInstaller and Windows
   Vista+, but Explorer rendering was not inspected.
-- **Performance on Windows** is unknown; NTFS, Defender and cold starts can
-  change indexing and startup behaviour substantially.
+- **Packaged-build performance** is not measured; NTFS, Defender, one-file
+  extraction and cold starts can change startup and indexing behavior
+  substantially. Source-mode measurements are recorded separately.
 
 ## Reproduce this audit
 
@@ -219,28 +285,24 @@ QT_QPA_PLATFORM=offscreen pytest -q        # Linux headless
 python build.py --onedir                   # Linux build for packaging checks
 ```
 
-## Required Windows release checklist
+## Remaining Windows release checklist
 
-Run these on a clean Windows 10 and Windows 11 machine before publishing a
-release and record the results:
+The automated checks above passed on one Windows 11 machine. Before claiming
+full native compatibility or publishing, run the remaining checks on clean
+Windows 10 and Windows 11 machines and record the results:
 
-1. Run `tools\windows_test.ps1` from the repository root (it creates the
-   virtual environment, installs dependencies, runs the suite, builds the
-   executable and writes `windows_test_results.txt`).
-2. `.venv\Scripts\python -m pytest -q` — all tests must pass (real Windows run).
-3. `.venv\Scripts\python main.py --version` and `python main.py`.
-4. `.venv\Scripts\python build.py` and `python build.py --onedir`.
-5. Launch `dist\SeekR.exe`: verify no console, first-run data in
-   `%APPDATA%\SeekR`, icon in Explorer/taskbar, and no missing-module dialog.
-6. Complete `docs/WINDOWS_MANUAL_TEST.md`; automated tests cannot cover the
+1. Install, launch, upgrade and uninstall the generated setup program; verify
+   shortcuts, first-run data in `%APPDATA%\SeekR`, and that existing user data
+   survives upgrades and uninstall.
+2. Launch `dist\SeekR.exe` visibly; verify the window, icon, no console and no
+   missing-module dialog.
+3. Complete `docs/WINDOWS_MANUAL_TEST.md`; automated tests cannot cover the
    hotkey, tray, DPI or visual behaviour.
-7. Exercise every Phase 6 item: Alt+Space, Escape, app/file/calculator/web/
+4. Exercise every Phase 6 item: Alt+Space, Escape, app/file/calculator/web/
    command search, settings, all themes, tools pages, clipboard, notes
    persistence, tray, clean exit, restart with preserved settings.
-8. Check hotkey conflict handling with another app owning `Alt+Space`.
-9. Check a non-admin account, a path with spaces and Unicode, a OneDrive-
+5. Check hotkey conflict handling with another app owning `Alt+Space`.
+6. Check a non-admin account, a path with spaces and Unicode, a OneDrive-
    redirected profile, 125%/150%/200% DPI, and a second monitor.
-10. Run `python tools/benchmark.py` and record the hardware/OS in
-    `docs/WINDOWS_PERFORMANCE.md`.
-11. Only then change the README status from "unverified on Windows" to
-    "verified", with the tested Windows versions and date.
+7. Measure the packaged build on representative hardware and record the OS,
+   hardware, workload and methodology in `docs/WINDOWS_PERFORMANCE.md`.

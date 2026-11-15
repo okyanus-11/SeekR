@@ -49,7 +49,11 @@ class ClipboardTab(QWidget):
         layout.setSpacing(10)
         layout.addWidget(label("Clipboard history", "Heading"))
         layout.addWidget(
-            label("Text you copy is stored locally. Pin entries to keep them when the limit is reached.", "Muted", wrap=True)
+            label(
+                "Clipboard text is stored unencrypted in SeekR’s local SQLite database. "
+                "Capture is off until you opt in. Pin entries to keep them when the limit is reached.",
+                "Muted", wrap=True,
+            )
         )
         controls = QHBoxLayout()
         self.search = QLineEdit()
@@ -57,7 +61,7 @@ class ClipboardTab(QWidget):
         self.search.textChanged.connect(self.reload)
         controls.addWidget(self.search, 1)
         self.monitor_switch = Switch()
-        self.monitor_switch.setChecked(bool(controller.config.get("clipboard.enabled", True)))
+        self.monitor_switch.setChecked(controller.clipboard_service.enabled)
         self.monitor_switch.toggled.connect(self._toggle_monitor)
         controls.addWidget(label("Monitor clipboard", "Muted"))
         controls.addWidget(self.monitor_switch)
@@ -99,7 +103,7 @@ class ClipboardTab(QWidget):
             self.list.addItem(item)
         self.status.setText(f"{len(items)} entries")
         self.monitor_switch.blockSignals(True)
-        self.monitor_switch.setChecked(bool(self.controller.config.get("clipboard.enabled", True)))
+        self.monitor_switch.setChecked(self.service.enabled)
         self.monitor_switch.blockSignals(False)
 
     def _selected(self) -> Optional[dict]:

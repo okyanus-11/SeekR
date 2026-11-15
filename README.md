@@ -60,14 +60,14 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 | Translation | `translate: Hello to Turkish` builds a Google Translate URL; supports 20+ language names. |
 | Dictionary | `define: algorithm` opens dictionary lookups and offers in-app definitions via the Dictionary tool page. |
 | Commands | Built-in safe system commands and user-defined commands with confirmation for destructive actions, argument-safe execution, aliases and history. |
-| Clipboard | Monitors text clipboard entries, stores them locally with hashes, supports pinning, search, deletion and automatic pruning. |
+| Clipboard | Opt-in text clipboard history, off by default; copied text is stored unencrypted in the local database with hash-based deduplication, pinning, search, deletion and automatic pruning. |
 | Notes | Lightweight notes with autosave, pinning, search and timestamps. |
 | System info | Real CPU, memory, disks, GPU, battery, network, IP, uptime and OS data via `psutil` and platform APIs. No invented values. |
 | Date & time | Current time, time-zone lookup and conversion, date differences, countdown timer, configurable formats. |
 | Windows | Lists open windows and switches to the selected one (Windows API; unavailable elsewhere). |
 | Emoji | Searchable emoji table; copies the selected emoji. |
 | Color | HEX/RGB/HSL/HSV conversion, color picking, copyable values. |
-| Screenshots | Triggers the Windows Snipping Tool overlay and saves to a folder you choose on Settings → Files. |
+| Screenshots | The Tools page has a Qt full-screen capture action that saves to the configured folder (Settings → Files); a separate action opens the Windows Snipping Tool for region capture. The Snipping Tool's save destination is controlled by Windows, not SeekR. Neither path has been verified with a real-display capture. |
 | Processes | Search running processes with CPU/memory usage, details, and confirmation before termination. |
 | Bookmarks | Reads browser bookmarks (Chrome, Edge, Brave, Firefox) when their profile files are readable; degrades gracefully otherwise. |
 | QuickLook | Safe previews for images and text-like documents (never executes previewed files). |
@@ -110,7 +110,7 @@ Dark, Light, AMOLED, Catppuccin Mocha, Dracula and Nord, with custom accent colo
 
 ## Screenshots
 
-This release was produced in a headless Linux build environment, so no authentic Windows screenshots are included rather than shipping fabricated mockups. The UI can be previewed by running the app; the launcher, settings and tools windows are described above.
+No screenshots are included. The Qt full-screen capture and Windows Snipping Tool region-capture paths are separate; neither has been manually verified against a real display.
 
 ---
 
@@ -130,19 +130,32 @@ This release was produced in a headless Linux build environment, so no authentic
 
 ## Installation
 
-### From a release build
+See [docs/INSTALLATION.md](docs/INSTALLATION.md) for installation, build, and user-data details.
 
-No prebuilt Windows binary is committed to this repository. Build `SeekR.exe`
-on Windows as described under [Building a standalone executable](#building-a-standalone-executable),
-then:
+### From a local build
 
-1. Place `SeekR.exe` in a folder you control (for example `%LOCALAPPDATA%\Programs\SeekR`).
+A native Windows executable and installer were validated on Windows 11. The
+installer was installed, same-version reinstalled, launched, and uninstalled;
+the Start Menu shortcut targeted the installed executable, and isolated
+`%APPDATA%` test data survived uninstall. The visible launcher returned `4`
+for `calc: 2+2`. The Python 3.12.10 Windows suite passed with two documented
+platform skips.
+
+This is not a public release. A true upgrade from an older installer, Linux CI,
+code signing/SmartScreen, and several native shell integrations remain
+unverified. `Alt+Space` was already registered by another application on the
+validation PC; an alternate hotkey registered and toggled correctly, but
+repeated packaged show requests did not consistently make the window visible
+in scripted testing. See [the Windows audit](docs/WINDOWS_AUDIT.md) for the
+full checklist. For a build from source, see
+[Building a standalone executable](#building-a-standalone-executable), then:
+
+1. After a successful local build, place `SeekR.exe` in a folder you control (for example `%LOCALAPPDATA%\Programs\SeekR`).
 2. Run it. Enable **Start with Windows** in Settings → General if desired.
 
 User data is stored in `%APPDATA%\SeekR`, never next to the executable.
 
-The Windows executable has not yet been built or launched in a Windows
-environment; see [Windows compatibility](#windows-compatibility).
+Locally built files are not a published release.
 
 ### Development setup
 
@@ -205,8 +218,11 @@ report is written to **`windows_test_results.txt` in the repository root**. The
 script exits with code `0` only when every required check passes; any failure
 exits with code `1` and remains visible in the report.
 
-> This script does not emulate Windows. It must be run on Windows; the native
-> executable and Win32 integration are still unverified until it passes there.
+On Windows 11 build 26300, the full suite passed with 168 tests and 2
+documented skips. The process-isolated single-instance forwarding regression
+test ran as part of that suite. Automated checks do not verify native GUI
+behavior; the Win32 hotkey, tray, window switching, and Snipping Tool experience
+have not been manually verified. See [Windows compatibility](#windows-compatibility).
 
 ### Manual GUI checks
 
@@ -266,10 +282,11 @@ Python. Use `--onedir` for a troubleshooting folder build at
 window and shows startup errors. On Linux the same command produces `dist/SeekR`
 and `dist/SeekR/SeekR`, which are not Windows executables.
 
-> **Honest note:** the build script and its icon/version metadata were
-> validated on Linux (PyInstaller parsed both), but PyInstaller cannot
-> cross-compile. A native `dist/SeekR.exe` has **not** been built, signed or
-> launched on Windows yet. See [Windows compatibility](#windows-compatibility).
+> Windows 11 build 26300: the automated suite passed (168 passed, 2 skipped),
+> the 62.8 MiB `dist\SeekR.exe` was built and its metadata checked, a hidden
+> frozen-app startup smoke test passed, and the installer compiled with Inno
+> Setup 6.7.3. Interactive Windows shell/GUI behavior and clean-profile
+> installation remain unverified. See [Windows compatibility](#windows-compatibility).
 
 ---
 
@@ -334,7 +351,9 @@ SQLite at `%APPDATA%\SeekR\seekr.db` (WAL mode, busy timeout, per-thread connect
 
 Tables: `apps`, `files`, `clipboard`, `notes`, `history`, `custom_commands`, `ssh_profiles`, `quick_actions`, `meta`.
 
-- Clipboard entries are deduplicated by hash and pruned to the configured limit; pinned entries are exempt.
+- Clipboard history is off by default. When explicitly enabled, copied text is
+  stored unencrypted in the local database; entries are deduplicated by hash
+  and pruned to the configured limit, with pinned entries exempt.
 - History retention is configurable (Privacy page) and applied at startup.
 - The file index can be cleared/rebuilt from Settings → Files.
 - **Vacuum database** is available on Settings → Advanced.
@@ -432,69 +451,46 @@ pytest
 
 The suite covers configuration validation/persistence, database operations, fuzzy matching, calculator expressions and errors, keyword detection/aliases/ranking, provider failures, web URL generation, command parsing and safety, date/time conversion, file indexing, application discovery, clipboard, notes, quick actions, SSH validation, system info, process listing/termination, emoji search, QuickLook, and headless GUI integration (launcher navigation, execution, settings and tools pages).
 
-**Result in this environment:** `154 passed` (128 pre-existing tests plus 26
-Windows-compatibility tests), 0 failed, 0 skipped. GUI tests require a Qt
-platform; on a headless machine use:
+GUI tests require a Qt platform; on a headless machine use:
 
 ```bash
 QT_QPA_PLATFORM=offscreen pytest
 ```
 
-The 26 Windows tests are explicitly labelled `[REAL]`, `[SIMULATED]` or
-`[MOCKED Win32]`; mocked Win32 calls prove control flow, not Windows behaviour.
-Windows-specific behaviour (global hotkey, Start Menu discovery, power schemes,
-Snipping Tool, executable packaging and launch) was not executed on Windows and
-is documented as unverified rather than claimed as tested. On Windows, run
-`tools\windows_test.ps1` to execute the same suite and build the executable;
-the full evidence process is in [docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md).
+The Windows suite passed on Windows 11 build 26300; mocked or source-level
+checks do not establish native GUI behavior. In particular, real-display
+capture and the Snipping Tool's save destination are not established by tests.
+The full evidence process is in [docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md).
 
 ---
 
 ## Performance
 
-Measured with `python tools/benchmark.py` on the build machine (Linux x86_64, Python 3.12, 10,000 indexed files):
-
-| Path | Median |
-|---|---|
-| Controller startup (no tray/hotkey) | 12.4 ms |
-| Search `chrome` (all providers) | 0.52 ms |
-| Search `calc: sqrt(144) + 25 * 4` | 0.43 ms |
-| Web keyword search | 0.07 ms |
-| Calculator evaluation | 0.35 ms |
-| Fuzzy comparison | 9.1 µs |
-| Indexed filename query | 0.92 ms |
-| Insert 10,000 file rows | 398 ms |
-
-95th percentile stays under 0.6 ms for typical queries. These are **Linux**
-numbers, not Windows results. Methodology, caveats and the exact script are in
-[docs/PERFORMANCE.md](docs/PERFORMANCE.md). No Windows measurement exists yet;
-the required procedure is in
-[docs/WINDOWS_PERFORMANCE.md](docs/WINDOWS_PERFORMANCE.md).
+Windows source-mode performance measurements have been run on a Windows 11
+machine. They cover headless/controller and synthetic workloads, not the
+packaged build or visible-display responsiveness. Results, methodology, and
+limitations are in [docs/WINDOWS_PERFORMANCE.md](docs/WINDOWS_PERFORMANCE.md)
+and [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 ---
 
 ## Windows compatibility
 
-SeekR targets Windows 10 and 11, but the 1.0.0 audit was performed on headless
-Linux with no Windows VM or Wine. Code paths that touch Windows were repaired
-and covered by simulated/mocked tests, yet **the native application has not been
-run on Windows**. The following are therefore unverified: the built
-`SeekR.exe`, Alt+Space/`RegisterHotKey`, tray shell integration, Start Menu
-`.lnk` enumeration and icons, `powercfg`, Snipping Tool, window switching,
-`HKCU\...\Run` startup, Windows notifications, DPI/multi-monitor behaviour and
-all Windows performance numbers.
-
-What *was* verified: 154 Linux tests, byte-compilation, `python main.py
---version`, a frozen PyInstaller build (Linux) that started and wrote data
-outside its install directory, and structural parsing of the Windows icon and
-version resource by PyInstaller. The full evidence table, residual risks and a
-step-by-step Windows release checklist are in
-[docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md). Do not describe the Windows
-release as tested until that checklist passes on real hardware.
+Automated tests, a frozen-app startup smoke test, executable packaging and
+installer compilation ran on Windows 11 build 26300. Native Win32 hotkey, tray,
+window-switching, and Snipping Tool UX have not been manually verified, and
+tests do not establish real-display capture or where Snipping Tool saves
+captures. The installer was compiled but not installed, and no release has been
+published. See
+[docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md) for the evidence and
+[docs/WINDOWS_MANUAL_TEST.md](docs/WINDOWS_MANUAL_TEST.md) for the checklist.
 
 ---
 
 ## Troubleshooting
+
+See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for additional
+troubleshooting guidance.
 
 | Symptom | Fix |
 |---|---|
@@ -502,7 +498,7 @@ release as tested until that checklist passes on real hardware.
 | Applications missing | Settings → Applications → **Refresh index**. Portable apps can be added under **Additional application folders**; anything else can be launched with Quick Actions. |
 | File results empty | Add at least one directory on Settings → Files and run a re-index (`Ctrl+R`). |
 | Time zones wrong | `tzdata` must be installed (it is bundled in the executable). |
-| Clipboard history not updating | Enable clipboard monitoring on Settings → Clipboard and in Privacy. |
+| Clipboard history not updating | Enable clipboard history in Settings → Clipboard or Privacy. It is off by default and stores copied text unencrypted in the local database. |
 | Settings window empty/odd after an upgrade | Close SeekR, delete `%APPDATA%\SeekR\config.json` (a backup is created automatically when validation fails). |
 | Logs | `%APPDATA%\SeekR\logs\seekr.log` (rotating). Enable debug logging on Settings → Advanced for detail. |
 | PowerShell script is blocked | Run it with `-ExecutionPolicy Bypass` as shown in [Windows validation](#windows-validation). |
@@ -515,14 +511,14 @@ release as tested until that checklist passes on real hardware.
 
 ## Known limitations
 
-- **Windows verification:** development happened on Linux. The Win32 hotkey, tray, Start Menu `.lnk` parsing, `powercfg`, Snipping Tool integration, window switching, registry startup and the PyInstaller `.exe` were implemented against documented APIs but could not be executed on Windows here. They degrade gracefully elsewhere (features report "not available" rather than failing). See [docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md) for the exact verified/unverified split.
+- **Windows verification:** automated tests, a frozen-app startup smoke test, executable packaging and installer compilation ran on Windows 11 build 26300. Native hotkey, tray, window switching, Snipping Tool UX, visible-window behavior and clean-profile install/uninstall remain unverified manually; Windows 10 was not tested. See [docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md) for the verified/unverified split.
 - **Language:** Settings offers English and Türkçe; in 1.0.0 only the launcher shell is translated. Tool and settings pages remain English. This is a documented partial feature, not a stub.
 - **GPU utilisation:** shown only when the platform exposes it (NVML/`nvidia-smi` or Windows counters); otherwise the UI says it is unavailable rather than inventing a number.
 - **Bookmarks:** browsers must be closed or use readable profile files; encrypted/locked stores are skipped with a message.
 - **Dictionary:** `define:` opens a web lookup; offline definitions are not bundled.
-- **Screenshots:** captures through the Windows Snipping Tool, so SeekR itself does not capture pixels on other platforms.
+- **Screenshots:** SeekR has a Qt full-screen capture/save-to-configured-folder path and a separate Windows Snipping Tool region-capture action. Real-display capture is not verified, and SeekR does not establish the Snipping Tool's save destination.
 - **SSH:** requires an `ssh` client on `PATH`; SeekR never stores passwords (key files or agent authentication only).
-- No screenshots are shipped because the build environment has no display.
+- No screenshots are shipped; no real-display capture has been verified.
 
 ---
 

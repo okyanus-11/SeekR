@@ -107,7 +107,7 @@ def default_config() -> dict[str, Any]:
             "custom": [],
         },
         "clipboard": {
-            "enabled": True,
+            "enabled": False,
             "limit": 200,
             "poll_interval_ms": 600,
             "ignore_duplicates": True,
@@ -115,7 +115,8 @@ def default_config() -> dict[str, Any]:
             "exclude_sensitive": True,
         },
         "privacy": {
-            "clipboard_history": True,
+            "clipboard_history": False,
+            "clipboard_history_consent": False,
             "usage_tracking": True,
             "save_search_history": True,
             "retention_days": 90,
@@ -385,6 +386,19 @@ class ConfigManager:
                 self._data = copy.deepcopy(self._defaults)
                 return self._data
             self._data = sanitize(parsed, self._defaults)
+            privacy = parsed.get("privacy") if isinstance(parsed, dict) else None
+            has_clipboard_consent = (
+                isinstance(privacy, dict)
+                and "clipboard_history_consent" in privacy
+                and privacy["clipboard_history_consent"] is True
+            )
+            if not has_clipboard_consent:
+                # Older releases defaulted clipboard history on. Without an
+                # explicit consent marker, treat that value as implicit
+                # legacy configuration, not as permission to keep capturing.
+                self._data["clipboard"]["enabled"] = False
+                self._data["privacy"]["clipboard_history"] = False
+                self._data["privacy"]["clipboard_history_consent"] = False
             return self._data
 
     def _backup_corrupt_file(self) -> None:
@@ -438,6 +452,13 @@ class ConfigManager:
                     node[part] = child
                 node = child
             node[parts[-1]] = cleaned
+            if dotted in {"privacy.clipboard_history", "clipboard.enabled"}:
+                # Presence of this marker distinguishes a user decision from
+                # the old implicit default during future config migrations.
+                enabled = bool(cleaned)
+                self._data["privacy"]["clipboard_history"] = enabled
+                self._data["clipboard"]["enabled"] = enabled
+                self._data["privacy"]["clipboard_history_consent"] = True
             self._dirty = True
             if save:
                 self.save()

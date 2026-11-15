@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections import OrderedDict
 from pathlib import Path
 
 from PySide6.QtCore import QFileInfo, QRectF, Qt
@@ -18,18 +19,21 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import QFileIconProvider
 
+_MAX_CACHED_ICONS = 512
+
 
 class IconStore:
     """Caches file icons so scrolling results stays fast."""
 
     def __init__(self) -> None:
         self._provider = QFileIconProvider()
-        self._cache: dict[str, QIcon] = {}
+        self._cache: OrderedDict[str, QIcon] = OrderedDict()
 
     def icon_for(self, path: str | None) -> QIcon | None:
         if not path:
             return None
         if path in self._cache:
+            self._cache.move_to_end(path)
             return self._cache[path]
         icon = QIcon()
         if os.path.exists(path):
@@ -44,6 +48,8 @@ class IconStore:
             except Exception:
                 icon = QIcon()
         self._cache[path] = icon
+        if len(self._cache) > _MAX_CACHED_ICONS:
+            self._cache.popitem(last=False)
         return icon if not icon.isNull() else None
 
     def clear(self) -> None:

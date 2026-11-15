@@ -44,11 +44,18 @@ class WorkerSignals(QObject):
 class FunctionWorker(QRunnable):
     """Runs a callable on the global thread pool and reports the outcome."""
 
-    def __init__(self, fn: Callable[..., Any], *args: Any, **kwargs: Any):
+    def __init__(
+        self,
+        fn: Callable[..., Any],
+        *args: Any,
+        on_cleanup: Optional[Callable[[], None]] = None,
+        **kwargs: Any,
+    ):
         super().__init__()
         self._fn = fn
         self._args = args
         self._kwargs = kwargs
+        self._on_cleanup = on_cleanup
         self.signals = WorkerSignals()
         self.setAutoDelete(True)
 
@@ -61,6 +68,12 @@ class FunctionWorker(QRunnable):
             self.signals.failed.emit(describe_error(exc), text)
         else:
             self.signals.finished.emit(result)
+        finally:
+            if self._on_cleanup is not None:
+                try:
+                    self._on_cleanup()
+                except Exception:
+                    log.exception("Background task cleanup failed")
 
 
 def run_async(
@@ -69,11 +82,12 @@ def run_async(
     on_finished: Optional[Callable[[Any], None]] = None,
     on_failed: Optional[Callable[[str, str], None]] = None,
     on_progress: Optional[Callable[[int, str], None]] = None,
+    on_cleanup: Optional[Callable[[], None]] = None,
     pool: QThreadPool | None = None,
     **kwargs: Any,
 ) -> FunctionWorker:
     """Run *fn* off the GUI thread, wiring optional callbacks."""
-    worker = FunctionWorker(fn, *args, **kwargs)
+    worker = FunctionWorker(fn, *args, on_cleanup=on_cleanup, **kwargs)
     if on_finished is not None:
         worker.signals.finished.connect(on_finished)
     if on_failed is not None:

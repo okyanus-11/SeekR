@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import threading
 import time
 
+from PySide6.QtCore import QThreadPool
+
 from core.database import Database
+from core.workers import run_async
 
 
 def test_application_upsert_and_search(db):
@@ -47,6 +51,70 @@ def test_file_index_and_queries(db):
     assert db.recent_files(limit=5)
     db.delete_files_under("/tmp")
     assert db.count_files() == 0
+
+
+def test_extension_browse_uses_ordered_index(db):
+    db.upsert_files(
+        [
+            {"path": "/tmp/older.txt", "name": "older.txt", "ext": ".txt", "mtime": 1},
+            {"path": "/tmp/newer.txt", "name": "newer.txt", "ext": ".txt", "mtime": 2},
+        ]
+    )
+    plan = db.connection().execute(
+        "EXPLAIN QUERY PLAN "
+        "SELECT * FROM files WHERE ext = ? ORDER BY mtime DESC LIMIT ?",
+        (".txt", 40),
+    ).fetchall()
+    details = [row[3] for row in plan]
+
+    assert any("idx_files_ext_mtime" in detail for detail in details)
+    assert not any("TEMP B-TREE FOR ORDER BY" in detail for detail in details)
+    assert [row["name"] for row in db.files_by_extension(".txt")] == [
+        "newer.txt",
+        "older.txt",
+    ]
+
+
+def test_extension_index_replaces_v1_index(tmp_path):
+    database_path = tmp_path / "v1.db"
+    previous = Database(database_path)
+    connection = previous.connection()
+    connection.execute("DROP INDEX idx_files_ext_mtime")
+    connection.execute("CREATE INDEX idx_files_ext ON files(ext)")
+    connection.execute("UPDATE kv SET value = '1' WHERE key = 'schema_version'")
+    connection.commit()
+    previous.close()
+
+    upgraded = Database(database_path)
+    indexes = {
+        row["name"] for row in upgraded.connection().execute("PRAGMA index_list(files)")
+    }
+
+    assert "idx_files_ext_mtime" in indexes
+    assert "idx_files_ext" not in indexes
+    assert upgraded.get_meta("schema_version") == "2"
+    upgraded.close()
+
+
+def test_database_worker_connection_is_closed_on_worker_thread(db):
+    main_thread = threading.get_ident()
+    cleanup_state = []
+    close_connection = db.close_thread_connection
+
+    def cleanup():
+        cleanup_state.append(
+            (getattr(db._local, "conn", None) is not None, threading.get_ident())
+        )
+        close_connection()
+        cleanup_state.append(getattr(db._local, "conn", None) is None)
+
+    pool = QThreadPool()
+    run_async(db.count_apps, on_cleanup=cleanup, pool=pool)
+    assert pool.waitForDone(5000)
+
+    assert cleanup_state[0][0] is True
+    assert cleanup_state[0][1] != main_thread
+    assert cleanup_state[1] is True
 
 
 def test_clipboard_history_rules(db):
@@ -103,6 +171,15 @@ def test_history_and_pruning(db):
     assert db.history("app") == []
     db.clear_history()
     assert db.history() == []
+
+
+def test_history_recency_uses_insertion_order_when_timestamps_tie(db, monkeypatch):
+    monkeypatch.setattr("core.database.time.time", lambda: 123.0)
+    db.add_history("search", "seekr")
+    db.add_history("search", "calculator")
+
+    assert [row["value"] for row in db.history("search")] == ["calculator", "seekr"]
+    assert db.recent_queries()[:2] == ["calculator", "seekr"]
 
 
 def test_custom_commands_crud(db):

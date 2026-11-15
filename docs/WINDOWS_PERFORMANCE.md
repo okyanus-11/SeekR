@@ -1,83 +1,45 @@
 # SeekR — Windows performance
 
-## Status: not measured on Windows
+Windows performance has now been measured on a real Windows 11 machine for
+source-mode startup, headless controller/provider paths, synthetic SQLite and
+filesystem workloads, and a short hidden-app idle sample. Results and
+methodology are recorded in [PERFORMANCE.md](PERFORMANCE.md).
 
-No Windows measurement is reported here. SeekR 1.0.0 was audited on a headless
-Linux x86-64 container with no Windows VM, no Wine and no physical Windows
-machine. Reporting Linux timings as Windows results would be false, so this
-document deliberately contains **no Windows numbers**.
-
-The Linux measurements in [PERFORMANCE.md](PERFORMANCE.md) describe the
-algorithmic hot paths only. They do **not** predict Windows startup,
-filesystem/Defender overhead, shell icon extraction or GDI/Qt rendering cost.
-
-## What must be measured
-
-On a real Windows 10/11 machine, record all of the following with the hardware
-and OS written down:
-
-| Metric | How to measure |
-|---|---|
-| Cold startup (first run after reboot, no OS cache) | Time from launching `SeekR.exe` until the launcher is visible. Repeat 5×; report median and range. |
-| Warm startup | Launch, quit, relaunch within a minute; time until visible. Repeat 5×. |
-| Hotkey-to-visible latency | Timestamp before `Alt+Space` and when the window is painted; repeat 20×. |
-| Search latency | `tools/benchmark.py` plus a manually measured keystroke-to-results time for app, file and calculator queries. |
-| Calculator latency | `tools/benchmark.py` calculator benchmark; also type `calc: sqrt(144) + 25 * 4`. |
-| Application discovery | Time a full Start Menu re-index from Settings → Applications; record number of shortcuts. |
-| File indexing | Index a fixed tree (e.g. 10,000 files, 2 GB) and record elapsed time and CPU; note NTFS, SSD/HDD and Defender state. |
-| Idle CPU | Task Manager / `Get-Counter` over 5 minutes with the launcher hidden and clipboard monitoring enabled. |
-| Idle memory | Working set and private bytes after 5 minutes idle, then after opening Settings and Tools once. |
-| Executable size/startup | `dist\SeekR.exe` size; onedir size; extraction overhead of the onefile build. |
-
-Suggested commands (run from the repository root in PowerShell):
-
-```powershell
-.venv\Scripts\python tools\benchmark.py
-Measure-Command { Start-Process .\dist\SeekR.exe -ArgumentList '--version' -Wait }
-Get-Counter '\Process(SeekR)\Working Set - Private' -SampleInterval 5 -MaxSamples 12
-```
-
-For startup timing, use a stopwatch or ETW/Windows Performance Recorder rather
-than `Measure-Command` on a process that keeps running; `--version` only
-measures interpreter/bundle startup, not GUI readiness.
-
-## Recording template
-
-Copy this table into the document when measurements exist:
+## Environment
 
 | Field | Value |
 |---|---|
-| Windows edition/version/build | |
-| CPU / RAM / storage | |
-| GPU and driver | |
-| Display scaling / resolution / monitor count | |
-| Defender / third-party antivirus state | |
-| Build type (onefile / onedir) | |
-| Cold startup median (range) | |
-| Warm startup median (range) | |
-| Hotkey-to-visible median | |
-| Search / calculator medians | |
-| Application discovery (count, seconds) | |
-| File indexing (files, GB, seconds) | |
-| Idle CPU / idle private memory | |
-| Tester / date | |
+| Windows | Windows 11 build 26300 |
+| Python / Qt / SQLite | Python 3.14.7 / PySide6 6.12.0 / SQLite 3.50.4 |
+| Processor | Intel 64-bit Family 6 Model 186 |
+| Hardware / OS details | RAM, storage, GPU driver, Defender state, and display configuration not recorded |
+| Build type | Source mode; packaged onefile/onedir builds not measured |
 
-## Known performance risks on Windows
+## Measured results
 
-- **Onefile extraction:** the onefile executable unpacks to a temporary folder
-  on every launch. This can dominate cold start, especially with real-time
-  antivirus scanning. The onedir build avoids it and is the recommended
-  troubleshooting build.
-- **Defender:** scanning the bundled Qt DLLs and the SQLite database can add
-  substantial first-run latency.
-- **Icon extraction:** `.lnk` icon extraction through the shell is slower than
-  the cached glyph fallback; a large Start Menu may take noticeably longer than
-  on Linux.
-- **Network/redirected profiles:** OneDrive-redirected Desktop/Documents can
-  make file indexing and existence checks slower.
-- **PowerShell/WMI:** system information now runs off the GUI thread and is
-  cached, but the first GPU query can take hundreds of milliseconds on some
-  machines.
+- Source-mode import/controller readiness: five-run median 791 ms (range
+  663–1,155 ms) after lazy SymPy loading, versus 2,302 ms (range 1,547–2,804
+  ms) before.
+- Warmed headless provider queries: 0.103–0.498 ms median in the included
+  benchmark. A specific 100k-file search was 17.83 ms median after correcting
+  unnecessary candidate broadening.
+- Extension browse at 100k indexed rows: 0.163 ms median after the ordered
+  compound-index change, compared with 106.439 ms before.
+- Synthetic indexing of 10,000 files plus 100 directories: 315 ms. A 10 ms
+  main-thread timer had 1.915 ms p95 and 4.742 ms maximum lateness.
+- 50,000 unique icon paths retained at most 512 entries; measured RSS growth
+  was 0.184 MiB, compared with 17.74 MiB before the cache bound.
+- Short idle samples showed stable memory near 125 MiB RSS, but idle CPU
+  results were inconsistent (1.014% over 15 seconds previously; 4.03% over
+  31 seconds in the latest sample). They are not a controlled before/after
+  comparison.
 
-Until the table above is filled on real Windows, the Windows release must be
-described as functionally unverified and performance-unmeasured.
+These are source/headless or synthetic workload results, not release-build
+measurements. Cold/warm packaged startup, visible window paint, hotkey-to-show
+latency, large real user directories, long-duration idle CPU, and multi-hour
+memory growth remain unmeasured. Onefile extraction, Defender scanning,
+Start Menu icon extraction, and redirected/network profiles may materially
+change Windows results.
+
+For exact benchmark values, caveats, and the ranked bottlenecks, see
+[PERFORMANCE.md](PERFORMANCE.md).

@@ -10,6 +10,9 @@ def test_defaults_are_complete(config):
     assert config.get("appearance.theme") == "dark"
     assert config.get("search.max_results") == 12
     assert config.get("files.directories") == default_config()["files"]["directories"]
+    assert config.get("clipboard.enabled") is False
+    assert config.get("privacy.clipboard_history") is False
+    assert config.get("privacy.clipboard_history_consent") is False
 
 
 def test_set_and_persist(tmp_path):

@@ -250,7 +250,7 @@ class FileService:
 
         term = text
         candidates = self.db.file_candidates(term[:40], limit=800, ext=extension or None)
-        if len(candidates) < limit and len(term) >= 3:
+        if len(candidates) < limit and len(term) >= 3 and len(term.split()) > 1:
             # Widen using the longest word to allow typo-tolerant ranking.
             longest = max(re.split(r"\s+", term), key=len)
             if len(longest) >= 3:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -79,11 +80,9 @@ def build_ssh_argv(profile: dict[str, Any]) -> list[str]:
 def _terminal_command(ssh_args: list[str]) -> list[str] | None:
     """Wrap ssh arguments in the best available terminal emulator."""
     if os.name == "nt":
-        if util.which("wt.exe") or util.which("wt"):
-            terminal = util.which("wt.exe") or "wt.exe"
+        terminal = util.which("wt.exe") or util.which("wt")
+        if terminal:
             return [terminal, "new-tab", "--", *ssh_args]
-        if util.which("ssh"):
-            return ["cmd.exe", "/k", *ssh_args]
         return None
     terminals = [
         ("gnome-terminal", lambda args: ["gnome-terminal", "--", *args]),
@@ -100,6 +99,20 @@ def _terminal_command(ssh_args: list[str]) -> list[str] | None:
     return None
 
 
+def _launch_ssh_in_new_console(ssh_args: list[str]) -> tuple[bool, str]:
+    """Launch SSH directly with a fresh Windows console and no command shell."""
+    try:
+        subprocess.Popen(
+            ssh_args,
+            creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0),
+            close_fds=True,
+        )
+        return True, f"Started {ssh_args[0]}"
+    except OSError as exc:
+        log.error("Could not start %s: %s", ssh_args, exc)
+        return False, f"Could not start {ssh_args[0]}: {exc}"
+
+
 def launch_profile(profile: dict[str, Any]) -> tuple[bool, str]:
     try:
         ssh_args = build_ssh_argv(profile)
@@ -108,8 +121,11 @@ def launch_profile(profile: dict[str, Any]) -> tuple[bool, str]:
     ssh_client = util.which("ssh")
     if ssh_client is None:
         return False, "The OpenSSH client (ssh) is not installed or not on PATH"
-    if os.name == "nt" and _terminal_command(ssh_args) is None:
-        return False, "No supported terminal was found (Windows Terminal or OpenSSH's cmd.exe)"
+    if os.name == "nt":
+        command = _terminal_command(ssh_args)
+        if command is not None:
+            return util.run_detached(command)
+        return _launch_ssh_in_new_console(ssh_args)
     command = _terminal_command(ssh_args)
     if command is None:
         return False, "No supported terminal emulator was found"

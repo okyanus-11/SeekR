@@ -15,7 +15,12 @@ from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 from features import system_info, util
 from features.applications import AppService, ApplicationsProvider
 from features.bookmarks import BookmarksProvider
-from features.calculator import CalculatorProvider, CalculatorService, UnitProvider
+from features.calculator import (
+    CalculatorProvider,
+    CalculatorService,
+    UnitProvider,
+    warm_up as warm_up_calculator,
+)
 from features.clipboard import ClipboardMonitor, ClipboardProvider, ClipboardService
 from features.color_tools import ColorProvider
 from features.commands import CommandService, CommandsProvider
@@ -158,6 +163,7 @@ class SeekRApplication(QObject, UIHooks):
         # Prime the cached GPU probe so the first sys: lookup has data without
         # ever running PowerShell/WMI on the GUI thread.
         system_info.warm_up()
+        run_async(warm_up_calculator)
 
         if show_window:
             self.launcher.show_launcher()
@@ -257,6 +263,7 @@ class SeekRApplication(QObject, UIHooks):
             progress=self._emit_progress,
             on_finished=self._apps_indexed,
             on_failed=lambda message, tb: self._task_failed("applications", message, tb),
+            on_cleanup=self.db.close_thread_connection,
         )
 
     def _apps_indexed(self, stats: dict) -> None:
@@ -278,6 +285,7 @@ class SeekRApplication(QObject, UIHooks):
             token=self._file_token,
             on_finished=self._files_indexed,
             on_failed=lambda message, tb: self._task_failed("files", message, tb),
+            on_cleanup=self.db.close_thread_connection,
         )
 
     def cancel_file_index(self) -> None:

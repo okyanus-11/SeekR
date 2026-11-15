@@ -15,7 +15,7 @@ from .logging_setup import get_logger
 
 log = get_logger(__name__)
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS apps (
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS files (
     indexed REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_files_name ON files(name_lower);
-CREATE INDEX IF NOT EXISTS idx_files_ext ON files(ext);
+CREATE INDEX IF NOT EXISTS idx_files_ext_mtime ON files(ext, mtime DESC);
 
 CREATE TABLE IF NOT EXISTS clipboard (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -168,6 +168,7 @@ class Database:
         with self._lock:
             conn = self.connection()
             conn.executescript(_SCHEMA)
+            conn.execute("DROP INDEX IF EXISTS idx_files_ext")
             conn.execute(
                 "INSERT OR REPLACE INTO kv(key, value) VALUES('schema_version', ?)",
                 (str(SCHEMA_VERSION),),
@@ -499,16 +500,20 @@ class Database:
     def history(self, kind: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
         if kind:
             rows = self._query(
-                "SELECT * FROM history WHERE kind = ? ORDER BY created DESC LIMIT ?", (kind, limit)
+                "SELECT * FROM history WHERE kind = ? ORDER BY created DESC, id DESC LIMIT ?",
+                (kind, limit),
             )
         else:
-            rows = self._query("SELECT * FROM history ORDER BY created DESC LIMIT ?", (limit,))
+            rows = self._query(
+                "SELECT * FROM history ORDER BY created DESC, id DESC LIMIT ?", (limit,)
+            )
         return [dict(row) for row in rows]
 
     def recent_queries(self, limit: int = 5) -> list[str]:
         rows = self._query(
-            """SELECT value, MAX(created) AS latest FROM history
-               WHERE kind = 'search' GROUP BY value ORDER BY latest DESC LIMIT ?""",
+            """SELECT value, MAX(created) AS latest, MAX(id) AS latest_id FROM history
+               WHERE kind = 'search'
+               GROUP BY value ORDER BY latest DESC, latest_id DESC LIMIT ?""",
             (limit,),
         )
         return [row["value"] for row in rows]
@@ -648,6 +653,17 @@ class Database:
             raise DatabaseError(f"Could not compact the database: {exc}") from exc
 
     # ------------------------------------------------------------------ close
+    def close_thread_connection(self) -> None:
+        """Close the current thread's connection before a pooled worker is reused."""
+        if self._is_memory:
+            return
+        connection = getattr(self._local, "conn", None)
+        if connection is not None:
+            try:
+                connection.close()
+            finally:
+                self._local.conn = None
+
     def close(self) -> None:
         if self._closed:
             return

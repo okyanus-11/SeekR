@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import subprocess
+import sys
+
 import pytest
 
 from features.calculator import (
@@ -12,6 +15,21 @@ from features.calculator import (
     looks_like_math,
     normalise_expression,
 )
+
+
+def test_importing_calculator_does_not_import_sympy():
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys; import features.calculator; print('sympy' in sys.modules)",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    assert result.stdout.strip() == "False"
 
 
 def test_basic_arithmetic():

@@ -27,8 +27,10 @@ class ClipboardService:
 
     @property
     def enabled(self) -> bool:
-        return bool(self.config.get("clipboard.enabled", True)) and bool(
-            self.config.get("privacy.clipboard_history", True)
+        return (
+            bool(self.config.get("clipboard.enabled", False))
+            and bool(self.config.get("privacy.clipboard_history", False))
+            and bool(self.config.get("privacy.clipboard_history_consent", False))
         )
 
     def capture(self, text: str, source: str = "") -> dict | None:
@@ -147,18 +149,18 @@ class ClipboardProvider(SearchProvider):
         self.service = service or ClipboardService(config, db)
 
     def search(self, query: str, limit: int) -> list[SearchResult]:
-        if not self.service.enabled:
+        items = self.service.items((query or "").strip(), limit)
+        if not items and not self.service.enabled:
             return [
                 self.make_result(
                     title="Clipboard history is disabled",
-                    subtitle="Enable it in Settings → Privacy",
+                    subtitle="Enable clipboard history in Settings to start capture",
                     category="Clipboard",
                     score=1.0,
                     primary=lambda: self.hooks.open_settings("privacy"),
                     icon_glyph="⧉",
                 )
             ]
-        items = self.service.items((query or "").strip(), limit)
         return [self._result(item, 0.9 - index * 0.02) for index, item in enumerate(items)]
 
     def _result(self, item: dict, score: float) -> SearchResult:
@@ -202,7 +204,7 @@ class ClipboardProvider(SearchProvider):
     def empty_help(self) -> SearchResult | None:
         return self.make_result(
             title="No clipboard history yet",
-            subtitle="Copy some text and it will show up here",
+            subtitle="Enable clipboard history and copy some text to show it here",
             category="Clipboard",
             score=1.0,
             primary=lambda: self.hooks.open_clipboard(),

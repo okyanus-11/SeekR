@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any
-
-import sympy as sp
-from sympy.parsing.sympy_parser import parse_expr, standard_transformations
 
 from core.config_manager import ConfigManager
 from core.database import Database
@@ -116,6 +114,19 @@ _UNIT_SYMBOLS = {
 }
 
 
+@lru_cache(maxsize=1)
+def _load_sympy() -> tuple[Any, Any, tuple]:
+    import sympy
+    from sympy.parsing.sympy_parser import parse_expr, standard_transformations
+
+    return sympy, parse_expr, standard_transformations
+
+
+def warm_up() -> None:
+    """Load SymPy before the first calculator query."""
+    _load_sympy()
+
+
 def _display_unit(unit: str) -> str:
     return _UNIT_SYMBOLS.get(unit, unit)
 
@@ -177,46 +188,46 @@ def normalise_expression(expression: str) -> str:
     return text
 
 
-def _local_dict(angle_unit: str) -> dict[str, Any]:
+def _local_dict(angle_unit: str, sympy: Any) -> dict[str, Any]:
     degrees = angle_unit == "deg"
-    factor = sp.pi / 180 if degrees else sp.Integer(1)
+    factor = sympy.pi / 180 if degrees else sympy.Integer(1)
 
     def trig(fn):
         return lambda value: fn(value * factor)
 
     return {
-        "sqrt": sp.sqrt,
-        "cbrt": sp.cbrt,
-        "root": lambda value, n=2: sp.root(value, n),
-        "sin": trig(sp.sin),
-        "cos": trig(sp.cos),
-        "tan": trig(sp.tan),
-        "asin": sp.asin,
-        "acos": sp.acos,
-        "atan": sp.atan,
-        "sinh": sp.sinh,
-        "cosh": sp.cosh,
-        "tanh": sp.tanh,
-        "log": lambda value, base=10: sp.log(value, base),
-        "ln": sp.log,
-        "lg": lambda value: sp.log(value, 10),
-        "log2": lambda value: sp.log(value, 2),
-        "log10": lambda value: sp.log(value, 10),
-        "exp": sp.exp,
-        "abs": sp.Abs,
-        "factorial": sp.factorial,
-        "floor": sp.floor,
-        "ceil": sp.ceiling,
-        "ceiling": sp.ceiling,
-        "round": lambda value: sp.floor(value + sp.Rational(1, 2)),
-        "sign": sp.sign,
-        "mod": lambda a, b: sp.Mod(a, b),
-        "pi": sp.pi,
-        "e": sp.E,
-        "tau": 2 * sp.pi,
-        "phi": sp.GoldenRatio,
-        "inf": sp.oo,
-        "deg": lambda value: value * sp.pi / 180,
+        "sqrt": sympy.sqrt,
+        "cbrt": sympy.cbrt,
+        "root": lambda value, n=2: sympy.root(value, n),
+        "sin": trig(sympy.sin),
+        "cos": trig(sympy.cos),
+        "tan": trig(sympy.tan),
+        "asin": sympy.asin,
+        "acos": sympy.acos,
+        "atan": sympy.atan,
+        "sinh": sympy.sinh,
+        "cosh": sympy.cosh,
+        "tanh": sympy.tanh,
+        "log": lambda value, base=10: sympy.log(value, base),
+        "ln": sympy.log,
+        "lg": lambda value: sympy.log(value, 10),
+        "log2": lambda value: sympy.log(value, 2),
+        "log10": lambda value: sympy.log(value, 10),
+        "exp": sympy.exp,
+        "abs": sympy.Abs,
+        "factorial": sympy.factorial,
+        "floor": sympy.floor,
+        "ceil": sympy.ceiling,
+        "ceiling": sympy.ceiling,
+        "round": lambda value: sympy.floor(value + sympy.Rational(1, 2)),
+        "sign": sympy.sign,
+        "mod": lambda a, b: sympy.Mod(a, b),
+        "pi": sympy.pi,
+        "e": sympy.E,
+        "tau": 2 * sympy.pi,
+        "phi": sympy.GoldenRatio,
+        "inf": sympy.oo,
+        "deg": lambda value: value * sympy.pi / 180,
         "rad": lambda value: value,
     }
 
@@ -236,8 +247,9 @@ def _validate_tokens(text: str) -> None:
 
 def format_number(value: Any, precision: int = 10) -> str:
     """Format a sympy number with a sensible number of significant digits."""
-    numeric = sp.N(value, precision + 4)
-    if numeric in (sp.zoo, sp.nan, sp.oo, -sp.oo):
+    sympy, _, _ = _load_sympy()
+    numeric = sympy.N(value, precision + 4)
+    if numeric in (sympy.zoo, sympy.nan, sympy.oo, -sympy.oo):
         raise CalculatorError("The result is not a finite number")
     if getattr(numeric, "is_Integer", False):
         return str(int(numeric))
@@ -265,10 +277,11 @@ def evaluate(expression: str, precision: int = 10, angle_unit: str = "rad") -> s
     """Safely evaluate a mathematical expression and format the result."""
     prepared = normalise_expression(expression)
     _validate_tokens(prepared)
+    sympy, parse_expr, standard_transformations = _load_sympy()
     try:
         parsed = parse_expr(
             prepared,
-            local_dict=_local_dict(angle_unit),
+            local_dict=_local_dict(angle_unit, sympy),
             transformations=standard_transformations,
             evaluate=True,
         )
@@ -277,13 +290,13 @@ def evaluate(expression: str, precision: int = 10, angle_unit: str = "rad") -> s
     except Exception as exc:
         raise CalculatorError("Invalid expression") from exc
 
-    if not isinstance(parsed, sp.Basic) or not parsed.is_number:
+    if not isinstance(parsed, sympy.Basic) or not parsed.is_number:
         raise CalculatorError("The expression does not evaluate to a number")
-    if parsed.has(sp.zoo):
+    if parsed.has(sympy.zoo):
         raise CalculatorError("Division by zero")
-    if parsed.has(sp.nan):
+    if parsed.has(sympy.nan):
         raise CalculatorError("The result is not a number")
-    if parsed.has(sp.oo):
+    if parsed.has(sympy.oo):
         raise CalculatorError("The result is infinite")
     return format_number(parsed, precision)
 
@@ -325,7 +338,8 @@ def convert_units(text: str, precision: int = 8) -> str:
 
     if source in _TEMPERATURE_UNITS or target in _TEMPERATURE_UNITS:
         result = _convert_temperature(value, source, target)
-        return f"{format_number(sp.Float(result), precision)} {_display_unit(target)}"
+        sympy, _, _ = _load_sympy()
+        return f"{format_number(sympy.Float(result), precision)} {_display_unit(target)}"
 
     if source not in _UNIT_TABLE:
         raise CalculatorError(f"Unknown unit: {match.group(2).strip()}")
@@ -336,7 +350,8 @@ def convert_units(text: str, precision: int = 8) -> str:
     if source_dimension != target_dimension:
         raise CalculatorError(f"{source} and {target} are not compatible units")
     result = value * source_factor / target_factor
-    return f"{format_number(sp.Float(result), precision)} {_display_unit(target)}"
+    sympy, _, _ = _load_sympy()
+    return f"{format_number(sympy.Float(result), precision)} {_display_unit(target)}"
 
 
 def _convert_temperature(value: float, source: str, target: str) -> float:

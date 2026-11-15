@@ -1031,11 +1031,16 @@ class CommandsPage(SettingsPage):
 # ---------------------------------------------------------------------- Clipboard
 class ClipboardPage(SettingsPage):
     title = "Clipboard"
-    subtitle = "Clipboard history capture and storage."
+    subtitle = "Clipboard history capture and storage. Capture is off until you opt in."
 
     def build(self) -> None:
         card = self.section("Capture")
-        self.row(card, "Enable clipboard history", "Record copied text locally so it can be reused.", bind_switch(self.config, "clipboard.enabled"))
+        card.add_widget(label(
+            "Clipboard text is stored unencrypted in SeekR’s local SQLite database. "
+            "Only enable history if you are comfortable storing copied text on this computer.",
+            "Muted", wrap=True,
+        ))
+        self.row(card, "Enable clipboard history", "Opt in to recording copied text locally so it can be reused.", bind_switch(self.config, "clipboard.enabled"))
         self.row(card, "Keep duplicate entries out", "Skips the entry when it matches the newest one.", bind_switch(self.config, "clipboard.ignore_duplicates"))
         self.row(card, "Skip private-key shaped text", "Avoids storing text that looks like a private key.", bind_switch(self.config, "clipboard.exclude_sensitive"))
         self.row(card, "History limit", "Older unpinned entries are pruned beyond this limit.", bind_spin(self.config, "clipboard.limit", 10, 2000))
@@ -1075,7 +1080,12 @@ class PrivacyPage(SettingsPage):
 
     def build(self) -> None:
         card = self.section("What is stored")
-        self.row(card, "Clipboard history", "Allow clipboard entries to be stored.", bind_switch(self.config, "privacy.clipboard_history"))
+        self.row(
+            card,
+            "Clipboard history",
+            "Opt in to storing copied text unencrypted in SeekR’s local SQLite database.",
+            bind_switch(self.config, "privacy.clipboard_history"),
+        )
         self.row(card, "Search history", "Allow executed queries to be stored.", bind_switch(self.config, "privacy.save_search_history"))
         self.row(card, "Usage tracking", "Count application launches to rank frequent apps.",
                 bind_switch(self.config, "privacy.usage_tracking"))

@@ -8,13 +8,15 @@ from pathlib import Path
 
 import pytest
 
+from core.config_manager import ConfigManager
 from features import applications as applications_module
 from features import bookmarks, color_tools, emoji_search, power, process_manager, quicklook, screenshots, system_info
 from features.applications import AppService
-from features.clipboard import ClipboardService
+from features.clipboard import ClipboardProvider, ClipboardService
 from features.files import FileIndexer, FileService, FilesProvider
 from features.notes import NotesService
 from features.quick_actions import QuickActionService
+from features import quick_connect
 from features.quick_connect import build_ssh_argv, validate_profile
 from core.workers import CancelToken
 
@@ -44,6 +46,50 @@ def test_file_index_finds_documents(indexed_files, config):
     assert service.search("plan")
     assert not any(row["name"] == ".secret.txt" for _, row in service.search("secret"))
     assert not any(row["name"] == "skip.js" for _, row in service.search("skip"))
+
+
+def test_file_search_does_not_widen_single_token_matches(config, db, monkeypatch):
+    db.upsert_files(
+        [
+            {
+                "path": f"/tmp/document-{index:06}.txt",
+                "name": f"document-{index:06}.txt",
+                "ext": ".txt",
+            }
+            for index in range(100)
+        ]
+    )
+    service = FileService(config, db)
+    original = db.file_candidates
+    queries = []
+
+    def track_candidates(query, limit=800, ext=None):
+        queries.append(query)
+        return original(query, limit=limit, ext=ext)
+
+    monkeypatch.setattr(db, "file_candidates", track_candidates)
+
+    results = service.search("document-000099")
+
+    assert results and results[0][1]["name"] == "document-000099.txt"
+    assert queries == ["document-000099"]
+
+
+def test_file_search_still_widens_multiword_queries(config, db):
+    db.upsert_files(
+        [
+            {
+                "path": "/tmp/quarterly-report.txt",
+                "name": "quarterly-report.txt",
+                "ext": ".txt",
+            }
+        ]
+    )
+    service = FileService(config, db)
+
+    results = service.search("quarterly rep")
+
+    assert results and results[0][1]["name"] == "quarterly-report.txt"
 
 
 def test_file_extension_filter(indexed_files):
@@ -144,6 +190,7 @@ def test_application_launch_records_history(config, db, tmp_path, monkeypatch):
 # -------------------------------------------------------------------- clipboard
 def test_clipboard_service(config, db):
     service = ClipboardService(config, db)
+    config.set("privacy.clipboard_history", True)
     assert service.capture("hello world")
     assert service.capture("hello world") is None  # duplicate suppressed
     assert service.capture("second entry")
@@ -154,6 +201,45 @@ def test_clipboard_service(config, db):
     assert service.count() == 1
     config.set("clipboard.enabled", False)
     assert service.capture("ignored") is None
+
+
+def test_clipboard_capture_is_off_by_default(config, db):
+    service = ClipboardService(config, db)
+    assert not service.enabled
+    assert service.capture("not opted in") is None
+    assert service.count() == 0
+
+
+def test_legacy_clipboard_config_disables_capture_without_deleting_history(config, db):
+    old_entry = db.add_clipboard("previously stored text")
+    config.path.write_text(
+        '{"clipboard":{"enabled":true},"privacy":{"clipboard_history":true}}',
+        encoding="utf-8",
+    )
+    migrated = ConfigManager(config.path)
+    service = ClipboardService(migrated, db)
+
+    assert not service.enabled
+    assert service.capture("new text") is None
+    assert service.count() == 1
+    assert service.items()[0]["id"] == old_entry
+    assert service.items()[0]["text"] == "previously stored text"
+
+
+def test_clipboard_opt_in_enables_capture(config, db):
+    service = ClipboardService(config, db)
+    config.set("privacy.clipboard_history", True)
+    assert config.get("privacy.clipboard_history_consent") is True
+    assert config.get("clipboard.enabled") is True
+    assert service.enabled
+    assert service.capture("opted-in text")["text"] == "opted-in text"
+
+
+def test_disabled_clipboard_capture_keeps_existing_search_access(config, db, hooks):
+    db.add_clipboard("existing entry")
+    service = ClipboardService(config, db)
+    results = ClipboardProvider(config, db, hooks, service).search("", 5)
+    assert [result.title for result in results] == ["existing entry"]
 
 
 def test_clipboard_skips_private_keys(config, db):
@@ -218,6 +304,34 @@ def test_ssh_validation_and_command():
     assert argv[0] == "ssh"
     assert "-p" in argv and "2222" in argv
     assert "me@example.com" in argv
+
+
+def test_windows_ssh_fallback_passes_metacharacters_as_argv(monkeypatch):
+    captured = {}
+
+    def fake_popen(args, **kwargs):
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+
+    monkeypatch.setattr(quick_connect.os, "name", "nt")
+    monkeypatch.setattr(quick_connect.util, "which", lambda executable: {
+        "ssh": "C:\\Windows\\System32\\OpenSSH\\ssh.exe",
+        "wt.exe": None,
+        "wt": None,
+    }.get(executable))
+    monkeypatch.setattr(quick_connect.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(quick_connect.subprocess, "CREATE_NEW_CONSOLE", 0x10, raising=False)
+
+    ok, message = quick_connect.launch_profile({
+        "host": "example.com",
+        "extra_args": '-o "ProxyCommand=echo safe & whoami"',
+    })
+
+    assert ok, message
+    assert captured["args"] == [
+        "ssh", "-o", "ProxyCommand=echo safe & whoami", "example.com",
+    ]
+    assert captured["kwargs"] == {"creationflags": 0x10, "close_fds": True}
 
 
 # ----------------------------------------------------------------- system info

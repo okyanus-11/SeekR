@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QCoreApplication, QObject, Signal
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 
 from .logging_setup import get_logger
@@ -32,10 +32,16 @@ class SingleInstance(QObject):
         socket.connectToServer(self.key)
         if not socket.waitForConnected(timeout_ms):
             return False
+        # Allow the listener process to finish accepting the connection before we
+        # send the payload. On Windows, a write issued immediately after the
+        # connection handshake can be lost if the server hasn't processed the
+        # pending socket yet.
+        QCoreApplication.processEvents()
         socket.write(b"show")
-        socket.waitForBytesWritten(timeout_ms)
-        # Give the server time to process the message before closing.
-        socket.waitForReadyRead(timeout_ms)
+        if not socket.waitForBytesWritten(timeout_ms):
+            socket.disconnectFromServer()
+            return False
+        QCoreApplication.processEvents()
         socket.disconnectFromServer()
         return True
 
