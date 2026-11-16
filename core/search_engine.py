@@ -246,17 +246,23 @@ class SearchEngine(QObject):
         if not cleaned or self.resolve(cleaned) is not None:
             return
         self.db.add_history("search", cleaned)
-        limit = int(self.config.get("search.history_limit", 300) or 300)
+        limit = max(1, int(self.config.get("search.history_limit", 300) or 300))
         self.db.prune_history(int(self.config.get("privacy.retention_days", 90) or 90))
         self._trim_search_history(limit)
 
     def _trim_search_history(self, limit: int) -> None:
-        rows = self.db.history("search", limit + 200)
-        if len(rows) > limit:
-            keep = {row["id"] for row in rows[:limit]}
-            for row in rows[limit:]:
-                if row["id"] not in keep:
-                    self.db._write("DELETE FROM history WHERE id = ?", (row["id"],))
+        # Delete in one indexed SQLite statement. Fetching only limit + 200 rows
+        # left older history behind forever once the table grew beyond that window.
+        self.db._write(
+            """DELETE FROM history
+               WHERE kind = ? AND id NOT IN (
+                   SELECT id FROM history
+                   WHERE kind = ?
+                   ORDER BY created DESC, id DESC
+                   LIMIT ?
+               )""",
+            ("search", "search", max(1, int(limit))),
+        )
 
     # --------------------------------------------------------------- helpers
     def _apply_weight(self, results: Iterable[SearchResult], provider: SearchProvider) -> list[SearchResult]:
