@@ -101,7 +101,7 @@ class SearchEngine(QObject):
         self._keyword_map_cache: dict[str, SearchProvider] | None = None
         config.subscribe(self._on_config_changed)
         self.destroyed.connect(
-            lambda: config.unsubscribe(self._on_config_changed)
+            lambda _obj=None: config.unsubscribe(self._on_config_changed)
         )
 
     # ------------------------------------------------------------- providers
