@@ -184,3 +184,14 @@ def test_register_and_unregister_invalidate_keyword_cache(engine, config, db, ho
     with_calc = engine.keyword_map()
     assert with_calc is not without_calc
     assert with_calc["calc"].id == "calc"
+
+
+def test_search_history_limit_prunes_all_older_rows(config, db, hooks):
+    engine = SearchEngine(config, db, hooks)
+    for index in range(250):
+        db.add_history("search", f"query {index}")
+
+    engine._trim_search_history(3)
+    rows = db.history("search", 1000)
+    assert len(rows) == 3
+    assert [row["value"] for row in rows] == ["query 249", "query 248", "query 247"]
