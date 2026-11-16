@@ -44,7 +44,7 @@ def default_config() -> dict[str, Any]:
         },
         "appearance": {
             "theme": "dark",
-            "accent": "#7c5cff",
+            "accent": "#68a9ff",
             "opacity": 0.98,
             "font_family": "Segoe UI",
             "font_size": 13,
