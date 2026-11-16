@@ -544,3 +544,7 @@ MIT — see [LICENSE](LICENSE).
 Copyright (c) 2026 Okyanus Bora Şevik.
 
 Built with Python, PySide6, SymPy, psutil and SQLite.
+
+## Installation
+
+For prerequisites, environment setup, configuration, and run/build commands, see the [installation guide](INSTALLATION.md).
