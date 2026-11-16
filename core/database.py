@@ -375,6 +375,8 @@ class Database:
         self._write("DELETE FROM files")
 
     def delete_files_under(self, directory: str) -> None:
+        if not directory:
+            return
         # Use a separator boundary instead of LIKE "path%": otherwise removing
         # /home/alex also deletes indexed files under /home/alexander.
         prefix = directory.rstrip("/\\")
@@ -383,11 +385,11 @@ class Database:
             return
         self._write(
             """DELETE FROM files
-               WHERE dir = ? OR (
+               WHERE dir IN (?, ?) OR (
                    substr(dir, 1, ?) = ?
                    AND substr(dir, ?, 1) IN ('/', char(92))
                )""",
-            (directory, len(prefix), prefix, len(prefix) + 1),
+            (directory, prefix, len(prefix), prefix, len(prefix) + 1),
         )
 
     # -------------------------------------------------------------- clipboard
