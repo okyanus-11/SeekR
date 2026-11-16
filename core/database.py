@@ -385,7 +385,7 @@ class Database:
             """DELETE FROM files
                WHERE dir = ? OR (
                    substr(dir, 1, ?) = ?
-                   AND substr(dir, ?, 1) IN ('/', '\\\\')
+                   AND substr(dir, ?, 1) IN ('/', char(92))
                )""",
             (directory, len(prefix), prefix, len(prefix) + 1),
         )
