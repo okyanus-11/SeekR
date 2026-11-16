@@ -45,7 +45,7 @@ def test_invalid_values_are_sanitised(config):
     config.set("appearance.accent", "#abc")
     assert config.get("appearance.accent") == "#aabbcc"
     config.set("appearance.accent", "not-a-color")
-    assert config.get("appearance.accent") == "#7c5cff"
+    assert config.get("appearance.accent") == "#68a9ff"
     config.set("search.disabled_providers", "web")
     assert config.get("search.disabled_providers") == []
 
