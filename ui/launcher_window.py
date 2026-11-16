@@ -292,17 +292,21 @@ class LauncherWindow(QWidget):
         spacing = int(self.config.get("appearance.result_spacing", 4) or 0)
         self.results_list.setSpacing(0)
         self._row_height = _ROW_HEIGHT + spacing
+        opacity = float(self.config.get("appearance.opacity", 0.98))
+        self.setWindowOpacity(max(0.65, min(1.0, opacity)))
 
     def _animate_show(self) -> None:
         duration = int(self.config.get("appearance.animation_duration", 150) or 0)
+        target_opacity = float(self.config.get("appearance.opacity", 0.98))
+        target_opacity = max(0.65, min(1.0, target_opacity))
         if not self.config.get("appearance.animations", True) or duration <= 0:
-            self.setWindowOpacity(1.0)
+            self.setWindowOpacity(target_opacity)
             return
         self.setWindowOpacity(0.0)
         opacity = QPropertyAnimation(self, b"windowOpacity", self)
         opacity.setDuration(duration)
         opacity.setStartValue(0.0)
-        opacity.setEndValue(1.0)
+        opacity.setEndValue(target_opacity)
         opacity.setEasingCurve(QEasingCurve.Type.OutCubic)
         opacity.start(QAbstractAnimation.DeletionPolicy.DeleteWhenStopped)
 
@@ -321,6 +325,7 @@ class LauncherWindow(QWidget):
         if not self.config.get("appearance.animations", True) or duration <= 0:
             self._hide_timer.stop()
             self.hide()
+            self.setWindowOpacity(float(self.config.get("appearance.opacity", 0.98)))
             return
         self._hiding = True
         self._hide_generation += 1
@@ -337,7 +342,7 @@ class LauncherWindow(QWidget):
             # A show_launcher() call superseded this fade; keep the window up.
             return
         self.hide()
-        self.setWindowOpacity(1.0)
+        self.setWindowOpacity(float(self.config.get("appearance.opacity", 0.98)))
         self._hiding = False
         self.closed.emit()
 

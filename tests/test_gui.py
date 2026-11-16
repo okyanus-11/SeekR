@@ -233,6 +233,19 @@ def test_tools_clipboard_and_notes(qapp, controller):
     assert notes_page.title_edit.text() == "Smoke note"
 
 
+def test_launcher_respects_configured_opacity(qapp, controller):
+    launcher = controller.launcher
+    controller.config.set("appearance.animations", False)
+    controller.config.set("appearance.opacity", 0.73)
+    launcher.show_launcher()
+    qapp.processEvents()
+    assert launcher.windowOpacity() == pytest.approx(0.73)
+    controller.config.set("appearance.opacity", 0.91)
+    qapp.processEvents()
+    assert launcher.windowOpacity() == pytest.approx(0.91)
+    controller.config.set("appearance.opacity", 0.98)
+
+
 def test_theme_stylesheet_contains_widgets(controller):
     stylesheet = controller.app.styleSheet()
     assert "QLineEdit" in stylesheet
