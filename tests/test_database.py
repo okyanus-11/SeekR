@@ -236,7 +236,9 @@ def test_delete_files_under_respects_directory_boundaries(db):
         ]
     )
 
-    db.delete_files_under("/tmp/alex")
+    db.delete_files_under("")  # An empty path must never wipe the index.
+    assert db.count_files() == 5
+    db.delete_files_under("/tmp/alex/")
     remaining = {
         row["path"] for row in db.connection().execute("SELECT path FROM files")
     }
