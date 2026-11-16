@@ -404,7 +404,7 @@ class AppearancePage(SettingsPage):
             "Dark, light, AMOLED and three popular developer palettes.",
             bind_combo(self.config, "appearance.theme", [(key, THEME_LABELS[key]) for key in THEME_IDS]),
         )
-        accent = ColorButton(str(self.config.get("appearance.accent", "#7c5cff")))
+        accent = ColorButton(str(self.config.get("appearance.accent", "#68a9ff")))
         accent.colorChanged.connect(lambda value: self.config.set("appearance.accent", value))
         self.row(theme_card, "Accent colour", "Used for selection, focus rings and highlights.", accent)
         opacity_row = QHBoxLayout()
