@@ -159,7 +159,7 @@ def build_stylesheet(config: ConfigManager) -> str:
     return f"""
 * {{
     font-family: "{font_family}", "Segoe UI", "Inter", "Helvetica Neue", sans-serif;
-    font-size: {font_size}px;
+    font-size: {font_size}pt;
     outline: none;
 }}
 QWidget {{

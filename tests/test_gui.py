@@ -246,6 +246,16 @@ def test_launcher_respects_configured_opacity(qapp, controller):
     controller.config.set("appearance.opacity", 0.98)
 
 
+def test_theme_uses_point_sized_typography(controller):
+    from ui.themes import build_stylesheet
+
+    controller.config.set("appearance.font_size", 16)
+    stylesheet = build_stylesheet(controller.config)
+    assert "font-size: 16pt;" in stylesheet
+    assert "font-size: 16px;" not in stylesheet
+    controller.config.set("appearance.font_size", 13)
+
+
 def test_theme_stylesheet_contains_widgets(controller):
     stylesheet = controller.app.styleSheet()
     assert "QLineEdit" in stylesheet
