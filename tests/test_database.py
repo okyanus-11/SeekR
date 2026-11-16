@@ -256,3 +256,20 @@ def test_delete_files_under_respects_directory_boundaries(db):
         "/tmp/alexander/keep.txt",
         r"C:\Users\alexander\keep.txt",
     }
+
+
+
+def test_recent_files_directory_filter_respects_boundaries(db):
+    db.upsert_files(
+        [
+            {"path": "/tmp/alex/a.txt", "name": "a.txt", "dir": "/tmp/alex", "mtime": 3},
+            {"path": "/tmp/alex/nested/b.txt", "name": "b.txt", "dir": "/tmp/alex/nested", "mtime": 2},
+            {"path": "/tmp/alexander/c.txt", "name": "c.txt", "dir": "/tmp/alexander", "mtime": 1},
+        ]
+    )
+    results = db.recent_files(limit=10, directories=["/tmp/alex"])
+    assert {row["path"] for row in results} == {
+        "/tmp/alex/a.txt",
+        "/tmp/alex/nested/b.txt",
+    }
+    assert db.recent_files(limit=10, directories=[""]) == []
