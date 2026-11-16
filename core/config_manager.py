@@ -212,7 +212,7 @@ def _validate_color(value: Any) -> str:
     if re.match(r"^#?[0-9a-fA-F]{3}$", text):
         text = text.lstrip("#")
         return "#" + "".join(ch * 2 for ch in text.lower())
-    return "#7c5cff"
+    return "#68a9ff"
 
 
 def _validate_theme(value: Any) -> str:
