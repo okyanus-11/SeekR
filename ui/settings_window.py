@@ -401,7 +401,7 @@ class AppearancePage(SettingsPage):
         self.row(
             theme_card,
             "Theme",
-            "Dark, light, AMOLED and three popular developer palettes.",
+            "Graphite, light, AMOLED and three popular developer palettes.",
             bind_combo(self.config, "appearance.theme", [(key, THEME_LABELS[key]) for key in THEME_IDS]),
         )
         accent = ColorButton(str(self.config.get("appearance.accent", "#68a9ff")))
