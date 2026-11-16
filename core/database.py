@@ -355,8 +355,19 @@ class Database:
 
     def recent_files(self, limit: int = 5, directories: Sequence[str] = ()) -> list[dict[str, Any]]:
         if directories:
-            clauses = " OR ".join("dir LIKE ?" for _ in directories)
-            params = [f"{directory}%" for directory in directories] + [limit]
+            scopes = [(directory, directory.rstrip("/\\"))
+                      for directory in directories if directory]
+            if not scopes:
+                return []
+            clauses = " OR ".join(
+                "(dir IN (?, ?) OR (substr(dir, 1, ?) = ? AND "
+                "substr(dir, ?, 1) IN ('/', char(92))))"
+                for _ in scopes
+            )
+            params: list[Any] = []
+            for original, prefix in scopes:
+                params.extend((original, prefix, len(prefix), prefix, len(prefix) + 1))
+            params.append(limit)
             rows = self._query(
                 f"SELECT * FROM files WHERE is_dir = 0 AND ({clauses}) ORDER BY mtime DESC LIMIT ?",
                 params,
