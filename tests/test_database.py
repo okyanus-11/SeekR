@@ -231,8 +231,8 @@ def test_delete_files_under_respects_directory_boundaries(db):
             {"path": "/tmp/alex/report.txt", "name": "report.txt", "dir": "/tmp/alex"},
             {"path": "/tmp/alex/projects/note.txt", "name": "note.txt", "dir": "/tmp/alex/projects"},
             {"path": "/tmp/alexander/keep.txt", "name": "keep.txt", "dir": "/tmp/alexander"},
-            {"path": r"C:\\Users\\alex\\report.txt", "name": "report.txt", "dir": r"C:\\Users\\alex"},
-            {"path": r"C:\\Users\\alexander\\keep.txt", "name": "keep.txt", "dir": r"C:\\Users\\alexander"},
+            {"path": r"C:\Users\alex\report.txt", "name": "report.txt", "dir": r"C:\Users\alex"},
+            {"path": r"C:\Users\alexander\keep.txt", "name": "keep.txt", "dir": r"C:\Users\alexander"},
         ]
     )
 
@@ -242,15 +242,15 @@ def test_delete_files_under_respects_directory_boundaries(db):
     }
     assert remaining == {
         "/tmp/alexander/keep.txt",
-        r"C:\\Users\\alex\\report.txt",
-        r"C:\\Users\\alexander\\keep.txt",
+        r"C:\Users\alex\report.txt",
+        r"C:\Users\alexander\keep.txt",
     }
 
-    db.delete_files_under(r"C:\\Users\\alex")
+    db.delete_files_under(r"C:\Users\alex")
     remaining = {
         row["path"] for row in db.connection().execute("SELECT path FROM files")
     }
     assert remaining == {
         "/tmp/alexander/keep.txt",
-        r"C:\\Users\\alexander\\keep.txt",
+        r"C:\Users\alexander\keep.txt",
     }
