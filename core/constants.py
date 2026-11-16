@@ -5,7 +5,7 @@ from __future__ import annotations
 THEME_IDS = ("dark", "light", "amoled", "catppuccin_mocha", "dracula", "nord")
 
 THEME_LABELS = {
-    "dark": "Dark",
+    "dark": "Graphite",
     "light": "Light",
     "amoled": "AMOLED",
     "catppuccin_mocha": "Catppuccin Mocha",
