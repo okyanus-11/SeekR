@@ -375,7 +375,20 @@ class Database:
         self._write("DELETE FROM files")
 
     def delete_files_under(self, directory: str) -> None:
-        self._write("DELETE FROM files WHERE dir = ? OR dir LIKE ?", (directory, f"{directory}%"))
+        # Use a separator boundary instead of LIKE "path%": otherwise removing
+        # /home/alex also deletes indexed files under /home/alexander.
+        prefix = directory.rstrip("/\\")
+        if not prefix:
+            self._write("DELETE FROM files")
+            return
+        self._write(
+            """DELETE FROM files
+               WHERE dir = ? OR (
+                   substr(dir, 1, ?) = ?
+                   AND substr(dir, ?, 1) IN ('/', '\\\\')
+               )""",
+            (directory, len(prefix), prefix, len(prefix) + 1),
+        )
 
     # -------------------------------------------------------------- clipboard
     def add_clipboard(self, text: str, source: str = "", dedupe: bool = True) -> int | None:
