@@ -99,10 +99,13 @@ class SearchEngine(QObject):
         self.hooks = hooks
         self._providers: dict[str, SearchProvider] = {}
         self._keyword_map_cache: dict[str, SearchProvider] | None = None
-        self._remove_config_listener = config.add_listener(self._on_config_changed)
+        config.subscribe(self._on_config_changed)
+        self.destroyed.connect(
+            lambda: config.unsubscribe(self._on_config_changed)
+        )
 
     # ------------------------------------------------------------- providers
-    def _on_config_changed(self, key: str) -> None:
+    def _on_config_changed(self, key: str, _value=None) -> None:
         if key == "*" or key == "search.keyword_aliases":
             self._keyword_map_cache = None
 
