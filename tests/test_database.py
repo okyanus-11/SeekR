@@ -222,3 +222,35 @@ def test_memory_database():
     db.add_clipboard("memory")
     assert db.clipboard_count() == 1
     db.close()
+
+
+
+def test_delete_files_under_respects_directory_boundaries(db):
+    db.upsert_files(
+        [
+            {"path": "/tmp/alex/report.txt", "name": "report.txt", "dir": "/tmp/alex"},
+            {"path": "/tmp/alex/projects/note.txt", "name": "note.txt", "dir": "/tmp/alex/projects"},
+            {"path": "/tmp/alexander/keep.txt", "name": "keep.txt", "dir": "/tmp/alexander"},
+            {"path": r"C:\\Users\\alex\\report.txt", "name": "report.txt", "dir": r"C:\\Users\\alex"},
+            {"path": r"C:\\Users\\alexander\\keep.txt", "name": "keep.txt", "dir": r"C:\\Users\\alexander"},
+        ]
+    )
+
+    db.delete_files_under("/tmp/alex")
+    remaining = {
+        row["path"] for row in db.connection().execute("SELECT path FROM files")
+    }
+    assert remaining == {
+        "/tmp/alexander/keep.txt",
+        r"C:\\Users\\alex\\report.txt",
+        r"C:\\Users\\alexander\\keep.txt",
+    }
+
+    db.delete_files_under(r"C:\\Users\\alex")
+    remaining = {
+        row["path"] for row in db.connection().execute("SELECT path FROM files")
+    }
+    assert remaining == {
+        "/tmp/alexander/keep.txt",
+        r"C:\\Users\\alexander\\keep.txt",
+    }
