@@ -104,7 +104,7 @@ Thirteen pages — General, Appearance, Search, Applications, Files, Web, Calcul
 
 ### Themes
 
-Dark, Light, AMOLED, Catppuccin Mocha, Dracula and Nord, with custom accent color, transparency, font family/size, window width, result spacing and animation toggle. The theme stylesheet is applied application-wide, not just to the launcher.
+Graphite (default), Light, AMOLED, Catppuccin Mocha, Dracula and Nord, with a custom accent colour picker, transparency, font family/size, window width, result spacing and animation toggle. Keyword routing is cached and invalidated when aliases or providers change. The theme stylesheet is applied application-wide, not just to the launcher.
 
 ---
 
