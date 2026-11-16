@@ -98,14 +98,22 @@ class SearchEngine(QObject):
         self.db = db
         self.hooks = hooks
         self._providers: dict[str, SearchProvider] = {}
+        self._keyword_map_cache: dict[str, SearchProvider] | None = None
+        self._remove_config_listener = config.add_listener(self._on_config_changed)
 
     # ------------------------------------------------------------- providers
+    def _on_config_changed(self, key: str) -> None:
+        if key == "*" or key == "search.keyword_aliases":
+            self._keyword_map_cache = None
+
     def register(self, provider: SearchProvider) -> None:
         self._providers[provider.id] = provider
+        self._keyword_map_cache = None
         log.debug("Registered search provider %s", provider.id)
 
     def unregister(self, provider_id: str) -> None:
         self._providers.pop(provider_id, None)
+        self._keyword_map_cache = None
 
     @property
     def providers(self) -> list[SearchProvider]:
@@ -115,7 +123,9 @@ class SearchEngine(QObject):
         return self._providers.get(provider_id)
 
     def keyword_map(self) -> dict[str, SearchProvider]:
-        """Map every keyword and configured alias to its provider."""
+        """Map keywords and aliases, reusing the map until providers/settings change."""
+        if self._keyword_map_cache is not None:
+            return self._keyword_map_cache
         mapping: dict[str, SearchProvider] = {}
         for provider in self._providers.values():
             if provider.keyword:
@@ -129,6 +139,7 @@ class SearchEngine(QObject):
                 provider = mapping.get(str(target).lower())
                 if provider is not None and str(alias).strip():
                     mapping[str(alias).strip().lower()] = provider
+        self._keyword_map_cache = mapping
         return mapping
 
     def resolve(self, text: str) -> tuple[SearchProvider, str] | None:
