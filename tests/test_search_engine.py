@@ -159,3 +159,28 @@ def test_keyword_reference(engine):
     reference = engine.keyword_reference()
     assert reference
     assert all(result.category == "Keyword" for result in reference)
+
+
+
+def test_keyword_map_is_cached_and_invalidated_by_alias_changes(engine):
+    first = engine.keyword_map()
+    assert engine.keyword_map() is first
+
+    engine.config.set("search.keyword_aliases", {"t": "test"})
+    second = engine.keyword_map()
+    assert second is not first
+    assert second["t"].id == "fake"
+
+
+def test_register_and_unregister_invalidate_keyword_cache(engine, config, db, hooks):
+    first = engine.keyword_map()
+    extra = KeywordOnlyProvider(config, db, hooks)
+    engine.unregister("calc")
+    without_calc = engine.keyword_map()
+    assert without_calc is not first
+    assert "calc" not in without_calc
+
+    engine.register(extra)
+    with_calc = engine.keyword_map()
+    assert with_calc is not without_calc
+    assert with_calc["calc"].id == "calc"
