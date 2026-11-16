@@ -11,19 +11,19 @@ from core.config_manager import ConfigManager
 
 THEMES: dict[str, dict[str, str]] = {
     "dark": {
-        "window": "#15171d",
-        "window_alt": "#1b1e26",
-        "surface": "#1f232c",
-        "surface_alt": "#252a35",
-        "surface_hover": "#2b3140",
-        "border": "#2e3440",
-        "text": "#eef1f7",
-        "muted": "#9aa4b6",
-        "accent": "#7c5cff",
-        "accent_text": "#ffffff",
-        "danger": "#f0605d",
-        "success": "#4cc38a",
-        "warning": "#f2b544",
+        "window": "#10151d",
+        "window_alt": "#141b24",
+        "surface": "#19222d",
+        "surface_alt": "#202b38",
+        "surface_hover": "#2a3746",
+        "border": "#2c3948",
+        "text": "#edf3f8",
+        "muted": "#9aabba",
+        "accent": "#68a9ff",
+        "accent_text": "#10151d",
+        "danger": "#e87979",
+        "success": "#58c99a",
+        "warning": "#e8bd78",
     },
     "light": {
         "window": "#f4f5f9",
@@ -34,7 +34,7 @@ THEMES: dict[str, dict[str, str]] = {
         "border": "#d8dce7",
         "text": "#1b1f27",
         "muted": "#5f6b7d",
-        "accent": "#5b5bd6",
+        "accent": "#326fd1",
         "accent_text": "#ffffff",
         "danger": "#d33d3a",
         "success": "#1f9d63",
@@ -49,7 +49,7 @@ THEMES: dict[str, dict[str, str]] = {
         "border": "#22252a",
         "text": "#f5f7fa",
         "muted": "#8b919c",
-        "accent": "#7c5cff",
+        "accent": "#68a9ff",
         "accent_text": "#ffffff",
         "danger": "#ff5c5c",
         "success": "#3ddc97",
@@ -110,16 +110,28 @@ def palette_for(theme_id: str) -> dict[str, str]:
 def _rgba(hex_color: str, alpha: float) -> str:
     color = QColor(hex_color)
     if not color.isValid():
-        color = QColor("#7c5cff")
+        color = QColor("#68a9ff")
     return f"rgba({color.red()}, {color.green()}, {color.blue()}, {alpha:.2f})"
 
 
 def _readable_on(color_name: str) -> str:
+    """Choose whichever of near-black or white has stronger WCAG contrast."""
     color = QColor(color_name)
     if not color.isValid():
         return "#ffffff"
-    luminance = (0.299 * color.red() + 0.587 * color.green() + 0.114 * color.blue()) / 255
-    return "#101116" if luminance > 0.62 else "#ffffff"
+
+    def linear(channel: int) -> float:
+        value = channel / 255.0
+        return value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
+
+    luminance = (
+        0.2126 * linear(color.red())
+        + 0.7152 * linear(color.green())
+        + 0.0722 * linear(color.blue())
+    )
+    white_contrast = 1.05 / (luminance + 0.05)
+    dark_contrast = (luminance + 0.05) / 0.05
+    return "#10151d" if dark_contrast >= white_contrast else "#ffffff"
 
 
 def build_stylesheet(config: ConfigManager) -> str:
