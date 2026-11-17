@@ -331,7 +331,8 @@ def test_windows_ssh_fallback_passes_metacharacters_as_argv(monkeypatch):
 
     assert ok, message
     assert captured["args"] == [
-        "ssh", "-o", "ProxyCommand=echo safe & whoami", "example.com",
+        "C:\\Windows\\System32\\OpenSSH\\ssh.exe",
+        "-o", "ProxyCommand=echo safe & whoami", "example.com",
     ]
     assert captured["kwargs"] == {"creationflags": 0x10, "close_fds": True}
 
