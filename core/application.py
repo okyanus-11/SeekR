@@ -293,6 +293,7 @@ class SeekRApplication(QObject, UIHooks):
             on_finished=self._files_indexed,
             on_failed=lambda message, tb: self._task_failed("files", message, tb),
             on_cleanup=self.db.close_thread_connection,
+            pool=self._index_pool,
         )
 
     def cancel_file_index(self) -> None:
