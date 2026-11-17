@@ -78,6 +78,13 @@ class ToolsWindow(QMainWindow):
         self.sidebar.currentRowChanged.connect(self._on_sidebar_changed)
         self.sidebar.setCurrentRow(0)
 
+    def refresh_texts(self) -> None:
+        """Refresh localized sidebar labels after a language change."""
+        for row, key in enumerate(self.page_keys):
+            item = self.sidebar.item(row)
+            if item is not None:
+                item.setText(i18n.tr(self.controller.config, f"tools.page.{key}"))
+
     def _on_sidebar_changed(self, row: int) -> None:
         if 0 <= row < len(self.page_keys):
             self.stack.setCurrentIndex(row)
