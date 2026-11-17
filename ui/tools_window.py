@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 
 from core.version import APP_NAME
 from ui import i18n
+from ui.components import refresh_localized_widgets
 from ui.tools.basic import CalculatorTab, ColorTab, DateTimeTab, DeveloperTab, DictionaryTab
 from ui.tools.data import ActionsTab, BookmarksTab, ClipboardTab, ConnectionsTab, NotesTab
 from ui.tools.system import PowerTab, ProcessesTab, ScreenshotsTab, SystemTab
@@ -80,6 +81,7 @@ class ToolsWindow(QMainWindow):
 
     def refresh_texts(self) -> None:
         """Refresh localized sidebar labels after a language change."""
+        refresh_localized_widgets(self)
         for row, key in enumerate(self.page_keys):
             item = self.sidebar.item(row)
             if item is not None:
