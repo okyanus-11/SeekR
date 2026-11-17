@@ -97,8 +97,10 @@ jobs:
           }
           $uninstaller = Join-Path $installDir "unins000.exe"
           if (-not (Test-Path -LiteralPath $uninstaller)) { throw "SeekR uninstaller is missing" }
-          & $uninstaller /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
-          if ($LASTEXITCODE -ne 0) { throw "SeekR uninstaller exited with code $LASTEXITCODE" }
+          $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") -Wait -PassThru
+          if ($uninstallProcess.ExitCode -ne 0) { throw "SeekR uninstaller exited with code $($uninstallProcess.ExitCode)" }
+          $deadline = (Get-Date).AddSeconds(15)
+          while (Test-Path -LiteralPath (Join-Path $installDir "SeekR.exe") -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 250 }
           if (Test-Path -LiteralPath (Join-Path $installDir "SeekR.exe")) {
             throw "SeekR files remain after uninstall"
           }
