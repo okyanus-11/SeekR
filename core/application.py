@@ -68,9 +68,11 @@ class SeekRApplication(QObject, UIHooks):
     index_progress = Signal(int, str)
     index_finished = Signal(str, dict)
     index_failed = Signal(str, str)
+    _task_failed_signal = Signal(str, str, str)
 
     def __init__(self, app: QApplication, config: ConfigManager, db: Database):
         QObject.__init__(self)
+        self._task_failed_signal.connect(self._task_failed)
         self.app = app
         self.config = config
         i18n.set_language(config)
@@ -268,7 +270,7 @@ class SeekRApplication(QObject, UIHooks):
             self.app_service.refresh,
             progress=self._emit_progress,
             on_finished=self._apps_indexed,
-            on_failed=lambda message, tb: self._task_failed("applications", message, tb),
+            on_failed=lambda message, tb: self._task_failed_signal.emit("applications", message, tb),
             on_cleanup=self.db.close_thread_connection,
             pool=self._index_pool,
         )
@@ -291,7 +293,7 @@ class SeekRApplication(QObject, UIHooks):
             progress=self._emit_progress,
             token=self._file_token,
             on_finished=self._files_indexed,
-            on_failed=lambda message, tb: self._task_failed("files", message, tb),
+            on_failed=lambda message, tb: self._task_failed_signal.emit("files", message, tb),
             on_cleanup=self.db.close_thread_connection,
             pool=self._index_pool,
         )
