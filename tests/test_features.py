@@ -508,6 +508,18 @@ def test_screenshot_handles_environment(config):
         assert Path(path).exists()
 
 
+
+def test_save_pixmap_uses_configured_screenshot_directory(config, tmp_path, qapp):
+    from PySide6.QtGui import QPixmap
+
+    config.set("screenshots.directory", str(tmp_path))
+    pixmap = QPixmap(24, 16)
+    pixmap.fill()
+    ok, path, error = screenshots.save_pixmap(config, pixmap)
+    assert ok, error
+    assert Path(path).parent == tmp_path
+    assert Path(path).is_file()
+
 def test_screenshot_provider(config, db, hooks):
     from features.screenshots import ScreenshotProvider
 
