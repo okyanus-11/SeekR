@@ -58,7 +58,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 | Calculator | SymPy-backed parser (no `eval`): arithmetic, powers, roots, trigonometry (degrees or radians), logarithms, factorials, constants (`pi`, `e`, `tau`, `phi`), percentages, scientific notation, unit conversion, configurable precision, calculation history. |
 | Web search | Google, Bing, DuckDuckGo, YouTube, Wikipedia, GitHub, plus custom engines defined by URL templates. Configurable default engine and browser handling. |
 | Translation | `translate: Hello to Turkish` builds a Google Translate URL; supports 20+ language names. |
-| Dictionary | `define: algorithm` opens dictionary lookups and offers in-app definitions via the Dictionary tool page. |
+| Dictionary | `define: algorithm` opens an in-app definition lookup. Successful lookups are cached locally and can be reopened offline. |
 | Commands | Built-in safe system commands and user-defined commands with confirmation for destructive actions, argument-safe execution, aliases and history. |
 | Clipboard | Opt-in text clipboard history, off by default; copied text is stored unencrypted in the local database with hash-based deduplication, pinning, search, deletion and automatic pruning. |
 | Notes | Lightweight notes with autosave, pinning, search and timestamps. |
@@ -67,11 +67,11 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 | Windows | Lists open windows and switches to the selected one (Windows API; unavailable elsewhere). |
 | Emoji | Searchable emoji table; copies the selected emoji. |
 | Color | HEX/RGB/HSL/HSV conversion, color picking, copyable values. |
-| Screenshots | The Tools page has a Qt full-screen capture action that saves to the configured folder (Settings → Files); a separate action opens the Windows Snipping Tool for region capture. The Snipping Tool's save destination is controlled by Windows, not SeekR. Neither path has been verified with a real-display capture. |
+| Screenshots | Captures all connected displays into one PNG in the configured folder (Settings → Files). A separate action opens the Windows Snipping Tool for region capture; its save destination remains controlled by Windows. |
 | Processes | Search running processes with CPU/memory usage, details, and confirmation before termination. |
-| Bookmarks | Reads browser bookmarks (Chrome, Edge, Brave, Firefox) when their profile files are readable; degrades gracefully otherwise. |
+| Bookmarks | Reads Chromium bookmarks with a last-good backup fallback and Firefox bookmarks from a consistent SQLite snapshot, including live WAL data. Unreadable profiles are skipped with a status message. |
 | QuickLook | Safe previews for images and text-like documents (never executes previewed files). |
-| Quick Connect | SSH profiles with validation; passwords are never stored. |
+| Quick Connect | SSH profiles with validation; detects OpenSSH on PATH and in the standard Windows installation folder. Passwords are never stored. |
 | Power | Lists and switches Windows power schemes where `powercfg` supports it. |
 | Quick Actions | Open folders, open websites, launch applications with arguments, copy predefined text. |
 | Smart suggestions | Recent applications/files/searches when the query is empty; can be disabled. |
@@ -100,7 +100,7 @@ The Developer tools page implements all 15 utilities:
 
 ### Settings
 
-Thirteen pages — General, Appearance, Search, Applications, Files, Web, Calculator, Commands, Clipboard, Privacy, Advanced, Plugins, About — all bound to the persisted JSON configuration. Every control writes through validation and takes effect immediately (theme changes repaint all windows).
+Thirteen pages — General, Appearance, Search, Applications, Files, Web, Calculator, Commands, Clipboard, Privacy, Advanced, Plugins, About — all bound to the persisted JSON configuration. Every control writes through validation and takes effect immediately (theme changes repaint all windows). The launcher shell and Tools navigation are available in nine languages: English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese and Simplified Chinese. Settings and tool-page content remain English.
 
 ### Themes
 
@@ -454,7 +454,7 @@ More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 pytest
 ```
 
-The suite covers configuration validation/persistence, database operations, fuzzy matching, calculator expressions and errors, keyword detection/aliases/ranking, provider failures, web URL generation, command parsing and safety, date/time conversion, file indexing, application discovery, clipboard, notes, quick actions, SSH validation, system info, process listing/termination, emoji search, QuickLook, and headless GUI integration (launcher navigation, execution, settings and tools pages).
+The suite covers configuration validation/persistence, database operations, fuzzy matching, calculator expressions and errors, keyword detection/aliases/ranking, provider failures, web URL generation, command parsing and safety, date/time conversion, file indexing, application discovery, clipboard, notes, quick actions, SSH validation, system info, process listing/termination, emoji search, QuickLook, localization, offline dictionary caching, browser bookmark snapshots, GPU counter parsing, and headless GUI integration.
 
 GUI tests require a Qt platform; on a headless machine use:
 
@@ -520,15 +520,14 @@ troubleshooting guidance.
 
 ## Known limitations
 
-- **Windows verification:** automated tests, a frozen-app startup smoke test, executable packaging, installer compilation, and install/reinstall/uninstall ran on Windows 11 build 26300. Native hotkey, tray, window switching, Snipping Tool UX and Windows 10 remain unverified manually. Repeated launch activation was inconsistent in that run; the cause was fixed afterwards and needs re-confirmation on a desktop. See [docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md) for the verified/unverified split.
-- **Language:** Settings offers English and Türkçe; in 1.0.0 only the launcher shell is translated. Tool and settings pages remain English. This is a documented partial feature, not a stub.
-- **GPU utilisation:** shown only when the platform exposes it (NVML/`nvidia-smi` or Windows counters); otherwise the UI says it is unavailable rather than inventing a number.
-- **Bookmarks:** browsers must be closed or use readable profile files; encrypted/locked stores are skipped with a message.
-- **Dictionary:** `define:` opens a web lookup; offline definitions are not bundled.
-- **Screenshots:** SeekR has a Qt full-screen capture/save-to-configured-folder path and a separate Windows Snipping Tool region-capture action. Real-display capture is not verified, and SeekR does not establish the Snipping Tool's save destination.
-- **SSH:** requires an `ssh` client on `PATH`; SeekR never stores passwords (key files or agent authentication only).
-- No screenshots are shipped; no real-display capture has been verified.
-
+- **Windows verification:** CI exercises Windows and Linux, and a native Windows 11 build/installer was previously validated. Manual Windows 10 coverage, real-display behaviour, mixed-DPI multi-monitor capture, and the complete native shell checklist still require testing on physical Windows desktops. Repeated activation also needs a fresh manual re-check after its fix. See [docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md) and [docs/WINDOWS_MANUAL_TEST.md](docs/WINDOWS_MANUAL_TEST.md).
+- **Language coverage:** English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese and Simplified Chinese translate the launcher shell and Tools navigation. Settings pages, tool descriptions, dialogs and most dynamic status messages are still English; this is not yet full-app localization.
+- **GPU utilisation:** Windows now falls back to GPU Engine performance counters for adapters such as Intel and AMD when available. Some drivers or Windows configurations do not expose usable counters, so utilisation can still be unavailable.
+- **Bookmarks:** Firefox is read through SQLite's consistent backup API, including WAL data, and Chromium can fall back to Bookmarks.bak. Profiles that are missing, corrupt or blocked by OS permissions are skipped.
+- **Dictionary:** Definitions already looked up online are cached locally and remain available offline. A first-time lookup still needs an internet connection; a complete bundled offline dictionary is not included.
+- **Screenshots:** Full-screen capture now composes all connected displays. Region capture still uses the Windows Snipping Tool, whose save location is managed by Windows. Capture quality and mixed-DPI positioning still need real-display verification.
+- **SSH:** SeekR detects the standard Windows OpenSSH installation even when it is not on PATH. OpenSSH Client must still be installed; SSH authentication remains key/agent based and passwords are never stored.
+- **Screenshots in the README:** Product screenshots are not yet shipped. Capture genuine screenshots on a real Windows desktop before presenting them as release imagery.
 ---
 
 ## Roadmap: plugins
