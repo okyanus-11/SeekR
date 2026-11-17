@@ -8,9 +8,9 @@ semantic versioning.
 
 ### Added
 
-- Seven additional launcher languages: Spanish, French, German, Italian,
-  Brazilian Portuguese, Japanese and Simplified Chinese. Tools navigation
-  labels are localized as well.
+- Seven additional languages: Spanish, French, German, Italian, Brazilian
+  Portuguese, Japanese and Simplified Chinese. Launcher text, common controls,
+  shared headings and Tools navigation now use the localization catalog.
 - Persistent local caching for dictionary definitions, allowing previous
   lookups to work offline.
 - Windows GPU Engine performance-counter fallback for non-NVIDIA adapters.
