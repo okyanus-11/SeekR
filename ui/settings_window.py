@@ -352,12 +352,12 @@ class GeneralPage(SettingsPage):
             bind_switch(self.config, "general.confirm_destructive_actions"),
         )
 
-        language_card = self.section("Language", "SeekR 1.0.0 is English-first.")
+        language_card = self.section("Language", "Choose the language used by the launcher.")
         languages = [(code, name) for code, name in i18n.LANGUAGES.items()]
         self.row(
             language_card,
             "Interface language",
-            "Turkish currently localises the launcher surface; the remaining windows stay in English in this release.",
+            "English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese and Simplified Chinese are available for the launcher and tool navigation. Settings and tool content remain in English.",
             bind_combo(self.config, "general.language", languages),
         )
 
