@@ -16,6 +16,8 @@ from PySide6.QtCore import (
     Qt,
     QTimer,
     QThreadPool,
+    QObject,
+    QRunnable,
     Signal,
     Slot,
 )
@@ -38,7 +40,7 @@ from PySide6.QtWidgets import (
 
 from core.logging_setup import get_logger
 from core.models import SearchResult
-from core.workers import Debouncer, run_async
+from core.workers import Debouncer
 from ui import i18n
 from ui.components import ElidedLabel, label
 
@@ -56,12 +58,40 @@ _ACTIVATION_GRACE = 1.0
 _ACTIVATION_RETRY_MS = 120
 
 
+class _SearchWorkerSignals(QObject):
+    finished = Signal(int, str, object, object)
+    failed = Signal(int, str, str, object)
+
+
+class _SearchWorker(QRunnable):
+    """Run a launcher query and deliver its result through Qt's queued signals."""
+
+    def __init__(self, engine, query: str, generation: int):
+        super().__init__()
+        self.engine = engine
+        self.query = query
+        self.generation = generation
+        self.signals = _SearchWorkerSignals()
+        self.setAutoDelete(False)
+
+    def run(self) -> None:
+        try:
+            results = self.engine.search(self.query)
+        except Exception as exc:
+            log.exception("Background search failed for %r", self.query)
+            self.signals.failed.emit(
+                self.generation, self.query, str(exc), self
+            )
+        else:
+            self.signals.finished.emit(
+                self.generation, self.query, results, self
+            )
+
+
 class LauncherWindow(QWidget):
     """Frameless, keyboard-first search window."""
 
     closed = Signal()
-    _search_finished = Signal(int, str, object)
-    _search_failed = Signal(int, str, str)
 
     def __init__(self, controller: Any):
         super().__init__()
@@ -102,8 +132,6 @@ class LauncherWindow(QWidget):
         self._search_generation = 0
         # Keep Python QRunnable wrappers alive until their native pool tasks finish.
         self._search_workers = set()
-        self._search_finished.connect(self._on_search_finished)
-        self._search_failed.connect(self._on_search_failed)
         self.refresh_texts()
 
     # ------------------------------------------------------------------- UI
@@ -388,27 +416,17 @@ class LauncherWindow(QWidget):
         # to this QWidget, so Qt queues delivery onto the GUI thread before
         # touching widgets. Calling a closure directly from QRunnable can run
         # it on the worker thread and cause undefined Qt GUI behaviour.
-        worker = run_async(
-            self.engine.search,
-            query,
-            on_finished=lambda results: self._search_finished.emit(
-                generation, query, results
-            ),
-            on_failed=lambda message, _traceback_text: self._search_failed.emit(
-                generation, query, message
-            ),
-            pool=self._search_pool,
-        )
+        worker = _SearchWorker(self.engine, query, generation)
+        worker.signals.finished.connect(self._on_search_finished)
+        worker.signals.failed.connect(self._on_search_failed)
         self._search_workers.add(worker)
-        worker.signals.finished.connect(lambda _result, task=worker: self._search_workers.discard(task))
-        worker.signals.failed.connect(
-            lambda _message, _traceback, task=worker: self._search_workers.discard(task)
-        )
+        self._search_pool.start(worker)
 
-    @Slot(int, str, object)
+    @Slot(int, str, object, object)
     def _on_search_finished(
-        self, generation: int, query: str, results: list[SearchResult]
+        self, generation: int, query: str, results: list[SearchResult], worker
     ) -> None:
+        self._search_workers.discard(worker)
         if generation != self._search_generation or query != self.search_input.text():
             return
         elapsed_ms = 0.0
@@ -416,8 +434,9 @@ class LauncherWindow(QWidget):
         if self.config.get("advanced.performance_stats", False):
             self.show_status(f"{len(results)} results")
 
-    @Slot(int, str, str)
-    def _on_search_failed(self, generation: int, query: str, message: str) -> None:
+    @Slot(int, str, str, object)
+    def _on_search_failed(self, generation: int, query: str, message: str, worker) -> None:
+        self._search_workers.discard(worker)
         if generation != self._search_generation or query != self.search_input.text():
             return
         log.error("Background search failed: %s", message)
