@@ -24,6 +24,52 @@ from core.hotkeys import HotkeyError, normalize_hotkey
 from ui import i18n
 
 
+_SOURCE_TEXT = "seekrSourceText"
+_LAST_TEXT = "seekrLastLocalizedText"
+
+
+def _set_localized_text(widget: QWidget, source: str) -> None:
+    rendered = i18n.translate_text(source)
+    widget.setProperty(_SOURCE_TEXT, source)
+    widget.setProperty(_LAST_TEXT, rendered)
+    widget.setText(rendered)
+
+
+def _set_localized_placeholder(widget: QLineEdit, source: str) -> None:
+    rendered = i18n.translate_text(source)
+    widget.setProperty("seekrSourcePlaceholder", source)
+    widget.setProperty("seekrLastLocalizedPlaceholder", rendered)
+    widget.setPlaceholderText(rendered)
+
+
+def _set_localized_tooltip(widget: QWidget, source: str) -> None:
+    rendered = i18n.translate_text(source)
+    widget.setProperty("seekrSourceTooltip", source)
+    widget.setProperty("seekrLastLocalizedTooltip", rendered)
+    widget.setToolTip(rendered)
+
+
+def refresh_localized_widgets(root: QWidget) -> None:
+    """Refresh static shared-widget text without overwriting live status text."""
+    widgets = [root, *root.findChildren(QWidget)]
+    for widget in widgets:
+        source = widget.property(_SOURCE_TEXT)
+        last = widget.property(_LAST_TEXT)
+        if source is not None and last is not None and hasattr(widget, "text"):
+            if widget.text() == last:
+                _set_localized_text(widget, str(source))
+        source = widget.property("seekrSourcePlaceholder")
+        last = widget.property("seekrLastLocalizedPlaceholder")
+        if source is not None and last is not None and hasattr(widget, "placeholderText"):
+            if widget.placeholderText() == last:
+                _set_localized_placeholder(widget, str(source))
+        source = widget.property("seekrSourceTooltip")
+        last = widget.property("seekrLastLocalizedTooltip")
+        if source is not None and last is not None:
+            if widget.toolTip() == last:
+                _set_localized_tooltip(widget, str(source))
+
+
 class Switch(QAbstractButton):
     """An animated on/off switch that follows the active theme."""
 
@@ -95,11 +141,13 @@ class SettingRow(QFrame):
 
         text_layout = QVBoxLayout()
         text_layout.setSpacing(2)
-        self.title_label = QLabel(i18n.translate_text(title))
+        self.title_label = QLabel()
+        _set_localized_text(self.title_label, title)
         self.title_label.setWordWrap(True)
         text_layout.addWidget(self.title_label)
         if description:
-            self.description_label = QLabel(i18n.translate_text(description))
+            self.description_label = QLabel()
+            _set_localized_text(self.description_label, description)
             self.description_label.setObjectName("Muted")
             self.description_label.setWordWrap(True)
             text_layout.addWidget(self.description_label)
@@ -131,11 +179,13 @@ class SectionCard(QFrame):
         outer.setContentsMargins(16, 14, 16, 14)
         outer.setSpacing(8)
         if title:
-            heading = QLabel(i18n.translate_text(title))
+            heading = QLabel()
+            _set_localized_text(heading, title)
             heading.setObjectName("Title")
             outer.addWidget(heading)
         if subtitle:
-            description = QLabel(i18n.translate_text(subtitle))
+            description = QLabel()
+            _set_localized_text(description, subtitle)
             description.setObjectName("Muted")
             description.setWordWrap(True)
             outer.addWidget(description)
@@ -223,8 +273,8 @@ class HotkeyEdit(QLineEdit):
     def __init__(self, hotkey: str = "Alt+Space", parent: QWidget | None = None):
         super().__init__(parent)
         self.setReadOnly(True)
-        self.setPlaceholderText(i18n.translate_text("Press a key combination"))
-        self.setToolTip(i18n.translate_text("Click and press a combination such as Ctrl+Shift+Space"))
+        _set_localized_placeholder(self, "Press a key combination")
+        _set_localized_tooltip(self, "Click and press a combination such as Ctrl+Shift+Space")
         self.set_hotkey(hotkey)
 
     def set_hotkey(self, hotkey: str) -> None:
@@ -256,10 +306,10 @@ class HotkeyEdit(QLineEdit):
             normalized = normalize_hotkey(candidate)
         except HotkeyError:
             self.setText(candidate)
-            self.setToolTip(i18n.translate_text("Add at least one modifier (Ctrl, Alt, Shift or Win)"))
+            _set_localized_tooltip(self, "Add at least one modifier (Ctrl, Alt, Shift or Win)")
             return
         self.setText(normalized)
-        self.setToolTip(i18n.translate_text("Click and press a combination such as Ctrl+Shift+Space"))
+        _set_localized_tooltip(self, "Click and press a combination such as Ctrl+Shift+Space")
         self.hotkeyChanged.emit(normalized)
 
 
@@ -308,7 +358,8 @@ def hline() -> QFrame:
 
 
 def label(text: str, object_name: str = "", wrap: bool = False) -> QLabel:
-    widget = QLabel(i18n.translate_text(text))
+    widget = QLabel()
+    _set_localized_text(widget, text)
     if object_name:
         widget.setObjectName(object_name)
     widget.setWordWrap(wrap)
@@ -316,14 +367,16 @@ def label(text: str, object_name: str = "", wrap: bool = False) -> QLabel:
 
 
 def badge(text: str) -> QLabel:
-    widget = QLabel(i18n.translate_text(text))
+    widget = QLabel()
+    _set_localized_text(widget, text)
     widget.setObjectName("Badge")
     widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
     return widget
 
 
 def primary_button(text: str, callback: Optional[Callable[[], None]] = None) -> QPushButton:
-    button = QPushButton(i18n.translate_text(text))
+    button = QPushButton()
+    _set_localized_text(button, text)
     button.setObjectName("Primary")
     button.setCursor(Qt.CursorShape.PointingHandCursor)
     if callback is not None:
@@ -358,14 +411,16 @@ class InfoBanner(QFrame):
         layout.setContentsMargins(22, 20, 22, 22)
         layout.setSpacing(10)
         header = QHBoxLayout()
-        heading = QLabel(i18n.translate_text(title))
+        heading = QLabel()
+        _set_localized_text(heading, title)
         heading.setObjectName("Heading")
         header.addWidget(heading)
         header.addStretch(1)
         if badge_text:
             header.addWidget(badge(badge_text))
         layout.addLayout(header)
-        description = QLabel(i18n.translate_text(body))
+        description = QLabel()
+        _set_localized_text(description, body)
         description.setWordWrap(True)
         description.setObjectName("Muted")
         layout.addWidget(description)
@@ -387,4 +442,5 @@ __all__ = [
     "secondary_button",
     "danger_button",
     "InfoBanner",
+    "refresh_localized_widgets",
 ]
