@@ -357,7 +357,7 @@ class GeneralPage(SettingsPage):
         self.row(
             language_card,
             "Interface language",
-            "English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese and Simplified Chinese are available for the launcher and tool navigation. Settings and tool content remain in English.",
+            "English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese and Simplified Chinese are available. The launcher, common controls, shared headings and Tools navigation are localized; longer descriptions and some dialogs remain in English.",
             bind_combo(self.config, "general.language", languages),
         )
 
