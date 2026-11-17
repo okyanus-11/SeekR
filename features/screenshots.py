@@ -86,15 +86,10 @@ def capture_screen(screen_index: int | None = None) -> QPixmap:
         raise ScreenshotError("The connected displays could not be combined")
     return combined
 
-def save_screenshot(config: ConfigManager, screen_index: int | None = None) -> tuple[bool, str, str]:
-    """Capture the screen and save it as a PNG.
-
-    Returns ``(success, path, error)``.
-    """
-    try:
-        pixmap = capture_screen(screen_index)
-    except ScreenshotError as exc:
-        return False, "", str(exc)
+def save_pixmap(config: ConfigManager, pixmap: QPixmap) -> tuple[bool, str, str]:
+    """Save an already-captured pixmap in the configured screenshot folder."""
+    if pixmap is None or pixmap.isNull():
+        return False, "", "There is no screenshot to save"
     directory = screenshot_directory(config)
     stamp = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     target = directory / f"SeekR_{stamp}.png"
@@ -106,6 +101,17 @@ def save_screenshot(config: ConfigManager, screen_index: int | None = None) -> t
         return False, "", f"Could not write {target}"
     return True, str(target), ""
 
+
+def save_screenshot(config: ConfigManager, screen_index: int | None = None) -> tuple[bool, str, str]:
+    """Capture the screen and save it as a PNG.
+
+    Returns ``(success, path, error)``.
+    """
+    try:
+        pixmap = capture_screen(screen_index)
+    except ScreenshotError as exc:
+        return False, "", str(exc)
+    return save_pixmap(config, pixmap)
 
 def open_snipping_tool() -> tuple[bool, str]:
     """Launch the Windows snipping overlay."""
