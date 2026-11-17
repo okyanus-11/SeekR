@@ -354,6 +354,8 @@ class SeekRApplication(QObject, UIHooks):
                 self.launcher.refresh_appearance()
             if path.startswith("general.language") and self._tools_window is not None:
                 self._tools_window.refresh_texts()
+            if path.startswith("general.language") and self._settings_window is not None:
+                self._settings_window.refresh_texts()
         if path in {"general.hotkey", "*"} and self.hotkey is not None:
             self.hotkey.register(str(self.config.get("general.hotkey", "Alt+Space")))
         if path in {"clipboard.enabled", "privacy.clipboard_history", "clipboard.poll_interval_ms", "*"}:
