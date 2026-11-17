@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
 
 from core.logging_setup import get_logger
 from features import power, process_manager, screenshots, system_info, util
-from ui import dialogs
+from ui import dialogs, i18n
 from ui.components import (
     ScrollPage,
     SectionCard,
@@ -470,6 +470,8 @@ class RegionCaptureOverlay(QWidget):
     def paintEvent(self, event) -> None:  # noqa: N802
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor(0, 0, 0, 105))
+        painter.setPen(QColor("#ffffff"))
+        painter.drawText(20, 34, i18n.translate_text("Drag to select a region · Esc to cancel"))
         if not self._selection.isNull():
             painter.fillRect(self._selection, QColor(104, 169, 255, 45))
             painter.setPen(QPen(QColor("#68a9ff"), 2))
