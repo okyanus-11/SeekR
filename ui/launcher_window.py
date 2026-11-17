@@ -130,6 +130,7 @@ class LauncherWindow(QWidget):
         self._search_pool = QThreadPool(self)
         self._search_pool.setMaxThreadCount(2)
         self._search_generation = 0
+        self._pending_execute_query: str | None = None
         # Keep Python QRunnable wrappers alive until their native pool tasks finish.
         self._search_workers = set()
         self.refresh_texts()
@@ -395,14 +396,17 @@ class LauncherWindow(QWidget):
             self.show_launcher()
 
     # -------------------------------------------------------------- searching
-    def _on_text_changed(self, _text: str) -> None:
+    def _on_text_changed(self, text: str) -> None:
         self._reset_action_selection()
+        if self._pending_execute_query is not None and text != self._pending_execute_query:
+            self._pending_execute_query = None
         self._debouncer.call_later(self._run_search)
 
     def set_query(self, text: str, focus: bool = True) -> None:
         self.show_launcher()
         self.search_input.setText(text)
         self.search_input.setCursorPosition(len(text))
+        self._debouncer.cancel()
         if focus:
             self.search_input.setFocus(Qt.FocusReason.OtherFocusReason)
         self._run_search()
@@ -431,6 +435,9 @@ class LauncherWindow(QWidget):
             return
         elapsed_ms = 0.0
         self._display_results(list(results), query)
+        if self._pending_execute_query == query:
+            self._pending_execute_query = None
+            QTimer.singleShot(0, self._execute_current)
         if self.config.get("advanced.performance_stats", False):
             self.show_status(f"{len(results)} results")
 
@@ -440,6 +447,8 @@ class LauncherWindow(QWidget):
         if generation != self._search_generation or query != self.search_input.text():
             return
         log.error("Background search failed: %s", message)
+        if self._pending_execute_query == query:
+            self._pending_execute_query = None
         self._display_results(
             [
                 SearchResult(
@@ -608,6 +617,11 @@ class LauncherWindow(QWidget):
         self.action_label.setVisible(True)
 
     def _copy_current(self) -> None:
+        if self._displayed_query != self.search_input.text():
+            self._debouncer.cancel()
+            self._run_search()
+            self.show_status("Updating results…")
+            return
         result = self.current_result()
         if result is None:
             return
@@ -619,6 +633,15 @@ class LauncherWindow(QWidget):
         self.show_status("Copied to clipboard")
 
     def _execute_current(self) -> None:
+        query = self.search_input.text()
+        if self._displayed_query != query:
+            # Enter can arrive before the debounce timer or background search
+            # completes. Never execute a result belonging to the previous query.
+            self._pending_execute_query = query
+            self._debouncer.cancel()
+            self._run_search()
+            return
+        self._pending_execute_query = None
         result = self.current_result()
         if result is None:
             return
