@@ -82,11 +82,15 @@ jobs:
         run: |
           $version = python -c "from core.version import APP_VERSION; print(APP_VERSION)"
           $installer = (Resolve-Path ".\dist\installer\SeekR-Setup-$version.exe").Path
-          $installDir = Join-Path $env:RUNNER_TEMP "SeekR-install-smoke"
-          & $installer /VERYSILENT /SUPPRESSMSGBOXES /NORESTART "/DIR=$installDir"
+          $installDir = Join-Path $env:LOCALAPPDATA "Programs\SeekR"
+          $installLog = Join-Path $env:RUNNER_TEMP "SeekR-installer.log"
+          if (Test-Path -LiteralPath $installDir) { Remove-Item -LiteralPath $installDir -Recurse -Force }
+          & $installer /VERYSILENT /SUPPRESSMSGBOXES /NORESTART "/LOG=$installLog"
           if ($LASTEXITCODE -ne 0) { throw "SeekR installer exited with code $LASTEXITCODE" }
           if (-not (Test-Path -LiteralPath (Join-Path $installDir "SeekR.exe"))) {
-            throw "Installed SeekR.exe is missing"
+            if (Test-Path -LiteralPath $installLog) { Get-Content -LiteralPath $installLog }
+            Get-ChildItem -LiteralPath (Join-Path $env:LOCALAPPDATA "Programs") -Force -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
+            throw "Installed SeekR.exe is missing from the declared per-user install directory"
           }
           $uninstaller = Join-Path $installDir "unins000.exe"
           if (-not (Test-Path -LiteralPath $uninstaller)) { throw "SeekR uninstaller is missing" }
