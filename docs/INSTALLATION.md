@@ -14,10 +14,7 @@ configuration, SQLite database, notes, and clipboard history under
 `%APPDATA%\SeekR`; remove that profile separately only if you intend to delete
 all SeekR data.
 
-Release builds are produced by the GitHub Actions workflow. Until a GitHub
-Release is explicitly published, CI artifacts are not a permanent public
-download. Do not treat a branch build as a signed or SmartScreen-reputation
-verified installer.
+Download the current installer from the [latest SeekR GitHub Release](https://github.com/okyanus-11/SeekR/releases/latest). Main-branch builds are also uploaded as 30-day GitHub Actions artifacts. A version tag (`v*`) or a manual workflow run with a release tag publishes the installer, standalone executable and SHA-256 checksums to GitHub Releases. The installer is unsigned, so Windows may display an unfamiliar-app SmartScreen warning.
 
 ### Upgrading
 
