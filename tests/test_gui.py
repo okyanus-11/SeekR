@@ -155,6 +155,29 @@ def test_launcher_execution_copies_and_hides(qapp, controller):
     assert clipboard.text() == "5"
 
 
+
+def test_enter_waits_for_results_for_the_current_query(qapp, controller):
+    launcher = controller.launcher
+    launcher.show_launcher()
+    launcher.set_query("calc: 2+3")
+    wait_for_search(qapp, launcher)
+    assert launcher.current_result().title == "5"
+
+    # Change the query and press Enter before the debounced/background search
+    # has delivered its result. The old "5" result must never be executed.
+    launcher.search_input.setText("calc: 7*8")
+    launcher._execute_current()
+
+    deadline = time.monotonic() + 3.0
+    clipboard = QGuiApplication.clipboard()
+    while time.monotonic() < deadline and clipboard.text() != "56":
+        qapp.processEvents()
+        time.sleep(0.005)
+
+    assert launcher._displayed_query == "calc: 7*8"
+    assert clipboard.text() == "56"
+
+
 def test_launcher_hides_on_escape(qapp, controller):
     launcher = controller.launcher
     launcher.show_launcher()
