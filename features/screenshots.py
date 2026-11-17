@@ -6,7 +6,8 @@ import datetime as dt
 import os
 from pathlib import Path
 
-from PySide6.QtGui import QGuiApplication, QPixmap
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication, QPainter, QPixmap
 
 from core.config_manager import ConfigManager
 from core.database import Database
@@ -37,23 +38,52 @@ def screenshot_directory(config: ConfigManager) -> Path:
 
 
 def capture_screen(screen_index: int | None = None) -> QPixmap:
-    """Grab the whole screen. Raises :class:`ScreenshotError` on failure."""
+    """Capture one screen or compose all connected displays into one image."""
     app = QGuiApplication.instance()
     if app is None:
         raise ScreenshotError("Screenshots need the application to be running")
     screens = QGuiApplication.screens()
     if not screens:
         raise ScreenshotError("No screen was detected")
-    screen = screens[screen_index] if screen_index is not None and 0 <= screen_index < len(screens) else QGuiApplication.primaryScreen()
-    if screen is None:
-        raise ScreenshotError("No primary screen was detected")
-    pixmap = screen.grabWindow(0)
-    if pixmap is None or pixmap.isNull():
-        raise ScreenshotError(
-            "The screen could not be captured. On Wayland, screenshot capture requires a portal-enabled session."
-        )
-    return pixmap
 
+    if screen_index is not None:
+        if not 0 <= screen_index < len(screens):
+            raise ScreenshotError(f"Screen index {screen_index} is out of range")
+        pixmap = screens[screen_index].grabWindow(0)
+        if pixmap is None or pixmap.isNull():
+            raise ScreenshotError("The selected screen could not be captured")
+        return pixmap
+
+    captures = []
+    bounds = screens[0].geometry()
+    for screen in screens:
+        geometry = screen.geometry()
+        bounds = bounds.united(geometry)
+        pixmap = screen.grabWindow(0)
+        if pixmap is None or pixmap.isNull():
+            raise ScreenshotError(
+                f"Could not capture display {screen.name() or geometry}"
+            )
+        # Normalize each display to its logical geometry so mixed-DPI monitors
+        # can be composed without gaps or offsets in the virtual desktop image.
+        normalized = pixmap.scaled(
+            geometry.size(),
+            Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+        captures.append((geometry, normalized))
+
+    combined = QPixmap(bounds.size())
+    combined.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(combined)
+    try:
+        for geometry, pixmap in captures:
+            painter.drawPixmap(geometry.topLeft() - bounds.topLeft(), pixmap)
+    finally:
+        painter.end()
+    if combined.isNull():
+        raise ScreenshotError("The connected displays could not be combined")
+    return combined
 
 def save_screenshot(config: ConfigManager, screen_index: int | None = None) -> tuple[bool, str, str]:
     """Capture the screen and save it as a PNG.
