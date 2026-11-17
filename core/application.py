@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
-from PySide6.QtCore import QObject, QTimer, QUrl, Signal
+from PySide6.QtCore import QObject, QThread, QThreadPool, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
@@ -88,6 +88,11 @@ class SeekRApplication(QObject, UIHooks):
         self._files_running = False
         self._file_token = CancelToken()
         self._shutdown_done = False
+        # Keep bulk indexing serialized and low-priority so it cannot
+        # compete aggressively with interactive search and painting.
+        self._index_pool = QThreadPool(self)
+        self._index_pool.setMaxThreadCount(1)
+        self._index_pool.setThreadPriority(QThread.Priority.LowPriority)
 
         self._build_services()
         self.engine = SearchEngine(config, db, self, parent=self)
@@ -265,6 +270,7 @@ class SeekRApplication(QObject, UIHooks):
             on_finished=self._apps_indexed,
             on_failed=lambda message, tb: self._task_failed("applications", message, tb),
             on_cleanup=self.db.close_thread_connection,
+            pool=self._index_pool,
         )
 
     def _apps_indexed(self, stats: dict) -> None:
