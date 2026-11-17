@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.hotkeys import HotkeyError, normalize_hotkey
+from ui import i18n
 
 
 class Switch(QAbstractButton):
@@ -94,11 +95,11 @@ class SettingRow(QFrame):
 
         text_layout = QVBoxLayout()
         text_layout.setSpacing(2)
-        self.title_label = QLabel(title)
+        self.title_label = QLabel(i18n.translate_text(title))
         self.title_label.setWordWrap(True)
         text_layout.addWidget(self.title_label)
         if description:
-            self.description_label = QLabel(description)
+            self.description_label = QLabel(i18n.translate_text(description))
             self.description_label.setObjectName("Muted")
             self.description_label.setWordWrap(True)
             text_layout.addWidget(self.description_label)
@@ -130,11 +131,11 @@ class SectionCard(QFrame):
         outer.setContentsMargins(16, 14, 16, 14)
         outer.setSpacing(8)
         if title:
-            heading = QLabel(title)
+            heading = QLabel(i18n.translate_text(title))
             heading.setObjectName("Title")
             outer.addWidget(heading)
         if subtitle:
-            description = QLabel(subtitle)
+            description = QLabel(i18n.translate_text(subtitle))
             description.setObjectName("Muted")
             description.setWordWrap(True)
             outer.addWidget(description)
@@ -207,7 +208,7 @@ class ColorButton(QPushButton):
         )
 
     def _choose(self) -> None:
-        chosen = QColorDialog.getColor(self._color, self, "Choose accent color")
+        chosen = QColorDialog.getColor(self._color, self, i18n.translate_text("Choose accent color"))
         if chosen.isValid():
             self._color = chosen
             self._update_label()
@@ -222,8 +223,8 @@ class HotkeyEdit(QLineEdit):
     def __init__(self, hotkey: str = "Alt+Space", parent: QWidget | None = None):
         super().__init__(parent)
         self.setReadOnly(True)
-        self.setPlaceholderText("Press a key combination")
-        self.setToolTip("Click and press a combination such as Ctrl+Shift+Space")
+        self.setPlaceholderText(i18n.translate_text("Press a key combination"))
+        self.setToolTip(i18n.translate_text("Click and press a combination such as Ctrl+Shift+Space"))
         self.set_hotkey(hotkey)
 
     def set_hotkey(self, hotkey: str) -> None:
@@ -255,7 +256,7 @@ class HotkeyEdit(QLineEdit):
             normalized = normalize_hotkey(candidate)
         except HotkeyError:
             self.setText(candidate)
-            self.setToolTip("Add at least one modifier (Ctrl, Alt, Shift or Win)")
+            self.setToolTip(i18n.translate_text("Add at least one modifier (Ctrl, Alt, Shift or Win)"))
             return
         self.setText(normalized)
         self.setToolTip("Click and press a combination such as Ctrl+Shift+Space")
@@ -307,7 +308,7 @@ def hline() -> QFrame:
 
 
 def label(text: str, object_name: str = "", wrap: bool = False) -> QLabel:
-    widget = QLabel(text)
+    widget = QLabel(i18n.translate_text(text))
     if object_name:
         widget.setObjectName(object_name)
     widget.setWordWrap(wrap)
@@ -315,14 +316,14 @@ def label(text: str, object_name: str = "", wrap: bool = False) -> QLabel:
 
 
 def badge(text: str) -> QLabel:
-    widget = QLabel(text)
+    widget = QLabel(i18n.translate_text(text))
     widget.setObjectName("Badge")
     widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
     return widget
 
 
 def primary_button(text: str, callback: Optional[Callable[[], None]] = None) -> QPushButton:
-    button = QPushButton(text)
+    button = QPushButton(i18n.translate_text(text))
     button.setObjectName("Primary")
     button.setCursor(Qt.CursorShape.PointingHandCursor)
     if callback is not None:
@@ -331,7 +332,7 @@ def primary_button(text: str, callback: Optional[Callable[[], None]] = None) -> 
 
 
 def secondary_button(text: str, callback: Optional[Callable[[], None]] = None) -> QPushButton:
-    button = QPushButton(text)
+    button = QPushButton(i18n.translate_text(text))
     button.setCursor(Qt.CursorShape.PointingHandCursor)
     if callback is not None:
         button.clicked.connect(callback)
@@ -339,7 +340,7 @@ def secondary_button(text: str, callback: Optional[Callable[[], None]] = None) -
 
 
 def danger_button(text: str, callback: Optional[Callable[[], None]] = None) -> QPushButton:
-    button = QPushButton(text)
+    button = QPushButton(i18n.translate_text(text))
     button.setObjectName("Danger")
     button.setCursor(Qt.CursorShape.PointingHandCursor)
     if callback is not None:
@@ -357,14 +358,14 @@ class InfoBanner(QFrame):
         layout.setContentsMargins(22, 20, 22, 22)
         layout.setSpacing(10)
         header = QHBoxLayout()
-        heading = QLabel(title)
+        heading = QLabel(i18n.translate_text(title))
         heading.setObjectName("Heading")
         header.addWidget(heading)
         header.addStretch(1)
         if badge_text:
             header.addWidget(badge(badge_text))
         layout.addLayout(header)
-        description = QLabel(body)
+        description = QLabel(i18n.translate_text(body))
         description.setWordWrap(True)
         description.setObjectName("Muted")
         layout.addWidget(description)
