@@ -53,7 +53,8 @@ from core.version import (
     APP_VERSION,
 )
 from ui import dialogs, i18n
-from ui.components import (, refresh_localized_widgets
+from ui.components import (
+    refresh_localized_widgets,
     ColorButton,
     HotkeyEdit,
     InfoBanner,
