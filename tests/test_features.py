@@ -400,10 +400,11 @@ def test_bookmarks_graceful():
 
 
 
-def test_chromium_bookmark_backup_is_used_when_primary_is_invalid(tmp_path):
+@pytest.mark.parametrize("primary", ["{broken", "[]"])
+def test_chromium_bookmark_backup_is_used_when_primary_is_invalid(tmp_path, primary):
     profile = tmp_path / "Chrome"
     profile.mkdir()
-    (profile / "Bookmarks").write_text("{broken", encoding="utf-8")
+    (profile / "Bookmarks").write_text(primary, encoding="utf-8")
     backup = {
         "roots": {
             "bookmark_bar": {
@@ -475,6 +476,7 @@ def test_windows_gpu_engine_counters_are_aggregated_by_adapter(monkeypatch):
     ]
     monkeypatch.setattr(system_info, "_run_quiet", lambda *args, **kwargs: json.dumps(payload))
     assert system_info._windows_gpu_engine_usage() == {0: 60.0, 1: 18.0}
+
 
 def test_power_graceful():
     assert isinstance(power.supported(), bool)
