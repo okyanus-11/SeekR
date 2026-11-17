@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import sqlite3
 import sys
 import tempfile
@@ -113,8 +112,11 @@ def _read_chromium_bookmarks(browser: str, root: Path) -> list[dict]:
         payload = None
         for candidate in (file, profile / "Bookmarks.bak"):
             try:
-                payload = json.loads(candidate.read_text(encoding="utf-8", errors="replace"))
-                break
+                candidate_payload = json.loads(candidate.read_text(encoding="utf-8", errors="replace"))
+                if isinstance(candidate_payload, dict):
+                    payload = candidate_payload
+                    break
+                log.debug("Ignoring invalid %s bookmark snapshot %s", browser, candidate)
             except (OSError, json.JSONDecodeError) as exc:
                 log.debug("Could not read %s bookmark snapshot %s: %s", browser, candidate, exc)
         if not isinstance(payload, dict):
