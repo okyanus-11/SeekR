@@ -97,7 +97,7 @@ def _fetch_definition(cleaned: str, timeout: float = 8.0) -> dict[str, Any]:
                     "partOfSpeech": part_of_speech,
                     "definition": definition.get("definition", ""),
                     "example": definition.get("example", ""),
-                    "synonyms": meaning.get("synonyms", []) or [],
+                    "synonyms": definition.get("synonyms", []) or meaning.get("synonyms", []) or [],
                 }
             )
     return {
@@ -126,6 +126,7 @@ def lookup(
     result = _fetch_definition(cleaned, timeout)
     _store_cached_definition(cleaned, result, cache_path)
     return copy.deepcopy(result)
+
 
 def format_definition(result: dict[str, Any]) -> str:
     """Render a lookup result as readable text."""
