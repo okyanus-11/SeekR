@@ -67,7 +67,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 | Windows | Lists open windows and switches to the selected one (Windows API; unavailable elsewhere). |
 | Emoji | Searchable emoji table; copies the selected emoji. |
 | Color | HEX/RGB/HSL/HSV conversion, color picking, copyable values. |
-| Screenshots | Captures all connected displays into one PNG in the configured folder (Settings → Files). A separate action opens the Windows Snipping Tool for region capture; its save destination remains controlled by Windows. |
+| Screenshots | Full-screen and built-in region capture save PNGs directly to the configured folder (Settings → Files), including multi-monitor desktops. The Windows Snipping Tool remains an optional external alternative. |
 | Processes | Search running processes with CPU/memory usage, details, and confirmation before termination. |
 | Bookmarks | Reads Chromium bookmarks with a last-good backup fallback and Firefox bookmarks from a consistent SQLite snapshot, including live WAL data. Unreadable profiles are skipped with a status message. |
 | QuickLook | Safe previews for images and text-like documents (never executes previewed files). |
@@ -525,7 +525,7 @@ troubleshooting guidance.
 - **GPU utilisation:** Windows now falls back to GPU Engine performance counters for adapters such as Intel and AMD when available. Some drivers or Windows configurations do not expose usable counters, so utilisation can still be unavailable.
 - **Bookmarks:** Firefox is read through SQLite's consistent backup API, including WAL data, and Chromium can fall back to Bookmarks.bak. Profiles that are missing, corrupt or blocked by OS permissions are skipped.
 - **Dictionary:** Definitions already looked up online are cached locally and remain available offline. A first-time lookup still needs an internet connection; a complete bundled offline dictionary is not included.
-- **Screenshots:** Full-screen capture now composes all connected displays. Region capture still uses the Windows Snipping Tool, whose save location is managed by Windows. Capture quality and mixed-DPI positioning still need real-display verification.
+- **Screenshots:** Full-screen and built-in region capture now save directly to SeekR's configured folder across connected displays. The Windows Snipping Tool remains an optional external alternative. Capture quality and mixed-DPI positioning still need real-display verification.
 - **SSH:** SeekR detects the standard Windows OpenSSH installation even when it is not on PATH. OpenSSH Client must still be installed; SSH authentication remains key/agent based and passwords are never stored.
 - **Screenshots in the README:** Product screenshots are not yet shipped. Capture genuine screenshots on a real Windows desktop before presenting them as release imagery.
 ---
