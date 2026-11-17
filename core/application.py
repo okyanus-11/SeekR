@@ -44,7 +44,7 @@ from features.web_search import (
     YouTubeProvider,
 )
 from features.window_search import WindowProvider
-from ui import dialogs
+from ui import dialogs, i18n
 from ui.icons import IconStore, app_icon
 from ui.launcher_window import LauncherWindow
 from ui.themes import apply_theme
@@ -73,6 +73,7 @@ class SeekRApplication(QObject, UIHooks):
         QObject.__init__(self)
         self.app = app
         self.config = config
+        i18n.set_language(config)
         self.db = db
         self.icons = IconStore()
         self.launcher: Optional[LauncherWindow] = None
@@ -342,6 +343,8 @@ class SeekRApplication(QObject, UIHooks):
 
     # ------------------------------------------------------------------ config
     def _on_config_changed(self, path: str, _value: Any) -> None:
+        if path == "*" or path.startswith("general.language"):
+            i18n.set_language(self.config)
         if path == "*" or path.startswith("appearance.") or path.startswith("general.language"):
             apply_theme(self.app, self.config)
             if self.launcher is not None:
