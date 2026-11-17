@@ -17,14 +17,14 @@ permissions:
 
 jobs:
   tests:
-    name: Tests ($${{ matrix.os }})
-    runs-on: $${{ matrix.os }}
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [windows-2022, windows-latest, ubuntu-latest]
     env:
-      QT_QPA_PLATFORM: $${{ matrix.os == 'ubuntu-latest' && 'offscreen' || 'windows' }}
+      QT_QPA_PLATFORM: ${{ matrix.os == 'ubuntu-latest' && 'offscreen' || 'windows' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -108,7 +108,7 @@ jobs:
           } | Set-Content -LiteralPath ".\release\SHA256SUMS.txt" -Encoding ascii
       - uses: actions/upload-artifact@v4
         with:
-          name: SeekR-Windows-$${{ github.sha }}
+          name: SeekR-Windows-${{ github.sha }}
           path: release/*
           if-no-files-found: error
           retention-days: 30
@@ -123,12 +123,12 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: SeekR-Windows-$${{ github.sha }}
+          name: SeekR-Windows-${{ github.sha }}
           path: artifacts
       - name: Publish installer
         env:
-          GH_TOKEN: $${{ github.token }}
-          TAG: $${{ inputs.release_tag || github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.release_tag || github.ref_name }}
         run: |
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
