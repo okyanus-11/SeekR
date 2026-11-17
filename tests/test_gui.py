@@ -49,7 +49,7 @@ def wait_for_search(qapp, launcher, timeout: float = 3.0):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         qapp.processEvents()
-        if launcher._results:
+        if launcher._displayed_query == launcher.search_input.text():
             return
         time.sleep(0.005)
     pytest.fail("Launcher search did not complete before the timeout")
