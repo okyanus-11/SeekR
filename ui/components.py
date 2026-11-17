@@ -385,7 +385,8 @@ def primary_button(text: str, callback: Optional[Callable[[], None]] = None) -> 
 
 
 def secondary_button(text: str, callback: Optional[Callable[[], None]] = None) -> QPushButton:
-    button = QPushButton(i18n.translate_text(text))
+    button = QPushButton()
+    _set_localized_text(button, text)
     button.setCursor(Qt.CursorShape.PointingHandCursor)
     if callback is not None:
         button.clicked.connect(callback)
@@ -393,7 +394,8 @@ def secondary_button(text: str, callback: Optional[Callable[[], None]] = None) -
 
 
 def danger_button(text: str, callback: Optional[Callable[[], None]] = None) -> QPushButton:
-    button = QPushButton(i18n.translate_text(text))
+    button = QPushButton()
+    _set_localized_text(button, text)
     button.setObjectName("Danger")
     button.setCursor(Qt.CursorShape.PointingHandCursor)
     if callback is not None:
