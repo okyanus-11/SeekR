@@ -58,10 +58,10 @@ jobs:
         run: |
           python -m pytest -q
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python build.py
+          python build.py --onedir
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $version = python -c "from core.version import APP_VERSION; print(APP_VERSION)"
-          $metadata = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$PWD\dist\SeekR.exe")
+          $metadata = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$PWD\dist\SeekR\SeekR.exe")
           if ($metadata.ProductName -ne "SeekR" -or $metadata.ProductVersion -notlike "$version*") {
             throw "Unexpected executable metadata: ProductName=$($metadata.ProductName), ProductVersion=$($metadata.ProductVersion)"
           }
@@ -95,6 +95,11 @@ jobs:
             Get-ChildItem -LiteralPath $env:RUNNER_TEMP -Force -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "SeekR*" } | Select-Object -ExpandProperty FullName
             throw "Installed SeekR.exe is missing"
           }
+          # Exercise the installed app itself, not only the installer payload.
+          $appProcess = Start-Process -FilePath $installedExe -ArgumentList @("--hidden", "--no-hotkey") -PassThru
+          Start-Sleep -Seconds 8
+          if ($appProcess.HasExited) { throw "Installed SeekR exited during startup (code $($appProcess.ExitCode))" }
+          Stop-Process -Id $appProcess.Id -Force
           $uninstaller = Join-Path $installDir "unins000.exe"
           if (-not (Test-Path -LiteralPath $uninstaller)) { throw "SeekR uninstaller is missing" }
           $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") -Wait -PassThru
@@ -109,7 +114,6 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path ".\release" | Out-Null
           $version = python -c "from core.version import APP_VERSION; print(APP_VERSION)"
-          Copy-Item ".\dist\SeekR.exe" ".\release\SeekR.exe"
           Copy-Item ".\dist\installer\SeekR-Setup-$version.exe" ".\release\"
           Get-ChildItem ".\release" -File | ForEach-Object {
             $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash
@@ -142,5 +146,5 @@ jobs:
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
               --title "SeekR $TAG" --generate-notes
-          gh release upload "$TAG" artifacts/SeekR-Setup-*.exe artifacts/SeekR.exe artifacts/SHA256SUMS.txt \
+          gh release upload "$TAG" artifacts/SeekR-Setup-*.exe artifacts/SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" --clobber
