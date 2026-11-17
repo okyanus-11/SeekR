@@ -121,15 +121,15 @@ def resolve_ssh_client() -> str | None:
         if found:
             return str(found)
     if os.name == "nt":
-        windows = Path(os.environ.get("WINDIR", r"C:\Windows"))
-        program_files = Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
+        windows = os.environ.get("WINDIR", r"C:\Windows")
+        program_files = os.environ.get("ProgramFiles", r"C:\Program Files")
         candidates = (
-            windows / "System32" / "OpenSSH" / "ssh.exe",
-            program_files / "OpenSSH" / "ssh.exe",
+            os.path.join(windows, "System32", "OpenSSH", "ssh.exe"),
+            os.path.join(program_files, "OpenSSH", "ssh.exe"),
         )
         for candidate in candidates:
-            if candidate.is_file():
-                return str(candidate)
+            if os.path.isfile(candidate):
+                return candidate
     return None
 
 
