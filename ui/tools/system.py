@@ -7,8 +7,8 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QPixmap
+from PySide6.QtCore import QRect, Qt, QTimer, Signal
+from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -443,6 +443,69 @@ class PowerTab(QWidget):
         self.refresh()
 
 
+class RegionCaptureOverlay(QWidget):
+    """Desktop-wide translucent overlay for selecting a screenshot region."""
+
+    selected = Signal(QRect)
+    cancelled = Signal()
+
+    def __init__(self, geometry: QRect):
+        super().__init__()
+        self._origin = None
+        self._selection = QRect()
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.Tool
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setGeometry(geometry)
+        self.setCursor(Qt.CursorShape.CrossCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.show()
+        self.raise_()
+        self.activateWindow()
+        self.setFocus()
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), QColor(0, 0, 0, 105))
+        if not self._selection.isNull():
+            painter.fillRect(self._selection, QColor(104, 169, 255, 45))
+            painter.setPen(QPen(QColor("#68a9ff"), 2))
+            painter.drawRect(self._selection)
+        painter.end()
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._origin = event.position().toPoint()
+            self._selection = QRect(self._origin, self._origin)
+            self.update()
+
+    def mouseMoveEvent(self, event) -> None:  # noqa: N802
+        if self._origin is not None:
+            self._selection = QRect(self._origin, event.position().toPoint()).normalized()
+            self.update()
+
+    def mouseReleaseEvent(self, event) -> None:  # noqa: N802
+        if event.button() != Qt.MouseButton.LeftButton or self._origin is None:
+            return
+        rect = QRect(self._origin, event.position().toPoint()).normalized().intersected(self.rect())
+        self._origin = None
+        self.close()
+        if rect.width() >= 2 and rect.height() >= 2:
+            self.selected.emit(rect)
+        else:
+            self.cancelled.emit()
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802
+        if event.key() == Qt.Key.Key_Escape:
+            self.close()
+            self.cancelled.emit()
+            return
+        super().keyPressEvent(event)
+
+
 class ScreenshotsTab(QWidget):
     """Capture the screen, preview it and save it."""
 
@@ -452,6 +515,7 @@ class ScreenshotsTab(QWidget):
         self.config = controller.config
         self._pixmap: Optional[QPixmap] = None
         self._last_path = ""
+        self._region_overlay = None
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(10)
@@ -470,6 +534,7 @@ class ScreenshotsTab(QWidget):
         layout.addWidget(self.preview, 1)
         buttons = QHBoxLayout()
         buttons.addWidget(primary_button("Capture screen", self._capture))
+        buttons.addWidget(secondary_button("Capture region", self._capture_region))
         buttons.addWidget(secondary_button("Save as…", self._save_as))
         buttons.addWidget(secondary_button("Open screenshots folder", self._open_folder))
         if os.name == "nt":
@@ -488,6 +553,46 @@ class ScreenshotsTab(QWidget):
             return
         self._show_pixmap(self._pixmap)
         self.status.setText(f"Captured {self._pixmap.width()}×{self._pixmap.height()} pixels")
+
+    def _capture_region(self) -> None:
+        try:
+            self._pixmap = screenshots.capture_screen()
+        except screenshots.ScreenshotError as exc:
+            self.status.setText(str(exc))
+            self.controller.show_error("Screenshot", str(exc))
+            return
+        screens = QGuiApplication.screens()
+        if not screens:
+            self.status.setText("No display is available for region capture")
+            return
+        bounds = screens[0].geometry()
+        for screen in screens[1:]:
+            bounds = bounds.united(screen.geometry())
+        overlay = RegionCaptureOverlay(bounds)
+        overlay.selected.connect(self._save_region)
+        overlay.cancelled.connect(self._region_cancelled)
+        self._region_overlay = overlay
+        self.status.setText("Drag to select a region. Press Esc to cancel.")
+
+    def _save_region(self, rect: QRect) -> None:
+        if self._pixmap is None:
+            return
+        cropped = self._pixmap.copy(rect)
+        ok, path, error = screenshots.save_pixmap(self.config, cropped)
+        self._region_overlay = None
+        if not ok:
+            self.status.setText(error)
+            self.controller.show_error("Screenshot", error)
+            return
+        self._pixmap = cropped
+        self._last_path = path
+        self._show_pixmap(cropped)
+        self.status.setText(f"Region saved to {path}")
+        self.controller.copy_text(path)
+
+    def _region_cancelled(self) -> None:
+        self._region_overlay = None
+        self.status.setText("Region capture cancelled")
 
     def _show_pixmap(self, pixmap: QPixmap) -> None:
         scaled = pixmap.scaled(
