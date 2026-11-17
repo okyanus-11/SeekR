@@ -100,6 +100,8 @@ class LauncherWindow(QWidget):
         self._search_pool = QThreadPool(self)
         self._search_pool.setMaxThreadCount(2)
         self._search_generation = 0
+        # Keep Python QRunnable wrappers alive until their native pool tasks finish.
+        self._search_workers = set()
         self._search_finished.connect(self._on_search_finished)
         self._search_failed.connect(self._on_search_failed)
         self.refresh_texts()
@@ -386,7 +388,7 @@ class LauncherWindow(QWidget):
         # to this QWidget, so Qt queues delivery onto the GUI thread before
         # touching widgets. Calling a closure directly from QRunnable can run
         # it on the worker thread and cause undefined Qt GUI behaviour.
-        run_async(
+        worker = run_async(
             self.engine.search,
             query,
             on_finished=lambda results: self._search_finished.emit(
@@ -396,6 +398,11 @@ class LauncherWindow(QWidget):
                 generation, query, message
             ),
             pool=self._search_pool,
+        )
+        self._search_workers.add(worker)
+        worker.signals.finished.connect(lambda _result, task=worker: self._search_workers.discard(task))
+        worker.signals.failed.connect(
+            lambda _message, _traceback, task=worker: self._search_workers.discard(task)
         )
 
     @Slot(int, str, object)
