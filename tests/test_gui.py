@@ -44,6 +44,17 @@ class DummyProvider(SearchProvider):
         ]
 
 
+def wait_for_search(qapp, launcher, timeout: float = 3.0):
+    """Process queued Qt signals until the latest background search completes."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        qapp.processEvents()
+        if launcher._results:
+            return
+        time.sleep(0.005)
+    pytest.fail("Launcher search did not complete before the timeout")
+
+
 @pytest.fixture(scope="module")
 def controller(qapp, tmp_path_factory):
     directory = tmp_path_factory.mktemp("gui")
@@ -70,14 +81,14 @@ def test_launcher_opens_and_searches(qapp, controller):
     assert launcher.isVisible()
 
     launcher.set_query("calc: 6*7")
-    qapp.processEvents()
+    wait_for_search(qapp, launcher)
     result = launcher.current_result()
     assert result is not None
     assert result.title == "42"
 
     controller.engine.register(DummyProvider(controller.config, controller.db, controller))
     launcher.set_query("gui test")
-    qapp.processEvents()
+    wait_for_search(qapp, launcher)
     assert len(launcher._results) >= 3
     assert launcher.current_result().title.startswith("GUI result")
 
@@ -135,7 +146,7 @@ def test_launcher_execution_copies_and_hides(qapp, controller):
     launcher = controller.launcher
     launcher.show_launcher()
     launcher.set_query("calc: 2+3")
-    qapp.processEvents()
+    wait_for_search(qapp, launcher)
     assert launcher.current_result().title == "5"
     launcher._execute_current()
     qapp.processEvents()
@@ -158,7 +169,7 @@ def test_ctrl_copy_action(qapp, controller):
     launcher = controller.launcher
     launcher.show_launcher()
     launcher.set_query("gui test")
-    qapp.processEvents()
+    wait_for_search(qapp, launcher)
     launcher._copy_current()
     assert QGuiApplication.clipboard().text().startswith("copy")
 
