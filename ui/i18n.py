@@ -373,6 +373,10 @@ _COMMON_TEXT: dict[str, tuple[str, ...]] = {
     "Developer tools": ("Geliştirici araçları", "Herramientas de desarrollo", "Outils développeur", "Entwicklerwerkzeuge", "Strumenti per sviluppatori", "Ferramentas de desenvolvimento", "開発者ツール", "开发者工具"),
     "Date & time": ("Tarih ve saat", "Fecha y hora", "Date et heure", "Datum und Uhrzeit", "Data e ora", "Data e hora", "日時", "日期和时间"),
     "Color": ("Renk", "Color", "Couleur", "Farbe", "Colore", "Cor", "色", "颜色"),
+    "Press a key combination": ("Bir tuş kombinasyonuna basın", "Pulsa una combinación de teclas", "Appuyez sur une combinaison de touches", "Tastenkombination drücken", "Premi una combinazione di tasti", "Pressione uma combinação de teclas", "キーの組み合わせを押してください", "按下一个组合键"),
+    "Click and press a combination such as Ctrl+Shift+Space": ("Tıklayın ve Ctrl+Shift+Space gibi bir kombinasyona basın", "Haz clic y pulsa una combinación como Ctrl+Shift+Space", "Cliquez puis saisissez une combinaison comme Ctrl+Shift+Space", "Klicken und eine Kombination wie Ctrl+Shift+Space drücken", "Fai clic e premi una combinazione come Ctrl+Shift+Space", "Clique e pressione uma combinação como Ctrl+Shift+Space", "クリックして Ctrl+Shift+Space などの組み合わせを押してください", "点击并按下 Ctrl+Shift+Space 等组合键"),
+    "Add at least one modifier (Ctrl, Alt, Shift or Win)": ("En az bir değiştirici ekleyin (Ctrl, Alt, Shift veya Win)", "Añade al menos un modificador (Ctrl, Alt, Shift o Win)", "Ajoutez au moins un modificateur (Ctrl, Alt, Shift ou Win)", "Mindestens einen Modifikator hinzufügen (Ctrl, Alt, Shift oder Win)", "Aggiungi almeno un modificatore (Ctrl, Alt, Shift o Win)", "Adicione pelo menos um modificador (Ctrl, Alt, Shift ou Win)", "Ctrl、Alt、Shift、Win のいずれかを追加してください", "至少添加一个修饰键（Ctrl、Alt、Shift 或 Win）"),
+    "Choose accent color": ("Vurgu rengini seçin", "Elegir color de acento", "Choisir la couleur d’accentuation", "Akzentfarbe auswählen", "Scegli il colore principale", "Escolher cor de destaque", "アクセントカラーを選択", "选择强调色"),
 }
 
 
