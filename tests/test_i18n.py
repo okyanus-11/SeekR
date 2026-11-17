@@ -37,3 +37,23 @@ def test_shared_widget_labels_use_the_active_language():
     assert i18n.translate_text("An application-specific label") == "An application-specific label"
     i18n.set_language(FakeConfig("en"))
     assert i18n.translate_text("Appearance") == "Appearance"
+
+
+def test_open_shared_widgets_refresh_without_clobbering_dynamic_status(qapp):
+    from PySide6.QtWidgets import QWidget, QVBoxLayout
+
+    from ui.components import label, refresh_localized_widgets
+
+    root = QWidget()
+    layout = QVBoxLayout(root)
+    static_label = label("Appearance")
+    live_status = label("")
+    live_status.setText("Saved")
+    layout.addWidget(static_label)
+    layout.addWidget(live_status)
+
+    i18n.set_language(FakeConfig("de"))
+    refresh_localized_widgets(root)
+    assert static_label.text() == "Darstellung"
+    assert live_status.text() == "Saved"
+    i18n.set_language(FakeConfig("en"))
