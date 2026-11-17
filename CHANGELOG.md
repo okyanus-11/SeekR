@@ -4,6 +4,16 @@ All notable changes to SeekR are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 semantic versioning.
 
+## [1.0.2] - 2026-11-17
+
+### Changed
+
+- Package the Windows installer as a PyInstaller onedir application instead of a one-file executable. This avoids extracting the entire bundled runtime on every cold start and should substantially reduce first-launch delay.
+
+### Fixed
+
+- Add an installed-application startup smoke test to Windows CI so the installer is checked beyond file installation and uninstallation.
+
 ## [Unreleased]
 
 ### Added
