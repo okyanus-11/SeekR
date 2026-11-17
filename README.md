@@ -100,7 +100,7 @@ The Developer tools page implements all 15 utilities:
 
 ### Settings
 
-Thirteen pages — General, Appearance, Search, Applications, Files, Web, Calculator, Commands, Clipboard, Privacy, Advanced, Plugins, About — all bound to the persisted JSON configuration. Every control writes through validation and takes effect immediately (theme changes repaint all windows). The launcher shell and Tools navigation are available in nine languages: English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese and Simplified Chinese. Settings and tool-page content remain English.
+Thirteen pages — General, Appearance, Search, Applications, Files, Web, Calculator, Commands, Clipboard, Privacy, Advanced, Plugins, About — all bound to the persisted JSON configuration. Every control writes through validation and takes effect immediately (theme changes repaint all windows). The launcher, shared controls, common headings and Tools navigation are available in nine languages: English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese and Simplified Chinese. Longer settings descriptions, tool content, dialogs and dynamic status messages remain English.
 
 ### Themes
 
@@ -521,7 +521,7 @@ troubleshooting guidance.
 ## Known limitations
 
 - **Windows verification:** CI exercises Windows and Linux, and a native Windows 11 build/installer was previously validated. Manual Windows 10 coverage, real-display behaviour, mixed-DPI multi-monitor capture, and the complete native shell checklist still require testing on physical Windows desktops. Repeated activation also needs a fresh manual re-check after its fix. See [docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md) and [docs/WINDOWS_MANUAL_TEST.md](docs/WINDOWS_MANUAL_TEST.md).
-- **Language coverage:** English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese and Simplified Chinese translate the launcher shell and Tools navigation. Settings pages, tool descriptions, dialogs and most dynamic status messages are still English; this is not yet full-app localization.
+- **Language coverage:** English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese and Simplified Chinese translate the launcher shell, shared controls, common headings and Tools navigation. Longer settings descriptions, tool content, dialogs and most dynamic status messages are still English; this is not yet full-app localization.
 - **GPU utilisation:** Windows now falls back to GPU Engine performance counters for adapters such as Intel and AMD when available. Some drivers or Windows configurations do not expose usable counters, so utilisation can still be unavailable.
 - **Bookmarks:** Firefox is read through SQLite's consistent backup API, including WAL data, and Chromium can fall back to Bookmarks.bak. Profiles that are missing, corrupt or blocked by OS permissions are skipped.
 - **Dictionary:** Definitions already looked up online are cached locally and remain available offline. A first-time lookup still needs an internet connection; a complete bundled offline dictionary is not included.
