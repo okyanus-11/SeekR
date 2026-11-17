@@ -99,6 +99,25 @@ def test_run_async_retains_worker_until_callback_delivery(qapp):
     assert all(id(item) != worker_id for item in _ACTIVE_WORKERS)
 
 
+
+def test_run_async_cleanup_precedes_completion_callback(qapp):
+    from PySide6.QtCore import QThreadPool
+
+    from core.workers import run_async
+
+    pool = QThreadPool()
+    events = []
+    worker = run_async(
+        lambda: "done",
+        on_cleanup=lambda: events.append("cleanup"),
+        on_finished=lambda _result: events.append("finished"),
+        pool=pool,
+    )
+    assert pool.waitForDone(3000)
+    qapp.processEvents()
+    assert events == ["cleanup", "finished"]
+
+
 def test_launcher_opens_and_searches(qapp, controller):
     controller.show_launcher()
     qapp.processEvents()
