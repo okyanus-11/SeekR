@@ -60,20 +60,28 @@ class FunctionWorker(QRunnable):
         self.setAutoDelete(True)
 
     def run(self) -> None:  # pragma: no cover - executed on a worker thread
+        result = None
+        failure: tuple[str, str] | None = None
         try:
             result = self._fn(*self._args, **self._kwargs)
         except Exception as exc:
             text = traceback.format_exc()
-            log.error("Background task failed: %s\n%s", describe_error(exc), text)
-            self.signals.failed.emit(describe_error(exc), text)
-        else:
-            self.signals.finished.emit(result)
+            message = describe_error(exc)
+            log.error("Background task failed: %s\n%s", message, text)
+            failure = (message, text)
         finally:
             if self._on_cleanup is not None:
                 try:
                     self._on_cleanup()
                 except Exception:
                     log.exception("Background task cleanup failed")
+
+        # Emit only after cleanup so receivers never observe a completed task
+        # while its thread-local resources are still open.
+        if failure is not None:
+            self.signals.failed.emit(*failure)
+        else:
+            self.signals.finished.emit(result)
 
 
 
