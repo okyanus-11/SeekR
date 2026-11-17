@@ -17,6 +17,7 @@ from PySide6.QtCore import (
     QTimer,
     QThreadPool,
     Signal,
+    Slot,
 )
 from PySide6.QtGui import QColor, QCursor, QFont, QGuiApplication, QKeyEvent
 from PySide6.QtWidgets import (
@@ -59,6 +60,8 @@ class LauncherWindow(QWidget):
     """Frameless, keyboard-first search window."""
 
     closed = Signal()
+    _search_finished = Signal(int, str, object)
+    _search_failed = Signal(int, str, str)
 
     def __init__(self, controller: Any):
         super().__init__()
@@ -97,6 +100,8 @@ class LauncherWindow(QWidget):
         self._search_pool = QThreadPool(self)
         self._search_pool.setMaxThreadCount(2)
         self._search_generation = 0
+        self._search_finished.connect(self._on_search_finished)
+        self._search_failed.connect(self._on_search_failed)
         self.refresh_texts()
 
     # ------------------------------------------------------------------- UI
@@ -376,41 +381,50 @@ class LauncherWindow(QWidget):
         query = self.search_input.text()
         self._search_generation += 1
         generation = self._search_generation
-        started = time.perf_counter()
 
-        def completed(results: list[SearchResult]) -> None:
-            # A slower result for an older keystroke must never replace the
-            # results for the text currently in the search box.
-            if generation != self._search_generation or query != self.search_input.text():
-                return
-            elapsed_ms = (time.perf_counter() - started) * 1000
-            self._display_results(list(results), query)
-            if self.config.get("advanced.performance_stats", False):
-                self.show_status(f"{len(results)} results in {elapsed_ms:.1f} ms")
-
-        def failed(message: str, _traceback_text: str) -> None:
-            if generation != self._search_generation or query != self.search_input.text():
-                return
-            log.error("Background search failed: %s", message)
-            self._display_results(
-                [
-                    SearchResult(
-                        title="Search failed",
-                        subtitle=message,
-                        category="System",
-                        score=1.0,
-                        icon_glyph="!",
-                    )
-                ],
-                query,
-            )
-
+        # Worker callbacks only emit Qt signals. The bound slots below belong
+        # to this QWidget, so Qt queues delivery onto the GUI thread before
+        # touching widgets. Calling a closure directly from QRunnable can run
+        # it on the worker thread and cause undefined Qt GUI behaviour.
         run_async(
             self.engine.search,
             query,
-            on_finished=completed,
-            on_failed=failed,
+            on_finished=lambda results: self._search_finished.emit(
+                generation, query, results
+            ),
+            on_failed=lambda message, _traceback_text: self._search_failed.emit(
+                generation, query, message
+            ),
             pool=self._search_pool,
+        )
+
+    @Slot(int, str, object)
+    def _on_search_finished(
+        self, generation: int, query: str, results: list[SearchResult]
+    ) -> None:
+        if generation != self._search_generation or query != self.search_input.text():
+            return
+        elapsed_ms = 0.0
+        self._display_results(list(results), query)
+        if self.config.get("advanced.performance_stats", False):
+            self.show_status(f"{len(results)} results")
+
+    @Slot(int, str, str)
+    def _on_search_failed(self, generation: int, query: str, message: str) -> None:
+        if generation != self._search_generation or query != self.search_input.text():
+            return
+        log.error("Background search failed: %s", message)
+        self._display_results(
+            [
+                SearchResult(
+                    title="Search failed",
+                    subtitle=message,
+                    category="System",
+                    score=1.0,
+                    icon_glyph="!",
+                )
+            ],
+            query,
         )
 
     def _display_results(self, results: list[SearchResult], query: str) -> None:
