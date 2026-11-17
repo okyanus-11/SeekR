@@ -306,6 +306,93 @@ _STRINGS: dict[str, dict[str, str]] = {
 }
 
 
+
+_LANGUAGE_ORDER = ("tr", "es", "fr", "de", "it", "pt-BR", "ja", "zh-CN")
+_ACTIVE_LANGUAGE = "en"
+
+# Shared control labels and page headings used throughout Settings and Tools.
+# Longer explanatory copy intentionally remains English until it has a reviewed
+# translation; missing entries always fall back to the original text.
+_COMMON_TEXT: dict[str, tuple[str, ...]] = {
+    "General": ("Genel", "General", "Général", "Allgemein", "Generale", "Geral", "一般", "常规"),
+    "Appearance": ("Görünüm", "Apariencia", "Apparence", "Darstellung", "Aspetto", "Aparência", "外観", "外观"),
+    "Search": ("Arama", "Búsqueda", "Recherche", "Suche", "Ricerca", "Pesquisa", "検索", "搜索"),
+    "Applications": ("Uygulamalar", "Aplicaciones", "Applications", "Anwendungen", "Applicazioni", "Aplicativos", "アプリ", "应用"),
+    "Files": ("Dosyalar", "Archivos", "Fichiers", "Dateien", "File", "Arquivos", "ファイル", "文件"),
+    "Web": ("Web", "Web", "Web", "Web", "Web", "Web", "Web", "网页"),
+    "Calculator": ("Hesap Makinesi", "Calculadora", "Calculatrice", "Rechner", "Calcolatrice", "Calculadora", "電卓", "计算器"),
+    "Commands": ("Komutlar", "Comandos", "Commandes", "Befehle", "Comandi", "Comandos", "コマンド", "命令"),
+    "Clipboard": ("Pano", "Portapapeles", "Presse-papiers", "Zwischenablage", "Appunti", "Área de transferência", "クリップボード", "剪贴板"),
+    "Privacy": ("Gizlilik", "Privacidad", "Confidentialité", "Datenschutz", "Privacy", "Privacidade", "プライバシー", "隐私"),
+    "Advanced": ("Gelişmiş", "Avanzado", "Avancé", "Erweitert", "Avanzate", "Avançado", "詳細設定", "高级"),
+    "Plugins": ("Eklentiler", "Complementos", "Extensions", "Plugins", "Plugin", "Plugins", "プラグイン", "插件"),
+    "About": ("Hakkında", "Acerca de", "À propos", "Info", "Informazioni", "Sobre", "バージョン情報", "关于"),
+    "Startup": ("Başlangıç", "Inicio", "Démarrage", "Start", "Avvio", "Inicialização", "起動", "启动"),
+    "Theme": ("Tema", "Tema", "Thème", "Design", "Tema", "Tema", "テーマ", "主题"),
+    "Typography": ("Tipografi", "Tipografía", "Typographie", "Typografie", "Tipografia", "Tipografia", "タイポグラフィ", "字体"),
+    "Language": ("Dil", "Idioma", "Langue", "Sprache", "Lingua", "Idioma", "言語", "语言"),
+    "Interface language": ("Arayüz dili", "Idioma de la interfaz", "Langue de l’interface", "Oberflächensprache", "Lingua dell’interfaccia", "Idioma da interface", "インターフェース言語", "界面语言"),
+    "Start with Windows": ("Windows ile başlat", "Iniciar con Windows", "Démarrer avec Windows", "Mit Windows starten", "Avvia con Windows", "Iniciar com o Windows", "Windows 起動時に開始", "开机时启动"),
+    "Start minimised": ("Simge durumunda başlat", "Iniciar minimizado", "Démarrer réduit", "Minimiert starten", "Avvia minimizzato", "Iniciar minimizado", "最小化して起動", "最小化启动"),
+    "Show tray icon": ("Sistem tepsisi simgesini göster", "Mostrar icono de bandeja", "Afficher l’icône de zone de notification", "Infobereichsymbol anzeigen", "Mostra icona area di notifica", "Mostrar ícone da bandeja", "トレイアイコンを表示", "显示托盘图标"),
+    "Global hotkey": ("Genel kısayol", "Atajo global", "Raccourci global", "Globaler Hotkey", "Scorciatoia globale", "Atalho global", "グローバルホットキー", "全局快捷键"),
+    "Launcher shortcut": ("Başlatıcı kısayolu", "Atajo del lanzador", "Raccourci du lanceur", "Launcher-Tastenkürzel", "Scorciatoia del launcher", "Atalho do iniciador", "ランチャーのショートカット", "启动器快捷键"),
+    "Apply": ("Uygula", "Aplicar", "Appliquer", "Anwenden", "Applica", "Aplicar", "適用", "应用"),
+    "Reset": ("Sıfırla", "Restablecer", "Réinitialiser", "Zurücksetzen", "Reimposta", "Redefinir", "リセット", "重置"),
+    "Save": ("Kaydet", "Guardar", "Enregistrer", "Speichern", "Salva", "Salvar", "保存", "保存"),
+    "Add…": ("Ekle…", "Añadir…", "Ajouter…", "Hinzufügen…", "Aggiungi…", "Adicionar…", "追加…", "添加…"),
+    "Remove": ("Kaldır", "Quitar", "Supprimer", "Entfernen", "Rimuovi", "Remover", "削除", "移除"),
+    "Add row": ("Satır ekle", "Añadir fila", "Ajouter une ligne", "Zeile hinzufügen", "Aggiungi riga", "Adicionar linha", "行を追加", "添加行"),
+    "Remove row": ("Satırı kaldır", "Quitar fila", "Supprimer la ligne", "Zeile entfernen", "Rimuovi riga", "Remover linha", "行を削除", "删除行"),
+    "Saved": ("Kaydedildi", "Guardado", "Enregistré", "Gespeichert", "Salvato", "Salvo", "保存しました", "已保存"),
+    "Open": ("Aç", "Abrir", "Ouvrir", "Öffnen", "Apri", "Abrir", "開く", "打开"),
+    "Refresh": ("Yenile", "Actualizar", "Actualiser", "Aktualisieren", "Aggiorna", "Atualizar", "更新", "刷新"),
+    "Delete": ("Sil", "Eliminar", "Supprimer", "Löschen", "Elimina", "Excluir", "削除", "删除"),
+    "Cancel": ("İptal", "Cancelar", "Annuler", "Abbrechen", "Annulla", "Cancelar", "キャンセル", "取消"),
+    "Close": ("Kapat", "Cerrar", "Fermer", "Schließen", "Chiudi", "Fechar", "閉じる", "关闭"),
+    "Select a folder": ("Klasör seç", "Seleccionar una carpeta", "Sélectionner un dossier", "Ordner auswählen", "Seleziona una cartella", "Selecionar uma pasta", "フォルダーを選択", "选择文件夹"),
+    "Add item": ("Öğe ekle", "Añadir elemento", "Ajouter un élément", "Element hinzufügen", "Aggiungi elemento", "Adicionar item", "項目を追加", "添加项目"),
+    "Settings": ("Ayarlar", "Configuración", "Paramètres", "Einstellungen", "Impostazioni", "Configurações", "設定", "设置"),
+    "System information": ("Sistem bilgileri", "Información del sistema", "Informations système", "Systeminformationen", "Informazioni di sistema", "Informações do sistema", "システム情報", "系统信息"),
+    "Processor": ("İşlemci", "Procesador", "Processeur", "Prozessor", "Processore", "Processador", "プロセッサ", "处理器"),
+    "Memory": ("Bellek", "Memoria", "Mémoire", "Arbeitsspeicher", "Memoria", "Memória", "メモリ", "内存"),
+    "Storage": ("Depolama", "Almacenamiento", "Stockage", "Speicher", "Archiviazione", "Armazenamento", "ストレージ", "存储"),
+    "Graphics": ("Grafik", "Gráficos", "Graphiques", "Grafik", "Grafica", "Gráficos", "グラフィックス", "图形"),
+    "Battery": ("Pil", "Batería", "Batterie", "Akku", "Batteria", "Bateria", "バッテリー", "电池"),
+    "Network": ("Ağ", "Red", "Réseau", "Netzwerk", "Rete", "Rede", "ネットワーク", "网络"),
+    "Uptime": ("Çalışma süresi", "Tiempo activo", "Temps de fonctionnement", "Betriebszeit", "Tempo di attività", "Tempo de atividade", "稼働時間", "运行时间"),
+    "Operating system": ("İşletim sistemi", "Sistema operativo", "Système d’exploitation", "Betriebssystem", "Sistema operativo", "Sistema operacional", "オペレーティングシステム", "操作系统"),
+    "Processes": ("İşlemler", "Procesos", "Processus", "Prozesse", "Processi", "Processos", "プロセス", "进程"),
+    "Power": ("Güç", "Energía", "Alimentation", "Energie", "Alimentazione", "Energia", "電源", "电源"),
+    "Quick notes": ("Hızlı notlar", "Notas rápidas", "Notes rapides", "Kurznotizen", "Note rapide", "Notas rápidas", "クイックメモ", "快速笔记"),
+    "Bookmarks": ("Yer imleri", "Marcadores", "Favoris", "Lesezeichen", "Segnalibri", "Favoritos", "ブックマーク", "书签"),
+    "Quick Connect": ("Hızlı bağlantı", "Conexión rápida", "Connexion rapide", "Schnellverbindung", "Connessione rapida", "Conexão rápida", "クイック接続", "快速连接"),
+    "Quick actions": ("Hızlı eylemler", "Acciones rápidas", "Actions rapides", "Schnellaktionen", "Azioni rapide", "Ações rápidas", "クイックアクション", "快捷操作"),
+    "Dictionary": ("Sözlük", "Diccionario", "Dictionnaire", "Wörterbuch", "Dizionario", "Dicionário", "辞書", "词典"),
+    "Screenshots": ("Ekran görüntüleri", "Capturas de pantalla", "Captures d’écran", "Screenshots", "Schermate", "Capturas de tela", "スクリーンショット", "屏幕截图"),
+    "Developer tools": ("Geliştirici araçları", "Herramientas de desarrollo", "Outils développeur", "Entwicklerwerkzeuge", "Strumenti per sviluppatori", "Ferramentas de desenvolvimento", "開発者ツール", "开发者工具"),
+    "Date & time": ("Tarih ve saat", "Fecha y hora", "Date et heure", "Datum und Uhrzeit", "Data e ora", "Data e hora", "日時", "日期和时间"),
+    "Color": ("Renk", "Color", "Couleur", "Farbe", "Colore", "Cor", "色", "颜色"),
+}
+
+
+def set_language(config) -> None:
+    """Set the active language used by shared widget helpers."""
+    global _ACTIVE_LANGUAGE
+    _ACTIVE_LANGUAGE = language_of(config)
+
+
+def translate_text(text: str) -> str:
+    """Translate a shared UI label when a reviewed catalog entry exists."""
+    value = _COMMON_TEXT.get(str(text))
+    if value is None or _ACTIVE_LANGUAGE == "en":
+        return str(text)
+    try:
+        return value[_LANGUAGE_ORDER.index(_ACTIVE_LANGUAGE)]
+    except (ValueError, IndexError):
+        return str(text)
+
+
 def language_of(config) -> str:
     """Return the canonical configured language, falling back safely to English."""
     value = str(config.get("general.language", "en") or "en").strip().replace("_", "-")
@@ -328,4 +415,4 @@ def tr(config, key: str, **kwargs) -> str:
     return template
 
 
-__all__ = ["LANGUAGES", "language_of", "tr"]
+__all__ = ["LANGUAGES", "language_of", "set_language", "translate_text", "tr"]
