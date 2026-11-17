@@ -97,67 +97,84 @@ def _walk_chromium_node(node: dict, browser: str, output: list[dict]) -> None:
 
 
 def _read_chromium_bookmarks(browser: str, root: Path) -> list[dict]:
+    """Read a Chromium bookmark file, falling back to its last good backup."""
     bookmarks: list[dict] = []
     profiles = [root] if (root / "Bookmarks").exists() else []
     if not profiles:
         try:
-            profiles = [path for path in root.iterdir() if path.is_dir() and (path / "Bookmarks").exists()]
+            profiles = [
+                path for path in root.iterdir()
+                if path.is_dir() and ((path / "Bookmarks").exists() or (path / "Bookmarks.bak").exists())
+            ]
         except OSError:
             profiles = []
     for profile in profiles:
         file = profile / "Bookmarks"
-        try:
-            payload = json.loads(file.read_text(encoding="utf-8", errors="replace"))
-        except (OSError, json.JSONDecodeError) as exc:
-            log.info("Could not read %s bookmarks at %s: %s", browser, file, exc)
+        payload = None
+        for candidate in (file, profile / "Bookmarks.bak"):
+            try:
+                payload = json.loads(candidate.read_text(encoding="utf-8", errors="replace"))
+                break
+            except (OSError, json.JSONDecodeError) as exc:
+                log.debug("Could not read %s bookmark snapshot %s: %s", browser, candidate, exc)
+        if not isinstance(payload, dict):
+            log.info("No readable %s bookmark snapshot at %s", browser, profile)
             continue
-        roots = payload.get("roots", {}) if isinstance(payload, dict) else {}
-        for node in roots.values():
-            _walk_chromium_node(node, browser, bookmarks)
+        roots = payload.get("roots", {})
+        if isinstance(roots, dict):
+            for node in roots.values():
+                _walk_chromium_node(node, browser, bookmarks)
     return bookmarks
 
-
 def _read_firefox_bookmarks(profile: Path) -> list[dict]:
+    """Read a consistent Firefox bookmark snapshot, including live WAL data.
+
+    SQLite's backup API provides a transactionally consistent snapshot while
+    Firefox is running. It is safer than copying the database and WAL files
+    separately, which can race with browser writes.
+    """
     source = profile / "places.sqlite"
-    if not source.exists():
+    if not source.is_file():
         return []
     bookmarks: list[dict] = []
-    temporary = None
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".sqlite") as handle:
-            temporary = handle.name
-        # Copy the WAL as well: Firefox keeps recent bookmarks out of the main
-        # database file, and the main file alone can be locked while it runs.
-        shutil.copy2(source, temporary)
-        for suffix in ("-wal", "-shm"):
-            sidecar = source.with_name(source.name + suffix)
-            if sidecar.exists():
-                try:
-                    shutil.copy2(sidecar, temporary + suffix)
-                except OSError:
-                    pass
-        connection = sqlite3.connect(temporary)
+    temporary: str | None = None
+    for attempt in range(3):
+        source_connection = None
+        snapshot_connection = None
         try:
-            rows = connection.execute(
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".sqlite") as handle:
+                temporary = handle.name
+            source_connection = sqlite3.connect(
+                source.as_uri() + "?mode=ro", uri=True, timeout=3.0
+            )
+            snapshot_connection = sqlite3.connect(temporary, timeout=3.0)
+            source_connection.backup(snapshot_connection, pages=256, sleep=0.05)
+            rows = snapshot_connection.execute(
                 "SELECT b.title, p.url FROM moz_bookmarks b "
                 "JOIN moz_places p ON b.fk = p.id "
                 "WHERE b.type = 1 AND p.url IS NOT NULL"
             ).fetchall()
+            for title, url in rows:
+                if url:
+                    bookmarks.append({"browser": "Firefox", "title": title or url, "url": url})
+            return bookmarks
+        except (OSError, sqlite3.Error) as exc:
+            if attempt == 2:
+                log.info("Could not snapshot Firefox bookmarks at %s: %s", source, exc)
+            else:
+                time.sleep(0.12 * (attempt + 1))
         finally:
-            connection.close()
-        for title, url in rows:
-            if url:
-                bookmarks.append({"browser": "Firefox", "title": title or url, "url": url})
-    except (OSError, sqlite3.Error) as exc:
-        log.info("Could not read Firefox bookmarks: %s", exc)
-    finally:
-        if temporary:
-            try:
-                os.unlink(temporary)
-            except OSError:
-                pass
+            if snapshot_connection is not None:
+                snapshot_connection.close()
+            if source_connection is not None:
+                source_connection.close()
+            if temporary:
+                try:
+                    os.unlink(temporary)
+                except OSError:
+                    pass
+                temporary = None
     return bookmarks
-
 
 def load_bookmarks(refresh: bool = False) -> list[dict]:
     """Load bookmarks from all detected browsers (cached for 60 s)."""
