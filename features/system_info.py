@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import platform
+import re
 import shutil
 import socket
 import subprocess
@@ -286,21 +287,65 @@ _gpu_lock = threading.Lock()
 _gpu_cache: dict[str, Any] = {"value": [], "loaded_at": 0.0, "loading": False}
 
 
+def _windows_gpu_engine_usage() -> dict[int, float]:
+    """Read Windows GPU Engine counters, including Intel/AMD adapters.
+
+    Counter instance names contain a physical adapter index (phys_N). Engine
+    percentages are summed per adapter and clamped to 100%.
+    """
+    script = (
+        "$ErrorActionPreference='SilentlyContinue'; "
+        "$samples = @(Get-Counter -Counter '\\\\GPU Engine(*)\\\\Utilization Percentage' "
+        "-ErrorAction SilentlyContinue | ForEach-Object { $_.CounterSamples } | "
+        "ForEach-Object { [pscustomobject]@{InstanceName=$_.InstanceName; CookedValue=$_.CookedValue} }); "
+        "ConvertTo-Json -InputObject $samples -Compress"
+    )
+    output = _run_quiet(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+         "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; " + script],
+        timeout=10,
+        encoding="utf-8",
+    )
+    if not output:
+        return {}
+    try:
+        payload = json.loads(output)
+    except json.JSONDecodeError:
+        return {}
+    samples = payload if isinstance(payload, list) else [payload]
+    totals: dict[int, float] = {}
+    for sample in samples:
+        if not isinstance(sample, dict):
+            continue
+        match = re.search(r"(?:^|_)phys_(\\d+)(?:_|$)", str(sample.get("InstanceName", "")), re.IGNORECASE)
+        if not match:
+            continue
+        try:
+            value = max(0.0, float(sample.get("CookedValue", 0.0)))
+        except (TypeError, ValueError):
+            continue
+        index = int(match.group(1))
+        totals[index] = totals.get(index, 0.0) + value
+    return {index: min(100.0, value) for index, value in totals.items()}
+
+
 def _collect_gpus() -> list[dict[str, Any]]:
     if os.name == "nt":
         gpus = _windows_gpus()
-        usage = {gpu["name"].lower(): gpu for gpu in _nvidia_smi_gpus()}
-        for gpu in gpus:
-            match = usage.get(gpu["name"].lower())
+        nvidia = {gpu["name"].lower(): gpu for gpu in _nvidia_smi_gpus()}
+        engine_usage = _windows_gpu_engine_usage()
+        for index, gpu in enumerate(gpus):
+            match = nvidia.get(gpu["name"].lower())
             if match:
                 gpu["utilization"] = match["utilization"]
                 gpu["memory_used"] = match["memory_used"]
                 gpu["memory_total"] = gpu["memory_total"] or match["memory_total"]
+            elif index in engine_usage:
+                gpu["utilization"] = engine_usage[index]
         return gpus
     if sys.platform.startswith("linux"):
         return _linux_gpus()
     return []
-
 
 def gpu_info() -> list[dict[str, Any]]:
     """Return cached GPU data and refresh it in the background.
