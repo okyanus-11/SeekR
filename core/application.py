@@ -349,6 +349,8 @@ class SeekRApplication(QObject, UIHooks):
                 # Repaint/re-measure without reopening the launcher: reopening
                 # would clear the query while the user drags a slider.
                 self.launcher.refresh_appearance()
+            if path.startswith("general.language") and self._tools_window is not None:
+                self._tools_window.refresh_texts()
         if path in {"general.hotkey", "*"} and self.hotkey is not None:
             self.hotkey.register(str(self.config.get("general.hotkey", "Alt+Space")))
         if path in {"clipboard.enabled", "privacy.clipboard_history", "clipboard.poll_interval_ms", "*"}:
