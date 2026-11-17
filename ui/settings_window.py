@@ -53,7 +53,7 @@ from core.version import (
     APP_VERSION,
 )
 from ui import dialogs, i18n
-from ui.components import (
+from ui.components import (, refresh_localized_widgets
     ColorButton,
     HotkeyEdit,
     InfoBanner,
@@ -1356,6 +1356,14 @@ class SettingsWindow(QMainWindow):
             self.stack.setCurrentIndex(row)
             page = self.pages[self.page_keys[row]]
             page.on_show()
+
+    def refresh_texts(self) -> None:
+        """Refresh translated shared widgets and the settings sidebar."""
+        refresh_localized_widgets(self)
+        for row, (_key, title, _page_class) in enumerate(self.PAGES):
+            item = self.sidebar.item(row)
+            if item is not None:
+                item.setText(i18n.translate_text(title))
 
     def open_page(self, page: Optional[str] = None) -> None:
         if page is None:
