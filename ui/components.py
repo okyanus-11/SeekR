@@ -259,7 +259,7 @@ class HotkeyEdit(QLineEdit):
             self.setToolTip(i18n.translate_text("Add at least one modifier (Ctrl, Alt, Shift or Win)"))
             return
         self.setText(normalized)
-        self.setToolTip("Click and press a combination such as Ctrl+Shift+Space")
+        self.setToolTip(i18n.translate_text("Click and press a combination such as Ctrl+Shift+Space"))
         self.hotkeyChanged.emit(normalized)
 
 
