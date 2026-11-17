@@ -6,7 +6,7 @@ import threading
 import traceback
 from typing import Any, Callable, Optional
 
-from PySide6.QtCore import QObject, QRunnable, QThreadPool, QTimer, Signal
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, QTimer, Signal, Slot, Qt
 
 from .errors import describe_error
 from .logging_setup import get_logger
@@ -76,6 +76,36 @@ class FunctionWorker(QRunnable):
                     log.exception("Background task cleanup failed")
 
 
+
+_ACTIVE_WORKERS: set[FunctionWorker] = set()
+
+
+class _WorkerReaper(QObject):
+    """Release Python QRunnable wrappers after queued callbacks are delivered."""
+
+    release_requested = Signal(object)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.release_requested.connect(
+            self._release, Qt.ConnectionType.QueuedConnection
+        )
+
+    @Slot(object)
+    def _release(self, worker: FunctionWorker) -> None:
+        _ACTIVE_WORKERS.discard(worker)
+
+
+_WORKER_REAPER: _WorkerReaper | None = None
+
+
+def _worker_reaper() -> _WorkerReaper:
+    global _WORKER_REAPER
+    if _WORKER_REAPER is None:
+        _WORKER_REAPER = _WorkerReaper()
+    return _WORKER_REAPER
+
+
 def run_async(
     fn: Callable[..., Any],
     *args: Any,
@@ -88,12 +118,23 @@ def run_async(
 ) -> FunctionWorker:
     """Run *fn* off the GUI thread, wiring optional callbacks."""
     worker = FunctionWorker(fn, *args, on_cleanup=on_cleanup, **kwargs)
+    reaper = _worker_reaper()
+    # QThreadPool owns the native QRunnable, but callers often intentionally
+    # ignore this helper's return value. Retain the Python wrapper (and its
+    # WorkerSignals QObject) until completion callbacks have been delivered.
+    _ACTIVE_WORKERS.add(worker)
     if on_finished is not None:
         worker.signals.finished.connect(on_finished)
     if on_failed is not None:
         worker.signals.failed.connect(on_failed)
     if on_progress is not None:
         worker.signals.progress.connect(on_progress)
+    worker.signals.finished.connect(
+        lambda _result, task=worker: reaper.release_requested.emit(task)
+    )
+    worker.signals.failed.connect(
+        lambda _message, _traceback_text, task=worker: reaper.release_requested.emit(task)
+    )
     (pool or QThreadPool.globalInstance()).start(worker)
     return worker
 
