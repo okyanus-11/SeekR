@@ -99,7 +99,7 @@ def _walk_chromium_node(node: dict, browser: str, output: list[dict]) -> None:
 def _read_chromium_bookmarks(browser: str, root: Path) -> list[dict]:
     """Read a Chromium bookmark file, falling back to its last good backup."""
     bookmarks: list[dict] = []
-    profiles = [root] if (root / "Bookmarks").exists() else []
+    profiles = [root] if (root / "Bookmarks").exists() or (root / "Bookmarks.bak").exists() else []
     if not profiles:
         try:
             profiles = [
