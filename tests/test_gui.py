@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import os
 import subprocess
 import sys
@@ -71,6 +72,31 @@ def controller(qapp, tmp_path_factory):
     app.start(show_window=False, register_hotkey=False)
     yield app
     app.shutdown()
+
+
+
+def test_run_async_retains_worker_until_callback_delivery(qapp):
+    from PySide6.QtCore import QThreadPool
+
+    from core.workers import _ACTIVE_WORKERS, run_async
+
+    pool = QThreadPool()
+    completed = []
+    worker = run_async(lambda: "finished", on_finished=completed.append, pool=pool)
+    worker_id = id(worker)
+    del worker
+    gc.collect()
+
+    assert pool.waitForDone(3000)
+    deadline = time.monotonic() + 3.0
+    while time.monotonic() < deadline and not completed:
+        qapp.processEvents()
+        time.sleep(0.005)
+
+    # Process the queued reaper signal as well as the user callback.
+    qapp.processEvents()
+    assert completed == ["finished"]
+    assert all(id(item) != worker_id for item in _ACTIVE_WORKERS)
 
 
 def test_launcher_opens_and_searches(qapp, controller):
