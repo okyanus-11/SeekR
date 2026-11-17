@@ -8,6 +8,24 @@ semantic versioning.
 
 ### Added
 
+- Seven additional launcher languages: Spanish, French, German, Italian,
+  Brazilian Portuguese, Japanese and Simplified Chinese. Tools navigation
+  labels are localized as well.
+- Persistent local caching for dictionary definitions, allowing previous
+  lookups to work offline.
+- Windows GPU Engine performance-counter fallback for non-NVIDIA adapters.
+- Multi-monitor full-screen screenshot composition.
+
+### Fixed
+
+- Firefox bookmarks now use SQLite's backup API for consistent snapshots that
+  include live WAL data; Chromium bookmark reads fall back to Bookmarks.bak.
+- Quick Connect finds the standard Windows OpenSSH installation even when the
+  executable is not on PATH.
+- Locale aliases such as pt_br and zh are normalized safely.
+
+### Added
+
 - Windows and Linux CI, plus a per-user Windows installer build and downloadable
   executable/installer artifacts.
 - Installation and troubleshooting guides for source, executable and installer
