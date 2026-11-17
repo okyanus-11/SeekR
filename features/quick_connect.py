@@ -121,8 +121,8 @@ def resolve_ssh_client() -> str | None:
         if found:
             return str(found)
     if os.name == "nt":
-        windows = Path(os.environ.get("WINDIR", r"C:\\Windows"))
-        program_files = Path(os.environ.get("ProgramFiles", r"C:\\Program Files"))
+        windows = Path(os.environ.get("WINDIR", r"C:\Windows"))
+        program_files = Path(os.environ.get("ProgramFiles", r"C:\Program Files"))
         candidates = (
             windows / "System32" / "OpenSSH" / "ssh.exe",
             program_files / "OpenSSH" / "ssh.exe",
@@ -140,7 +140,7 @@ def launch_profile(profile: dict[str, Any]) -> tuple[bool, str]:
         return False, str(exc)
     ssh_client = resolve_ssh_client()
     if ssh_client is None:
-        return False, "OpenSSH Client is not installed. Install the Windows OpenSSH Client feature or add ssh to PATH."
+        return False, ("OpenSSH Client is not installed. Install the Windows OpenSSH Client feature or add ssh to PATH." if os.name == "nt" else "OpenSSH client is not installed or not on PATH.")
     ssh_args[0] = ssh_client
     if os.name == "nt":
         command = _terminal_command(ssh_args)
