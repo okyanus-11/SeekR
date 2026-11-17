@@ -71,6 +71,7 @@ def capture_screen(screen_index: int | None = None) -> QPixmap:
             Qt.AspectRatioMode.IgnoreAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         )
+        normalized.setDevicePixelRatio(1.0)
         captures.append((geometry, normalized))
 
     combined = QPixmap(bounds.size())
