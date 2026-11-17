@@ -239,10 +239,13 @@ def test_launcher_respects_configured_opacity(qapp, controller):
     controller.config.set("appearance.opacity", 0.73)
     launcher.show_launcher()
     qapp.processEvents()
-    assert launcher.windowOpacity() == pytest.approx(0.73)
+    # Qt exposes top-level opacity as an 8-bit alpha value on supported
+    # platforms, so compare against the representable value rather than the
+    # unquantized float supplied to setWindowOpacity().
+    assert launcher.windowOpacity() == pytest.approx(round(0.73 * 255) / 255)
     controller.config.set("appearance.opacity", 0.91)
     qapp.processEvents()
-    assert launcher.windowOpacity() == pytest.approx(0.91)
+    assert launcher.windowOpacity() == pytest.approx(round(0.91 * 255) / 255)
     controller.config.set("appearance.opacity", 0.98)
 
 
