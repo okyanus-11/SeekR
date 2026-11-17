@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import copy
 import json
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 from typing import Any
 
 from core.config_manager import ConfigManager
 from core.database import Database
 from core.logging_setup import get_logger
 from core.models import ResultAction, SearchResult
+from core.paths import cache_dir
 from core.search_engine import SearchProvider
 
 log = get_logger(__name__)
@@ -24,15 +28,46 @@ class DictionaryError(RuntimeError):
     """Raised when a definition cannot be retrieved."""
 
 
-def lookup(word: str, timeout: float = 8.0) -> dict[str, Any]:
-    """Fetch a definition.
+_CACHE_LOCK = threading.RLock()
 
-    Returns ``{"word": str, "phonetic": str, "meanings": [...]}`` and raises
-    :class:`DictionaryError` with a readable message on failure.
-    """
-    cleaned = (word or "").strip()
-    if not cleaned:
-        raise DictionaryError("Enter a word to look up")
+
+def _dictionary_cache_path(path: str | Path | None = None) -> Path:
+    return Path(path) if path is not None else cache_dir() / "dictionary-cache.json"
+
+
+def _read_cached_definition(word: str, path: str | Path | None = None) -> dict[str, Any] | None:
+    cache_file = _dictionary_cache_path(path)
+    try:
+        with _CACHE_LOCK:
+            payload = json.loads(cache_file.read_text(encoding="utf-8"))
+        value = payload.get(word.casefold()) if isinstance(payload, dict) else None
+        return copy.deepcopy(value) if isinstance(value, dict) else None
+    except (OSError, json.JSONDecodeError, TypeError):
+        return None
+
+
+def _store_cached_definition(word: str, result: dict[str, Any], path: str | Path | None = None) -> None:
+    cache_file = _dictionary_cache_path(path)
+    try:
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        with _CACHE_LOCK:
+            try:
+                payload = json.loads(cache_file.read_text(encoding="utf-8"))
+                if not isinstance(payload, dict):
+                    payload = {}
+            except (OSError, json.JSONDecodeError):
+                payload = {}
+            payload[word.casefold()] = result
+            temporary = cache_file.with_suffix(cache_file.suffix + ".tmp")
+            temporary.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            temporary.replace(cache_file)
+    except OSError as exc:
+        log.debug("Could not cache dictionary definition for %s: %s", word, exc)
+
+
+def _fetch_definition(cleaned: str, timeout: float = 8.0) -> dict[str, Any]:
     url = ENDPOINT.format(word=urllib.parse.quote(cleaned))
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
     try:
@@ -62,7 +97,7 @@ def lookup(word: str, timeout: float = 8.0) -> dict[str, Any]:
                     "partOfSpeech": part_of_speech,
                     "definition": definition.get("definition", ""),
                     "example": definition.get("example", ""),
-                    "synonyms": definition.get("synonyms", []) or [],
+                    "synonyms": meaning.get("synonyms", []) or [],
                 }
             )
     return {
@@ -71,6 +106,26 @@ def lookup(word: str, timeout: float = 8.0) -> dict[str, Any]:
         "meanings": meanings,
     }
 
+
+def lookup(
+    word: str,
+    timeout: float = 8.0,
+    cache_path: str | Path | None = None,
+) -> dict[str, Any]:
+    """Return a definition, preferring the persistent local cache.
+
+    Successful online lookups are stored in the user's SeekR cache. Previously
+    looked-up words therefore remain available without an internet connection.
+    """
+    cleaned = (word or "").strip()
+    if not cleaned:
+        raise DictionaryError("Enter a word to look up")
+    cached = _read_cached_definition(cleaned, cache_path)
+    if cached is not None:
+        return cached
+    result = _fetch_definition(cleaned, timeout)
+    _store_cached_definition(cleaned, result, cache_path)
+    return copy.deepcopy(result)
 
 def format_definition(result: dict[str, Any]) -> str:
     """Render a lookup result as readable text."""
