@@ -140,7 +140,7 @@ earlier SeekR build is available and record it as N/A.
 | S01 | Settings pages | Open Settings and visit every page: General, Appearance, Search, Applications, Files, Web, Calculator, Commands, Clipboard, Privacy, Advanced, Plugins, About. | Every page renders without errors; Plugins clearly says Coming Soon with no fake install action. | | |
 | S02 | Persistence | Change a visible setting (for example result count or font size), close and restart SeekR. | Setting is preserved. | | |
 | S03 | Hotkey settings | Change the hotkey and restart. | New hotkey persists and registers. | | |
-| S04 | Screenshot folder | Settings → Files → Screenshots: choose a folder and use SeekR's full-screen capture; separately open Snipping Tool for a region capture and choose its save location in the Snipping Tool UI. | SeekR's Qt capture saves a PNG in the configured folder. Snipping Tool opens separately; SeekR does not guarantee its save destination. | | |
+| S04 | Screenshot folder and displays | Settings → Files → Screenshots: choose a folder and use SeekR's full-screen capture with one display, then with all connected displays at mixed scaling if available. Separately open Snipping Tool for region capture. | SeekR saves one composed PNG containing all connected displays in the configured folder. Snipping Tool opens separately; Windows controls its save destination. Check for clipping, scaling and incorrect monitor offsets. | | |
 | S05 | Theme: Dark | Settings → Appearance: select Dark. | Launcher, Settings and Tools use the dark theme immediately. | | |
 | S06 | Theme: Light | Select Light. | All open windows repaint light; text remains readable. | | |
 | S07 | Theme: AMOLED | Select AMOLED. | True-black surfaces; readable contrast. | | |
@@ -150,7 +150,7 @@ earlier SeekR build is available and record it as N/A.
 | S11 | Accent and transparency | Change accent, transparency, font family/size, width and animation toggle. | Changes apply live, remain readable, and persist after restart. | | |
 | S12 | Tools pages | Open Tools and visit all 14 pages: Calculator, Developer tools, Date & time, Color, Dictionary, Screenshots, System, Processes, Power, Clipboard, Quick notes, Bookmarks, Quick Connect, Quick actions. | Every page opens and its visible controls respond; unavailable data says so instead of inventing values. | | |
 | S13 | Developer tools | Exercise a few utilities: UUID, Base64 encode/decode, JSON format/validate, hash, regex, timestamp, case/count/hex. | Results are correct; invalid input produces a clear error. | | |
-| S14 | System information | Open Tools → System. | CPU, memory, disks, OS and other available values populate without freezing the UI; GPU shows a value or an honest unavailable state. | | |
+| S14 | System information | Open Tools → System. | CPU, memory, disks, OS and other available values populate without freezing the UI; GPU shows driver utilisation where GPU Engine counters or vendor telemetry are available, or an honest unavailable state. | | |
 | S15 | Processes | Search processes and open details. Try terminating a harmless test process and a protected system process. | Harmless process can be terminated after confirmation; critical/system process is refused with an explanation. | | |
 | S16 | Power | Open Tools → Power and switch a power scheme (if available). | Schemes list; switching succeeds or shows the exact `powercfg` error. | | |
 | S17 | Window switching | Type `win:` and switch to another window. | Window list is real; switching works or explains why Windows blocked it. | | |
