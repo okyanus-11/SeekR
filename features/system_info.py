@@ -295,7 +295,7 @@ def _windows_gpu_engine_usage() -> dict[int, float]:
     """
     script = (
         "$ErrorActionPreference='SilentlyContinue'; "
-        "$samples = @(Get-Counter -Counter '\\\\GPU Engine(*)\\\\Utilization Percentage' "
+        "$samples = @(Get-Counter -Counter '\\GPU Engine(*)\\Utilization Percentage' "
         "-ErrorAction SilentlyContinue | ForEach-Object { $_.CounterSamples } | "
         "ForEach-Object { [pscustomobject]@{InstanceName=$_.InstanceName; CookedValue=$_.CookedValue} }); "
         "ConvertTo-Json -InputObject $samples -Compress"
@@ -317,7 +317,7 @@ def _windows_gpu_engine_usage() -> dict[int, float]:
     for sample in samples:
         if not isinstance(sample, dict):
             continue
-        match = re.search(r"(?:^|_)phys_(\\d+)(?:_|$)", str(sample.get("InstanceName", "")), re.IGNORECASE)
+        match = re.search(r"(?:^|_)phys_(\d+)(?:_|$)", str(sample.get("InstanceName", "")), re.IGNORECASE)
         if not match:
             continue
         try:
