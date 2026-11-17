@@ -6,6 +6,15 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 
 **Current version:** 1.0.1 · **License:** MIT
 
+
+<p align="center">
+  <a href="https://github.com/okyanus-11/SeekR/releases/download/v1.0.1/SeekR-Setup-1.0.1.exe"><strong>⬇️ Download for Windows — Installer (.exe)</strong></a>
+  · <a href="https://github.com/okyanus-11/SeekR/releases/latest">All releases</a>
+</p>
+
+> **Windows 10/11:** Click the installer above to install the app. No Python setup or ZIP extraction required.
+
+
 > Plugins are **not** part of 1.0.0. The Settings → Plugins page shows the planned marketplace as *Coming Soon*; no plugin code is loaded or executed.
 
 ---
