@@ -516,6 +516,7 @@ class ScreenshotsTab(QWidget):
         self._pixmap: Optional[QPixmap] = None
         self._last_path = ""
         self._region_overlay = None
+        self._region_restore_window = None
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(10)
@@ -555,14 +556,21 @@ class ScreenshotsTab(QWidget):
         self.status.setText(f"Captured {self._pixmap.width()}×{self._pixmap.height()} pixels")
 
     def _capture_region(self) -> None:
+        self._region_restore_window = self.window()
+        self._region_restore_window.hide()
+        QTimer.singleShot(180, self._begin_region_capture)
+
+    def _begin_region_capture(self) -> None:
         try:
             self._pixmap = screenshots.capture_screen()
         except screenshots.ScreenshotError as exc:
+            self._restore_region_window()
             self.status.setText(str(exc))
             self.controller.show_error("Screenshot", str(exc))
             return
         screens = QGuiApplication.screens()
         if not screens:
+            self._restore_region_window()
             self.status.setText("No display is available for region capture")
             return
         bounds = screens[0].geometry()
@@ -572,14 +580,23 @@ class ScreenshotsTab(QWidget):
         overlay.selected.connect(self._save_region)
         overlay.cancelled.connect(self._region_cancelled)
         self._region_overlay = overlay
-        self.status.setText("Drag to select a region. Press Esc to cancel.")
+
+    def _restore_region_window(self) -> None:
+        window = self._region_restore_window
+        self._region_restore_window = None
+        if window is not None:
+            window.show()
+            window.raise_()
+            window.activateWindow()
 
     def _save_region(self, rect: QRect) -> None:
         if self._pixmap is None:
+            self._restore_region_window()
             return
         cropped = self._pixmap.copy(rect)
         ok, path, error = screenshots.save_pixmap(self.config, cropped)
         self._region_overlay = None
+        self._restore_region_window()
         if not ok:
             self.status.setText(error)
             self.controller.show_error("Screenshot", error)
@@ -592,6 +609,7 @@ class ScreenshotsTab(QWidget):
 
     def _region_cancelled(self) -> None:
         self._region_overlay = None
+        self._restore_region_window()
         self.status.setText("Region capture cancelled")
 
     def _show_pixmap(self, pixmap: QPixmap) -> None:
