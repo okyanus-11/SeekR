@@ -65,3 +65,17 @@ record the Windows build, exact steps, and the relevant log excerpt, then
 consult [the Windows manual test checklist](WINDOWS_MANUAL_TEST.md). Do not
 include passwords, private clipboard text, or other personal data in a bug
 report.
+
+### Dictionary works offline only for previously looked-up words
+
+SeekR stores successful definitions in its local cache. A word that has never
+been looked up still needs an internet connection. If the cache becomes
+unreadable, SeekR rebuilds it as new definitions are fetched.
+
+### Quick Connect cannot find OpenSSH
+
+On Windows, SeekR checks the standard %WINDIR%\System32\OpenSSH\ssh.exe
+location as well as PATH. If the client is not installed, enable the Windows
+OpenSSH Client optional feature. On other systems, install the distribution's
+OpenSSH client package and make sure ssh is on PATH. SeekR uses key or agent
+authentication and does not store passwords.
