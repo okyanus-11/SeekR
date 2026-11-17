@@ -382,6 +382,7 @@ _COMMON_TEXT: dict[str, tuple[str, ...]] = {
     "Save as…": ("Farklı kaydet…", "Guardar como…", "Enregistrer sous…", "Speichern unter…", "Salva con nome…", "Salvar como…", "名前を付けて保存…", "另存为…"),
     "Open screenshots folder": ("Ekran görüntüsü klasörünü aç", "Abrir carpeta de capturas", "Ouvrir le dossier des captures", "Screenshot-Ordner öffnen", "Apri cartella screenshot", "Abrir pasta de capturas", "スクリーンショットフォルダーを開く", "打开截图文件夹"),
     "Open Snipping Tool": ("Ekran Alıntısı Aracı'nı aç", "Abrir Recortes", "Ouvrir l’outil Capture", "Snipping Tool öffnen", "Apri Strumento di cattura", "Abrir Ferramenta de Captura", "Snipping Tool を開く", "打开截图工具"),
+    "Drag to select a region · Esc to cancel": ("Bölgeyi seçmek için sürükleyin · İptal için Esc", "Arrastra para seleccionar una región · Esc para cancelar", "Faites glisser pour sélectionner une zone · Échap pour annuler", "Ziehen, um einen Bereich auszuwählen · Esc zum Abbrechen", "Trascina per selezionare un'area · Esc per annullare", "Arraste para selecionar uma região · Esc para cancelar", "ドラッグして範囲を選択 · Esc でキャンセル", "拖动以选择区域 · 按 Esc 取消"),
 }
 
 
