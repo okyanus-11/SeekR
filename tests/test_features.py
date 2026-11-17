@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import os
+import sqlite3
 import subprocess
 import sys
 import time
@@ -16,7 +18,7 @@ from features.clipboard import ClipboardProvider, ClipboardService
 from features.files import FileIndexer, FileService, FilesProvider
 from features.notes import NotesService
 from features.quick_actions import QuickActionService
-from features import quick_connect
+from features import quick_connect, dictionary
 from features.quick_connect import build_ssh_argv, validate_profile
 from core.workers import CancelToken
 
@@ -395,6 +397,83 @@ def test_bookmarks_graceful():
     assert isinstance(result, list)
     assert isinstance(bookmarks.search_bookmarks("github"), list)
 
+
+
+def test_chromium_bookmark_backup_is_used_when_primary_is_invalid(tmp_path):
+    profile = tmp_path / "Chrome"
+    profile.mkdir()
+    (profile / "Bookmarks").write_text("{broken", encoding="utf-8")
+    backup = {
+        "roots": {
+            "bookmark_bar": {
+                "type": "folder",
+                "children": [{"type": "url", "name": "SeekR", "url": "https://example.com"}],
+            }
+        }
+    }
+    (profile / "Bookmarks.bak").write_text(json.dumps(backup), encoding="utf-8")
+    result = bookmarks._read_chromium_bookmarks("Chrome", profile)
+    assert result == [{"browser": "Chrome", "title": "SeekR", "url": "https://example.com"}]
+
+
+def test_firefox_bookmarks_snapshot_includes_live_wal_data(tmp_path):
+    profile = tmp_path / "firefox-profile"
+    profile.mkdir()
+    connection = sqlite3.connect(profile / "places.sqlite")
+    try:
+        connection.execute("PRAGMA journal_mode=WAL")
+        connection.executescript(
+            "CREATE TABLE moz_places (id INTEGER PRIMARY KEY, url TEXT);"
+            "CREATE TABLE moz_bookmarks (id INTEGER PRIMARY KEY, type INTEGER, fk INTEGER, title TEXT);"
+        )
+        connection.execute("INSERT INTO moz_places(id, url) VALUES(1, 'https://example.com/live')")
+        connection.execute(
+            "INSERT INTO moz_bookmarks(id, type, fk, title) VALUES(1, 1, 1, 'Live bookmark')"
+        )
+        connection.commit()
+        result = bookmarks._read_firefox_bookmarks(profile)
+        assert result == [
+            {"browser": "Firefox", "title": "Live bookmark", "url": "https://example.com/live"}
+        ]
+    finally:
+        connection.close()
+
+
+def test_dictionary_cache_is_available_offline(tmp_path, monkeypatch):
+    cached = {
+        "word": "algorithm",
+        "phonetic": "",
+        "meanings": [{"partOfSpeech": "noun", "definition": "A finite set of steps.", "example": "", "synonyms": []}],
+    }
+    cache_path = tmp_path / "dictionary-cache.json"
+    monkeypatch.setattr(dictionary, "_fetch_definition", lambda word, timeout: cached)
+    assert dictionary.lookup("Algorithm", cache_path=cache_path) == cached
+
+    def offline(_word, _timeout):
+        raise dictionary.DictionaryError("offline")
+
+    monkeypatch.setattr(dictionary, "_fetch_definition", offline)
+    assert dictionary.lookup("algorithm", cache_path=cache_path) == cached
+
+
+def test_resolve_ssh_client_finds_standard_windows_installation(tmp_path, monkeypatch):
+    monkeypatch.setattr(quick_connect.util, "which", lambda _name: None)
+    monkeypatch.setattr(quick_connect.os, "name", "nt")
+    monkeypatch.setenv("WINDIR", str(tmp_path))
+    executable = tmp_path / "System32" / "OpenSSH" / "ssh.exe"
+    executable.parent.mkdir(parents=True)
+    executable.write_bytes(b"")
+    assert quick_connect.resolve_ssh_client() == str(executable)
+
+
+def test_windows_gpu_engine_counters_are_aggregated_by_adapter(monkeypatch):
+    payload = [
+        {"InstanceName": "luid_0x1_phys_0_eng_0_engtype_3D", "CookedValue": 25},
+        {"InstanceName": "luid_0x1_phys_0_eng_1_engtype_Copy", "CookedValue": 35},
+        {"InstanceName": "luid_0x2_phys_1_eng_0_engtype_3D", "CookedValue": 18},
+    ]
+    monkeypatch.setattr(system_info, "_run_quiet", lambda *args, **kwargs: json.dumps(payload))
+    assert system_info._windows_gpu_engine_usage() == {0: 60.0, 1: 18.0}
 
 def test_power_graceful():
     assert isinstance(power.supported(), bool)
