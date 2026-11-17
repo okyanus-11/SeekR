@@ -15,6 +15,7 @@ from PySide6.QtCore import (
     QSize,
     Qt,
     QTimer,
+    QThreadPool,
     Signal,
 )
 from PySide6.QtGui import QColor, QCursor, QFont, QGuiApplication, QKeyEvent
@@ -36,7 +37,7 @@ from PySide6.QtWidgets import (
 
 from core.logging_setup import get_logger
 from core.models import SearchResult
-from core.workers import Debouncer
+from core.workers import Debouncer, run_async
 from ui import i18n
 from ui.components import ElidedLabel, label
 
@@ -90,6 +91,11 @@ class LauncherWindow(QWidget):
 
         self._build_ui()
         self._debouncer = Debouncer(int(self.config.get("search.debounce_ms", 120) or 120), self)
+        # Search providers may query large SQLite indexes or rank hundreds of
+        # candidates. Keep that work off Qt's GUI thread so typing stays fluid.
+        self._search_pool = QThreadPool(self)
+        self._search_pool.setMaxThreadCount(2)
+        self._search_generation = 0
         self.refresh_texts()
 
     # ------------------------------------------------------------------- UI
@@ -367,24 +373,44 @@ class LauncherWindow(QWidget):
 
     def _run_search(self) -> None:
         query = self.search_input.text()
+        self._search_generation += 1
+        generation = self._search_generation
         started = time.perf_counter()
-        try:
-            results = self.engine.search(query)
-        except Exception as exc:  # pragma: no cover - defensive
-            log.exception("Search failed")
-            results = [
-                SearchResult(
-                    title="Search failed",
-                    subtitle=str(exc),
-                    category="System",
-                    score=1.0,
-                    icon_glyph="!",
-                )
-            ]
-        elapsed_ms = (time.perf_counter() - started) * 1000
-        self._display_results(list(results), query)
-        if self.config.get("advanced.performance_stats", False):
-            self.show_status(f"{len(results)} results in {elapsed_ms:.1f} ms")
+
+        def completed(results: list[SearchResult]) -> None:
+            # A slower result for an older keystroke must never replace the
+            # results for the text currently in the search box.
+            if generation != self._search_generation or query != self.search_input.text():
+                return
+            elapsed_ms = (time.perf_counter() - started) * 1000
+            self._display_results(list(results), query)
+            if self.config.get("advanced.performance_stats", False):
+                self.show_status(f"{len(results)} results in {elapsed_ms:.1f} ms")
+
+        def failed(message: str, _traceback_text: str) -> None:
+            if generation != self._search_generation or query != self.search_input.text():
+                return
+            log.error("Background search failed: %s", message)
+            self._display_results(
+                [
+                    SearchResult(
+                        title="Search failed",
+                        subtitle=message,
+                        category="System",
+                        score=1.0,
+                        icon_glyph="!",
+                    )
+                ],
+                query,
+            )
+
+        run_async(
+            self.engine.search,
+            query,
+            on_finished=completed,
+            on_failed=failed,
+            pool=self._search_pool,
+        )
 
     def _display_results(self, results: list[SearchResult], query: str) -> None:
         current = self.current_result()
