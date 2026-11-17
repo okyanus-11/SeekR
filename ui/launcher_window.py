@@ -67,6 +67,7 @@ class LauncherWindow(QWidget):
         self.engine = controller.engine
         self.icons = controller.icons
         self._results: list[SearchResult] = []
+        self._displayed_query = ""
         self._action_index: Optional[int] = None
         self._menu_open = False
         self._hiding = False
@@ -413,6 +414,7 @@ class LauncherWindow(QWidget):
         )
 
     def _display_results(self, results: list[SearchResult], query: str) -> None:
+        self._displayed_query = query
         current = self.current_result()
         current_title = current.title if current else None
         self._results = results
