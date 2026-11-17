@@ -28,3 +28,12 @@ def test_common_locale_aliases_are_normalized():
 
 def test_formatted_translations_preserve_interpolated_values():
     assert i18n.tr(FakeConfig("es"), "launcher.action.selected", name="Open") == "Acción: Open"
+
+
+def test_shared_widget_labels_use_the_active_language():
+    i18n.set_language(FakeConfig("de"))
+    assert i18n.translate_text("Appearance") == "Darstellung"
+    assert i18n.translate_text("Save") == "Speichern"
+    assert i18n.translate_text("An application-specific label") == "An application-specific label"
+    i18n.set_language(FakeConfig("en"))
+    assert i18n.translate_text("Appearance") == "Appearance"
