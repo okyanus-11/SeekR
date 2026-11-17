@@ -10,22 +10,11 @@ semantic versioning.
 
 - Seven additional languages: Spanish, French, German, Italian, Brazilian
   Portuguese, Japanese and Simplified Chinese. Launcher text, common controls,
-  shared headings and Tools navigation now use the localization catalog.
+  shared headings and Tools navigation use the localization catalog.
 - Persistent local caching for dictionary definitions, allowing previous
   lookups to work offline.
 - Windows GPU Engine performance-counter fallback for non-NVIDIA adapters.
 - Multi-monitor full-screen screenshot composition.
-
-### Fixed
-
-- Firefox bookmarks now use SQLite's backup API for consistent snapshots that
-  include live WAL data; Chromium bookmark reads fall back to Bookmarks.bak.
-- Quick Connect finds the standard Windows OpenSSH installation even when the
-  executable is not on PATH.
-- Locale aliases such as pt_br and zh are normalized safely.
-
-### Added
-
 - Windows and Linux CI, plus a per-user Windows installer build and downloadable
   executable/installer artifacts.
 - Installation and troubleshooting guides for source, executable and installer
@@ -41,36 +30,38 @@ semantic versioning.
 
 ### Fixed
 
+- Firefox bookmarks now use SQLite's backup API for consistent snapshots that
+  include live WAL data; Chromium bookmark reads fall back to Bookmarks.bak.
+- Quick Connect finds the standard Windows OpenSSH installation even when the
+  executable is not on PATH.
+- Locale aliases such as pt_br and zh are normalized safely.
 - A second launch on Windows could miss the running instance and start a second
-  copy instead. `notify_existing()` reported failure whenever the show request
+  copy instead. notify_existing() reported failure whenever the show request
   had already been handed to the OS, and the caller then took the single-
   instance socket name for itself. It now only waits for bytes still queued.
-- `notify_existing()` could still report `False` on Windows even though the
-  request was delivered: `connectToServer`/`waitForConnected` can fail
-  spuriously under the offscreen QPA (and, on a real desktop, during slow
-  startup), and `waitForBytesWritten` reports `False` for a buffer already
-  flushed to the OS. It now retries the connection within the timeout budget
-  and never treats the flush result as failure.
+- notify_existing() could still report False on Windows even though the request
+  was delivered: connectToServer/waitForConnected can fail spuriously under the
+  offscreen QPA or during slow startup, and waitForBytesWritten reports False
+  for a buffer already flushed to the OS. It now retries within the timeout and
+  never treats the flush result as failure.
 - Repeated activation of an already-running instance now reliably brings the
-  launcher forward. A show request used to be able to produce a window that was
-  visible but not active, which the "hide when focus is lost" timer then hid
-  again, so a forwarded launch looked ignored. Showing the launcher now cancels
-  the pending hide and retries foreground activation for one second; a fade-out
-  interrupted by a show can no longer hide the re-shown window; and the
-  launching process passes its foreground permission to the running instance
-  before asking it to show.
-- Quitting SeekR now really stops it. `QCoreApplication.quit()` proved to be a
-  no-op while the application controller was running (the event loop survived
-  every delay from 100 ms to 3 s), so the tray's Quit action did nothing; the
-  quit path now calls `exit(0)` directly, which always stops the loop.
-- Launch Windows SSH clients directly in a new console rather than composing
-  commands through `cmd.exe`.
+  launcher forward. A show request could produce a visible but inactive window
+  that the focus-loss timer hid again. Showing the launcher now cancels pending
+  hides, retries foreground activation for one second, and passes foreground
+  permission from the launching process to the running instance.
+- Quitting SeekR now really stops the event loop; the tray Quit action calls
+  exit(0) instead of relying on a no-op QCoreApplication.quit() path.
+- Launch Windows SSH clients directly in a new console without composing
+  commands through cmd.exe.
 
 ### Tests
 
-- Regression tests for repeated activation: a refused foreground activation, the
-  activation grace period, an interrupted hide animation, and a forwarded socket
-  request revealing a hidden launcher.
+- Added regression coverage for nine-language catalogs, shared widget labels,
+  offline dictionary caching, Chromium backup recovery, Firefox live-WAL
+  snapshots, Windows SSH path discovery and GPU Engine counter parsing.
+- Regression tests for repeated activation cover refused foreground activation,
+  the activation grace period, an interrupted hide animation and a forwarded
+  socket request revealing a hidden launcher.
 
 ## [1.0.0] — 2026-11-14
 
