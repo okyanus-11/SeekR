@@ -14,7 +14,8 @@ semantic versioning.
 - Persistent local caching for dictionary definitions, allowing previous
   lookups to work offline.
 - Windows GPU Engine performance-counter fallback for non-NVIDIA adapters.
-- Multi-monitor full-screen screenshot composition.
+- Multi-monitor full-screen screenshot composition and built-in region capture
+  that saves directly to SeekR's configured folder.
 - Windows and Linux CI, plus a per-user Windows installer build and downloadable
   executable/installer artifacts.
 - Installation and troubleshooting guides for source, executable and installer
