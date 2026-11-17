@@ -377,6 +377,11 @@ _COMMON_TEXT: dict[str, tuple[str, ...]] = {
     "Click and press a combination such as Ctrl+Shift+Space": ("Tıklayın ve Ctrl+Shift+Space gibi bir kombinasyona basın", "Haz clic y pulsa una combinación como Ctrl+Shift+Space", "Cliquez puis saisissez une combinaison comme Ctrl+Shift+Space", "Klicken und eine Kombination wie Ctrl+Shift+Space drücken", "Fai clic e premi una combinazione come Ctrl+Shift+Space", "Clique e pressione uma combinação como Ctrl+Shift+Space", "クリックして Ctrl+Shift+Space などの組み合わせを押してください", "点击并按下 Ctrl+Shift+Space 等组合键"),
     "Add at least one modifier (Ctrl, Alt, Shift or Win)": ("En az bir değiştirici ekleyin (Ctrl, Alt, Shift veya Win)", "Añade al menos un modificador (Ctrl, Alt, Shift o Win)", "Ajoutez au moins un modificateur (Ctrl, Alt, Shift ou Win)", "Mindestens einen Modifikator hinzufügen (Ctrl, Alt, Shift oder Win)", "Aggiungi almeno un modificatore (Ctrl, Alt, Shift o Win)", "Adicione pelo menos um modificador (Ctrl, Alt, Shift ou Win)", "Ctrl、Alt、Shift、Win のいずれかを追加してください", "至少添加一个修饰键（Ctrl、Alt、Shift 或 Win）"),
     "Choose accent color": ("Vurgu rengini seçin", "Elegir color de acento", "Choisir la couleur d’accentuation", "Akzentfarbe auswählen", "Scegli il colore principale", "Escolher cor de destaque", "アクセントカラーを選択", "选择强调色"),
+    "Capture screen": ("Ekranı yakala", "Capturar pantalla", "Capturer l’écran", "Bildschirm aufnehmen", "Cattura schermo", "Capturar tela", "画面をキャプチャ", "截取屏幕"),
+    "Capture region": ("Bölgeyi yakala", "Capturar región", "Capturer une zone", "Bereich aufnehmen", "Cattura area", "Capturar região", "範囲をキャプチャ", "截取区域"),
+    "Save as…": ("Farklı kaydet…", "Guardar como…", "Enregistrer sous…", "Speichern unter…", "Salva con nome…", "Salvar como…", "名前を付けて保存…", "另存为…"),
+    "Open screenshots folder": ("Ekran görüntüsü klasörünü aç", "Abrir carpeta de capturas", "Ouvrir le dossier des captures", "Screenshot-Ordner öffnen", "Apri cartella screenshot", "Abrir pasta de capturas", "スクリーンショットフォルダーを開く", "打开截图文件夹"),
+    "Open Snipping Tool": ("Ekran Alıntısı Aracı'nı aç", "Abrir Recortes", "Ouvrir l’outil Capture", "Snipping Tool öffnen", "Apri Strumento di cattura", "Abrir Ferramenta de Captura", "Snipping Tool を開く", "打开截图工具"),
 }
 
 
