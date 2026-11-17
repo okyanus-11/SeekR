@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.version import APP_NAME
+from ui import i18n
 from ui.tools.basic import CalculatorTab, ColorTab, DateTimeTab, DeveloperTab, DictionaryTab
 from ui.tools.data import ActionsTab, BookmarksTab, ClipboardTab, ConnectionsTab, NotesTab
 from ui.tools.system import PowerTab, ProcessesTab, ScreenshotsTab, SystemTab
@@ -69,7 +70,7 @@ class ToolsWindow(QMainWindow):
             page = page_class(controller, self)
             self.pages[key] = page
             self.page_keys.append(key)
-            item = QListWidgetItem(title)
+            item = QListWidgetItem(i18n.tr(self.controller.config, f"tools.page.{key}"))
             item.setData(Qt.ItemDataRole.UserRole, key)
             self.sidebar.addItem(item)
             self.stack.addWidget(page)
