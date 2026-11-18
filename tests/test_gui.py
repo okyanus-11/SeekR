@@ -6,6 +6,7 @@ import gc
 import os
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -18,7 +19,7 @@ from PySide6.QtWidgets import QLabel
 from core.application import SeekRApplication
 from core.config_manager import ConfigManager
 from core.database import Database
-from core.models import ResultAction
+from core.models import ResultAction, SearchResult
 from core.search_engine import SearchProvider
 
 
@@ -152,6 +153,44 @@ def test_launcher_opens_and_searches(qapp, controller):
     escape = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier)
     assert launcher.eventFilter(launcher.search_input, escape) is True
     assert launcher._action_index is None
+
+
+def test_launcher_coalesces_rapid_searches_to_latest_query(qapp, controller):
+    """Typing during a slow query must not queue every intermediate query."""
+    launcher = controller.launcher
+    original_engine = launcher.engine
+    started = threading.Event()
+    release = threading.Event()
+    calls = []
+
+    class SlowEngine:
+        def search(self, query):
+            calls.append(query)
+            if query == "first":
+                started.set()
+                release.wait(3)
+            return [SearchResult(title=query, category="Test", score=1.0)]
+
+    launcher.engine = SlowEngine()
+    try:
+        launcher.search_input.setText("first")
+        launcher._debouncer.cancel()
+        launcher._run_search()
+        assert started.wait(2), "first search worker did not start"
+
+        for query in ("middle", "latest"):
+            launcher.search_input.setText(query)
+            launcher._debouncer.cancel()
+            launcher._run_search()
+
+        release.set()
+        wait_for_search(qapp, launcher)
+        assert calls == ["first", "latest"]
+        assert launcher.current_result() is not None
+        assert launcher.current_result().title == "latest"
+    finally:
+        release.set()
+        launcher.engine = original_engine
 
 
 def test_icon_store_evicts_least_recently_used_paths(qapp, tmp_path):
