@@ -155,6 +155,38 @@ def test_launcher_opens_and_searches(qapp, controller):
     assert launcher._action_index is None
 
 
+
+def test_launcher_show_interrupts_an_in_progress_hide(qapp, controller):
+    """A fast re-open must cancel the old fade instead of fading back out."""
+    launcher = controller.launcher
+    config = controller.config
+    old_animations = config.get("appearance.animations", False)
+    old_duration = config.get("appearance.animation_duration", 150)
+    config.set("appearance.animations", True)
+    config.set("appearance.animation_duration", 120)
+    try:
+        launcher.show_launcher()
+        qapp.processEvents()
+        launcher.hide_launcher()
+        qapp.processEvents()
+        launcher.show_launcher()
+
+        deadline = time.monotonic() + 0.3
+        while time.monotonic() < deadline:
+            qapp.processEvents()
+            time.sleep(0.005)
+
+        assert launcher.isVisible()
+        assert not launcher._hiding
+        assert launcher.windowOpacity() > 0.8
+    finally:
+        config.set("appearance.animations", old_animations)
+        config.set("appearance.animation_duration", old_duration)
+        launcher._stop_window_animation()
+        launcher._hiding = False
+        launcher.setWindowOpacity(float(config.get("appearance.opacity", 0.98)))
+
+
 def test_launcher_coalesces_rapid_searches_to_latest_query(qapp, controller):
     """Typing during a slow query must not queue every intermediate query."""
     launcher = controller.launcher

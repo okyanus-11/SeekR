@@ -12,6 +12,7 @@ from PySide6.QtCore import (
     QEvent,
     QPoint,
     QPropertyAnimation,
+    QParallelAnimationGroup,
     QSize,
     Qt,
     QTimer,
@@ -105,6 +106,7 @@ class LauncherWindow(QWidget):
         self._menu_open = False
         self._hiding = False
         self._hide_generation = 0
+        self._window_animation = None
         self._activation_deadline = 0.0
         self._activation_confirmed = False
         self._status_timer = QTimer(self)
@@ -124,7 +126,7 @@ class LauncherWindow(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, False)
 
         self._build_ui()
-        self._debouncer = Debouncer(int(self.config.get("search.debounce_ms", 120) or 120), self)
+        self._debouncer = Debouncer(int(self.config.get("search.debounce_ms", 65) or 65), self)
         # Search providers may query large SQLite indexes or rank hundreds of
         # candidates. Keep that work off Qt's GUI thread so typing stays fluid.
         self._search_pool = QThreadPool(self)
@@ -149,8 +151,10 @@ class LauncherWindow(QWidget):
         self.root = QFrame()
         self.root.setObjectName("LauncherRoot")
         shadow = QGraphicsDropShadowEffect(self.root)
-        shadow.setBlurRadius(48)
-        shadow.setOffset(0, 12)
+        # A smaller blur keeps the floating surface polished without forcing
+        # Qt to repaint a huge shadow region on every animation frame.
+        shadow.setBlurRadius(28)
+        shadow.setOffset(0, 8)
         shadow.setColor(QColor(0, 0, 0, 160))
         self.root.setGraphicsEffect(shadow)
         outer.addWidget(self.root)
@@ -343,32 +347,50 @@ class LauncherWindow(QWidget):
         opacity = float(self.config.get("appearance.opacity", 0.98))
         self.setWindowOpacity(max(0.65, min(1.0, opacity)))
 
+    def _stop_window_animation(self) -> None:
+        """Stop an in-flight transition before starting its opposite."""
+        animation = self._window_animation
+        self._window_animation = None
+        if animation is not None:
+            animation.stop()
+
     def _animate_show(self) -> None:
+        self._stop_window_animation()
         duration = int(self.config.get("appearance.animation_duration", 150) or 0)
         target_opacity = float(self.config.get("appearance.opacity", 0.98))
         target_opacity = max(0.65, min(1.0, target_opacity))
+        target = getattr(self, "_target_position", self.pos())
         if not self.config.get("appearance.animations", True) or duration <= 0:
             self.setWindowOpacity(target_opacity)
+            self.move(target)
             return
-        self.setWindowOpacity(0.0)
-        opacity = QPropertyAnimation(self, b"windowOpacity", self)
+
+        # Run opacity and position together. Keeping one transition object lets
+        # a rapid hide/show interrupt cleanly instead of leaving two animations
+        # fighting over the same native window properties.
+        group = QParallelAnimationGroup(self)
+        opacity = QPropertyAnimation(self, b"windowOpacity", group)
         opacity.setDuration(duration)
-        opacity.setStartValue(0.0)
+        opacity.setStartValue(self.windowOpacity() if self._hiding else 0.0)
         opacity.setEndValue(target_opacity)
         opacity.setEasingCurve(QEasingCurve.Type.OutCubic)
-        opacity.start(QAbstractAnimation.DeletionPolicy.DeleteWhenStopped)
-
-        target = getattr(self, "_target_position", self.pos())
-        slide = QPropertyAnimation(self, b"pos", self)
+        slide = QPropertyAnimation(self, b"pos", group)
         slide.setDuration(duration)
-        slide.setStartValue(QPoint(target.x(), target.y() - 16))
+        slide.setStartValue(QPoint(target.x(), target.y() - 12))
         slide.setEndValue(target)
         slide.setEasingCurve(QEasingCurve.Type.OutCubic)
-        slide.start(QAbstractAnimation.DeletionPolicy.DeleteWhenStopped)
+        self._window_animation = group
+        group.finished.connect(lambda g=group: self._clear_window_animation(g))
+        group.start(QAbstractAnimation.DeletionPolicy.DeleteWhenStopped)
+
+    def _clear_window_animation(self, animation) -> None:
+        if self._window_animation is animation:
+            self._window_animation = None
 
     def hide_launcher(self) -> None:
         if not self.isVisible() or self._hiding:
             return
+        self._stop_window_animation()
         duration = int(self.config.get("appearance.animation_duration", 150) or 0)
         if not self.config.get("appearance.animations", True) or duration <= 0:
             self._hide_timer.stop()
@@ -382,13 +404,15 @@ class LauncherWindow(QWidget):
         animation.setDuration(max(60, duration // 2))
         animation.setStartValue(self.windowOpacity())
         animation.setEndValue(0.0)
-        animation.finished.connect(lambda g=generation: self._finish_hide(g))
+        self._window_animation = animation
+        animation.finished.connect(lambda g=generation, a=animation: self._finish_hide(g, a))
         animation.start(QAbstractAnimation.DeletionPolicy.DeleteWhenStopped)
 
-    def _finish_hide(self, generation: Optional[int] = None) -> None:
+    def _finish_hide(self, generation: Optional[int] = None, animation=None) -> None:
         if generation is not None and generation != self._hide_generation:
-            # A show_launcher() call superseded this fade; keep the window up.
             return
+        if animation is not None and self._window_animation is animation:
+            self._window_animation = None
         self.hide()
         self.setWindowOpacity(float(self.config.get("appearance.opacity", 0.98)))
         self._hiding = False

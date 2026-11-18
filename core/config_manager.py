@@ -66,7 +66,7 @@ def default_config() -> dict[str, Any]:
             "save_history": True,
             "history_limit": 300,
             "prioritize_recent": True,
-            "debounce_ms": 120,
+            "debounce_ms": 65,
             "keyword_aliases": {},
             "disabled_providers": [],
         },
