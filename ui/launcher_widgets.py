@@ -195,8 +195,14 @@ class WeatherWidget(WidgetCard):
         self.details = QLabel("Weather at a glance")
         self.details.setObjectName("WidgetSecondary")
         self.details.setWordWrap(True)
+        self.attribution = QLabel(
+            '<a href="https://open-meteo.com/">Weather data by Open-Meteo.com</a>'
+        )
+        self.attribution.setObjectName("WidgetAttribution")
+        self.attribution.setOpenExternalLinks(True)
         self.content.addWidget(self.value)
         self.content.addWidget(self.details)
+        self.content.addWidget(self.attribution)
         self._last_location = ""
         self._busy = False
         self._fetch_task = None
@@ -463,6 +469,7 @@ class LauncherWidgets(QObject):
                 "QLabel#WidgetClock { font-size: 25px; font-weight: 650; color: palette(windowText); } "
                 "QLabel#WidgetValue { font-size: 19px; font-weight: 650; color: palette(windowText); } "
                 "QLabel#WidgetSecondary { color: palette(mid); font-size: 10px; } "
+                "QLabel#WidgetAttribution { color: palette(highlight); font-size: 9px; } "
                 "QProgressBar#WidgetProgress { background: palette(base); border: 0; border-radius: 2px; } "
                 "QProgressBar#WidgetProgress::chunk { background: palette(highlight); border-radius: 2px; }"
             )
