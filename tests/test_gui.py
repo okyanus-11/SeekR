@@ -596,12 +596,36 @@ def test_launcher_widget_coordinator_does_not_create_an_overlay(qapp, controller
     controller.config.set("widgets.clock_enabled", False)
     widgets.refresh_settings()
     assert widgets.clock.isHidden()
-    assert widgets.clock.parentWidget() is launcher
+    assert widgets.clock.parentWidget() is widgets.left_column
 
     controller.config.set("widgets.clock_enabled", True)
     widgets.refresh_settings()
     assert widgets.clock.parentWidget() is widgets.left_column
     assert not widgets.clock.isHidden()
+
+
+def test_launcher_shows_all_enabled_widget_cards_in_visible_rails(qapp, controller):
+    launcher = controller.launcher
+    widgets = launcher.launcher_widgets
+    controller.config.set("widgets.clock_enabled", True)
+    controller.config.set("widgets.system_enabled", True)
+    controller.config.set("widgets.weather_enabled", True)
+    controller.config.set("widgets.meme_enabled", True)
+    widgets.refresh_settings()
+    launcher.show_launcher()
+    qapp.processEvents()
+
+    assert launcher.isVisible()
+    assert widgets.left_column.isVisible()
+    assert widgets.right_column.isVisible()
+    for name, card in widgets._cards.items():
+        assert card.isVisible(), f"{name} widget is not visible"
+        assert card.width() > 0 and card.height() > 0, f"{name} widget has empty geometry"
+        assert card.parentWidget() in (widgets.left_column, widgets.right_column)
+    assert widgets.left_column.geometry().width() >= 190
+    assert widgets.right_column.geometry().width() >= 190
+    launcher.hide_launcher()
+    qapp.processEvents()
 
 
 def test_daily_meme_only_opens_safe_reddit_links():
