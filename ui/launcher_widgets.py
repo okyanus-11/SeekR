@@ -280,6 +280,9 @@ class MemeWidget(WidgetCard):
         self.day_timer = QTimer(self)
         self.day_timer.timeout.connect(self._check_new_day)
         self.day_timer.start(60_000)
+        self.retry_timer = QTimer(self)
+        self.retry_timer.setSingleShot(True)
+        self.retry_timer.timeout.connect(self._retry_fetch)
 
     @staticmethod
     def _get_cache_path() -> Path:
@@ -304,6 +307,10 @@ class MemeWidget(WidgetCard):
     def _check_new_day(self):
         if self._cached_date != datetime.now().date().isoformat():
             self._load_daily()
+
+    def _retry_fetch(self):
+        self._cached_date = ""
+        self.refresh()
 
     def refresh(self):
         if self._busy:
@@ -338,6 +345,7 @@ class MemeWidget(WidgetCard):
             except OSError:
                 pass
         self._cached_date = item["date"]
+        self.retry_timer.stop()
         self._show_meme(item)
         try:
             self._cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -351,6 +359,7 @@ class MemeWidget(WidgetCard):
             self._busy = False
             self._fetch_task = None
             self._cached_date = datetime.now().date().isoformat()
+            self.retry_timer.start(15 * 60 * 1000)
             self.title.setText("Meme unavailable")
             self.subreddit.setText("Could not load today's meme")
 
@@ -442,6 +451,8 @@ class LauncherWidgets(QWidget):
             timer = getattr(card, "timer", None) if key == "weather" else getattr(card, "day_timer", None)
             if timer is not None:
                 timer.start(30 * 60 * 1000 if key == "weather" else 60_000) if enabled else timer.stop()
+            if key == "meme" and not enabled:
+                card.retry_timer.stop()
             if enabled:
                 self._right_layout.addWidget(card)
                 card.reveal(False)
