@@ -577,6 +577,38 @@ def test_single_instance_show_request_reveals_the_launcher(qapp, controller):
         primary.close()
 
 
+def test_widget_http_user_agent_tracks_application_version(monkeypatch):
+    import json
+    import urllib.request
+
+    from core.version import APP_VERSION
+    from ui.launcher_widgets import _FetchTask
+
+    seen = {}
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, _limit):
+            return json.dumps({"ok": True}).encode("utf-8")
+
+    def fake_urlopen(request, timeout):
+        seen["user_agent"] = request.get_header("User-agent")
+        seen["timeout"] = timeout
+        return Response()
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    assert _FetchTask._get_json("https://example.test/data") == {"ok": True}
+    assert seen == {
+        "user_agent": f"SeekR/{APP_VERSION} (desktop launcher)",
+        "timeout": 8,
+    }
+
+
 def test_launcher_widget_coordinator_does_not_create_an_overlay(qapp, controller):
     from PySide6.QtCore import QObject
     from PySide6.QtWidgets import QWidget
