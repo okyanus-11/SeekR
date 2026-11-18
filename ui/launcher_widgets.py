@@ -44,7 +44,10 @@ class _FetchTask(QRunnable):
             url, headers={"User-Agent": "SeekR/1.1.0 (desktop launcher)"}
         )
         with urllib.request.urlopen(request, timeout=8) as response:
-            return json.loads(response.read(1_500_000).decode("utf-8"))
+            payload = response.read(1_500_001)
+            if len(payload) > 1_500_000:
+                raise ValueError("The widget service returned an oversized response.")
+            return json.loads(payload.decode("utf-8"))
 
     def run(self) -> None:
         try:
@@ -70,7 +73,10 @@ class _FetchTask(QRunnable):
                     try:
                         request = urllib.request.Request(image_url, headers={"User-Agent": "SeekR/1.1.0"})
                         with urllib.request.urlopen(request, timeout=8) as response:
-                            data["_image_bytes"] = response.read(1_500_000)
+                            if response.headers.get_content_type().startswith("image/"):
+                                image_bytes = response.read(1_500_001)
+                                if len(image_bytes) <= 1_500_000:
+                                    data["_image_bytes"] = image_bytes
                     except Exception:
                         # The meme itself is still useful if its preview host
                         # is down or rejects the image request.
