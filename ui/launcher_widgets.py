@@ -17,6 +17,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import QDesktopServices, QPixmap
 from PySide6.QtCore import QUrl
+from core.version import APP_VERSION
 from PySide6.QtWidgets import (
     QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QProgressBar,
     QVBoxLayout, QWidget,
@@ -41,7 +42,7 @@ class _FetchTask(QRunnable):
     @staticmethod
     def _get_json(url: str) -> dict:
         request = urllib.request.Request(
-            url, headers={"User-Agent": "SeekR/1.1.0 (desktop launcher)"}
+            url, headers={"User-Agent": f"SeekR/{APP_VERSION} (desktop launcher)"}
         )
         with urllib.request.urlopen(request, timeout=8) as response:
             payload = response.read(1_500_001)
@@ -71,7 +72,7 @@ class _FetchTask(QRunnable):
                 image_url = str(data.get("url", ""))
                 if image_url.startswith("https://"):
                     try:
-                        request = urllib.request.Request(image_url, headers={"User-Agent": "SeekR/1.1.0"})
+                        request = urllib.request.Request(image_url, headers={"User-Agent": f"SeekR/{APP_VERSION}"})
                         with urllib.request.urlopen(request, timeout=8) as response:
                             if response.headers.get_content_type().startswith("image/"):
                                 image_bytes = response.read(1_500_001)
