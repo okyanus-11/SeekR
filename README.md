@@ -4,11 +4,11 @@
 
 SeekR is a native desktop application built with Python and PySide6. It searches your applications and files, evaluates expressions, opens websites, runs safe commands, previews documents, manages clipboard history and notes, and bundles a set of everyday developer utilities — all from one floating window.
 
-**Current version:** 1.0.2 · **License:** MIT
+**Current version:** 1.1.0 · **License:** MIT
 
 
 <p align="center">
-  <a href="https://github.com/okyanus-11/SeekR/releases/download/v1.0.1/SeekR-Setup-1.0.1.exe"><strong>⬇️ Download for Windows — Installer (.exe)</strong></a>
+  <a href="https://github.com/okyanus-11/SeekR/releases/latest"><strong>⬇️ Download for Windows — Installer (.exe)</strong></a>
   · <a href="https://github.com/okyanus-11/SeekR/releases/latest">All releases</a>
 </p>
 
@@ -55,6 +55,8 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 - Recent and frequently used applications influence ranking.
 - Context menu for secondary actions, action cycling with `Tab`, and numbered actions with `Ctrl+1…9`.
 - Subtle open/close/selection animations that can be disabled in Settings.
+- Four optional live widgets around the results: clock and system usage on the left; weather and a daily wholesome meme on the right. All are enabled by default and individually configurable in Settings → Widgets.
+- Weather uses a city or town entered in Settings (no location permission); the current conditions refresh every 30 minutes. The daily meme is cached locally and refreshes on the next calendar day.
 - Optional "hide when focus is lost", tray icon, and start-with-Windows support.
 - Single-instance enforcement: launching SeekR again brings the existing window forward.
 
@@ -109,11 +111,11 @@ The Developer tools page implements all 15 utilities:
 
 ### Settings
 
-Thirteen pages — General, Appearance, Search, Applications, Files, Web, Calculator, Commands, Clipboard, Privacy, Advanced, Plugins, About — all bound to the persisted JSON configuration. Every control writes through validation and takes effect immediately (theme changes repaint all windows). The launcher, shared controls, common headings and Tools navigation are available in nine languages: English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese and Simplified Chinese. Longer settings descriptions, tool content, dialogs and dynamic status messages remain English.
+Fourteen pages — General, Appearance, Widgets, Search, Applications, Files, Web, Calculator, Commands, Clipboard, Privacy, Advanced, Plugins, About — all bound to the persisted JSON configuration. Every control writes through validation and takes effect immediately (theme changes repaint all windows). The launcher, shared controls, common headings and Tools navigation are available in nine languages: English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese and Simplified Chinese. Longer settings descriptions, tool content, dialogs and dynamic status messages remain English.
 
 ### Themes
 
-Graphite (default), Light, AMOLED, Catppuccin Mocha, Dracula and Nord, with a custom accent colour picker, transparency, font family/size, window width, result spacing and animation toggle. Keyword routing is cached and invalidated when aliases or providers change. The theme stylesheet is applied application-wide, not just to the launcher.
+Graphite (default), Light, AMOLED, Catppuccin Mocha, Dracula and Nord, with a custom accent colour picker, transparency, font family/size, window width, result spacing and animation toggle. The launcher now defaults to a wider layout so its widget rails have room without squeezing search results. Keyword routing is cached and invalidated when aliases or providers change. The theme stylesheet is applied application-wide, not just to the launcher.
 
 ---
 
