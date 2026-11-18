@@ -354,6 +354,8 @@ class SeekRApplication(QObject, UIHooks):
     def _on_config_changed(self, path: str, _value: Any) -> None:
         if path == "*" or path.startswith("general.language"):
             i18n.set_language(self.config)
+        if path == "*" and self.launcher is not None:
+            self.launcher.launcher_widgets.refresh_settings(animate=False)
         if path == "*" or path.startswith("appearance.") or path.startswith("general.language"):
             apply_theme(self.app, self.config)
             if self.launcher is not None:
