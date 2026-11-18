@@ -471,6 +471,31 @@ class AppearancePage(SettingsPage):
         self.controller.open_settings("appearance")
 
 
+
+# ------------------------------------------------------------------------ Widgets
+class WidgetsPage(SettingsPage):
+    title = "Widgets"
+    subtitle = "Choose what appears around the Alt+Space search results."
+
+    def build(self) -> None:
+        cards = self.section("Launcher widgets", "Enabled by default. Changes are saved immediately.")
+        self.row(cards, "Clock", "Live local time and date · left rail.", bind_switch(self.config, "widgets.clock_enabled"))
+        self.row(cards, "System usage", "Live CPU and memory usage · left rail.", bind_switch(self.config, "widgets.system_enabled"))
+        self.row(cards, "Weather", "Current conditions for your chosen location · right rail.", bind_switch(self.config, "widgets.weather_enabled"))
+        self.row(cards, "Daily meme", "A daily pick cached locally until the next day · right rail.", bind_switch(self.config, "widgets.meme_enabled"))
+        location = self.section("Weather location", "Enter a city or town. SeekR uses Open-Meteo for geocoding and current conditions.")
+        self.location_edit = QLineEdit(str(self.config.get("widgets.weather_location", "") or ""))
+        self.location_edit.setPlaceholderText("e.g. Izmir, Türkiye")
+        self.location_edit.editingFinished.connect(self._save_location)
+        self.row(location, "Location", "No GPS permission is requested; this text is used for the weather lookup.", self.location_edit)
+        location.add_widget(label("Weather and daily meme require an internet connection. System usage and clock stay local.", "Muted", wrap=True))
+
+    def _save_location(self) -> None:
+        value = self.location_edit.text().strip()
+        self.config.set("widgets.weather_location", value)
+        self.saved("Weather location saved")
+
+
 # ------------------------------------------------------------------------ Search
 class SearchPage(SettingsPage):
     title = "Search"
@@ -1299,6 +1324,7 @@ class SettingsWindow(QMainWindow):
     PAGES: list[tuple[str, str, type[SettingsPage]]] = [
         ("general", "General", GeneralPage),
         ("appearance", "Appearance", AppearancePage),
+        ("widgets", "Widgets", WidgetsPage),
         ("search", "Search", SearchPage),
         ("applications", "Applications", ApplicationsPage),
         ("files", "Files", FilesPage),
