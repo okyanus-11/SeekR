@@ -415,6 +415,13 @@ def test_theme_stylesheet_contains_widgets(controller):
     assert "QListWidget#ResultList" in stylesheet
 
 
+def test_weather_widget_displays_required_open_meteo_attribution(controller):
+    attribution = controller.launcher.launcher_widgets.weather.attribution
+    assert attribution.openExternalLinks()
+    assert "Weather data by Open-Meteo.com" in attribution.text()
+    assert 'href="https://open-meteo.com/"' in attribution.text()
+
+
 def test_notifications_and_hooks(qapp, controller):
     controller.notify("hello from tests")
     assert controller.launcher.status_label.text() == "hello from tests"
