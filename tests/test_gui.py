@@ -568,3 +568,30 @@ def test_single_instance_show_request_reveals_the_launcher(qapp, controller):
     finally:
         secondary.close()
         primary.close()
+
+
+def test_launcher_widget_coordinator_does_not_create_an_overlay(qapp, controller):
+    from PySide6.QtCore import QObject
+    from PySide6.QtWidgets import QWidget
+
+    launcher = controller.launcher
+    widgets = launcher.launcher_widgets
+
+    assert isinstance(widgets, QObject)
+    assert not isinstance(widgets, QWidget)
+    assert widgets.left_column.parentWidget() is not widgets
+    assert widgets.right_column.parentWidget() is not widgets
+    assert widgets.clock.parentWidget() is widgets.left_column
+    assert widgets.system.parentWidget() is widgets.left_column
+    assert widgets.weather.parentWidget() is widgets.right_column
+    assert widgets.meme.parentWidget() is widgets.right_column
+
+    controller.config.set("widgets.clock_enabled", False)
+    widgets.refresh_settings()
+    assert not widgets.clock.isVisible()
+    assert widgets.clock.parentWidget() is launcher
+
+    controller.config.set("widgets.clock_enabled", True)
+    widgets.refresh_settings()
+    assert widgets.clock.parentWidget() is widgets.left_column
+    assert widgets.clock.isVisible()
