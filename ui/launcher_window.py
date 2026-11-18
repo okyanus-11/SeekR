@@ -528,7 +528,10 @@ class LauncherWindow(QWidget):
         glyph.setObjectName("ResultGlyph")
         glyph.setFixedSize(36, 36)
         glyph.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon = self.icons.icon_for(result.icon_path) if show_icons else None
+        # Resolving a new Windows file icon can synchronously invoke the shell
+        # and stall the GUI thread while the user types. Only use icons already
+        # cached by background/secondary UI work; otherwise render the glyph.
+        icon = self.icons.cached_icon_for(result.icon_path) if show_icons else None
         if icon is not None:
             glyph.setPixmap(icon.pixmap(26, 26))
         else:
