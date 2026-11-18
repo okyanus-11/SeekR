@@ -88,7 +88,14 @@ def test_corrupt_config_recovers(tmp_path):
 
 def test_reset_restores_defaults(config):
     config.set("appearance.theme", "nord")
-    config.reset()
+    assert config.reset() is True
+    assert config.get("appearance.theme") == "dark"
+
+
+def test_reset_reports_persistence_failure(config, monkeypatch):
+    config.set("appearance.theme", "nord", save=False)
+    monkeypatch.setattr(config, "save", lambda: False)
+    assert config.reset() is False
     assert config.get("appearance.theme") == "dark"
 
 
