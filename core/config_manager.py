@@ -393,6 +393,16 @@ class ConfigManager:
                 self._data = copy.deepcopy(self._defaults)
                 return self._data
             self._data = sanitize(parsed, self._defaults)
+            # Version 2 widens only the untouched 1.0.x default geometry so the
+            # new side rails fit; explicitly customised dimensions are kept.
+            if isinstance(parsed, dict):
+                old_appearance = parsed.get("appearance", {})
+                if isinstance(old_appearance, dict):
+                    if parsed.get("schema_version", 1) < 2 and old_appearance.get("window_width") == 780:
+                        self._data["appearance"]["window_width"] = 1180
+                    if parsed.get("schema_version", 1) < 2 and old_appearance.get("window_height") == 500:
+                        self._data["appearance"]["window_height"] = 620
+            self._data["schema_version"] = CONFIG_SCHEMA_VERSION
             privacy = parsed.get("privacy") if isinstance(parsed, dict) else None
             has_clipboard_consent = (
                 isinstance(privacy, dict)
