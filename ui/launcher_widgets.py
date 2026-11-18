@@ -221,9 +221,19 @@ class WeatherWidget(WidgetCard):
             self.refresh()
             return
         current = data.get("current", {})
-        self.value.setText(f"{current.get('temperature_2m', '—')}°")
+        code = current.get("weather_code")
+        conditions = {
+            0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
+            45: "Fog", 48: "Depositing rime fog", 51: "Light drizzle",
+            53: "Drizzle", 55: "Heavy drizzle", 61: "Light rain", 63: "Rain",
+            65: "Heavy rain", 71: "Light snow", 73: "Snow", 75: "Heavy snow",
+            80: "Rain showers", 81: "Showers", 82: "Heavy showers",
+            95: "Thunderstorm", 96: "Thunderstorm with hail", 99: "Heavy thunderstorm",
+        }
+        condition = conditions.get(code, "Current conditions")
+        self.value.setText(f"{current.get('temperature_2m', '—')}°  ·  {condition}")
         self.details.setText(
-            f"{data.get('place_name', self._last_location)}\n"
+            f"{data.get('place_name', self._last_location)}\\n"
             f"Feels like {current.get('apparent_temperature', '—')}°  ·  "
             f"Humidity {current.get('relative_humidity_2m', '—')}%"
         )
@@ -248,6 +258,7 @@ class MemeWidget(WidgetCard):
         self.title = QLabel("Today's internet moment")
         self.title.setObjectName("WidgetValue")
         self.title.setWordWrap(True)
+        self.title.setMaximumHeight(34)
         self.title.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.preview = QLabel()
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
