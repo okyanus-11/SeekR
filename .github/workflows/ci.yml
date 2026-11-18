@@ -85,6 +85,13 @@ jobs:
           Start-Sleep -Seconds 8
           if ($portableProcess.HasExited) { throw "Portable SeekR.exe exited during startup (code $($portableProcess.ExitCode))" }
           Stop-Process -Id $portableProcess.Id -Force
+      - name: Verify packaged launcher widgets
+        shell: pwsh
+        run: |
+          $version = python -c "from core.version import APP_VERSION; print(APP_VERSION)"
+          $portable = (Resolve-Path ".\release\SeekR.exe").Path
+          $process = Start-Process -FilePath $portable -ArgumentList @("--verify-ui", "--no-hotkey", "--allow-multiple", "--reset-config") -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Packaged portable UI verification failed with exit code $($process.ExitCode)" }
       - name: Install Inno Setup
         run: choco install innosetup --yes --no-progress
       - name: Build installer
@@ -120,6 +127,8 @@ jobs:
           Start-Sleep -Seconds 8
           if ($appProcess.HasExited) { throw "Installed SeekR exited during startup (code $($appProcess.ExitCode))" }
           Stop-Process -Id $appProcess.Id -Force
+          $uiProcess = Start-Process -FilePath $installedExe -ArgumentList @("--verify-ui", "--no-hotkey", "--allow-multiple", "--reset-config") -Wait -PassThru
+          if ($uiProcess.ExitCode -ne 0) { throw "Installed application UI verification failed with exit code $($uiProcess.ExitCode)" }
           $uninstaller = Join-Path $installDir "unins000.exe"
           if (-not (Test-Path -LiteralPath $uninstaller)) { throw "SeekR uninstaller is missing" }
           $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") -Wait -PassThru
