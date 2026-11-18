@@ -233,7 +233,7 @@ class WeatherWidget(WidgetCard):
         condition = conditions.get(code, "Current conditions")
         self.value.setText(f"{current.get('temperature_2m', '—')}°  ·  {condition}")
         self.details.setText(
-            f"{data.get('place_name', self._last_location)}\\n"
+            f"{data.get('place_name', self._last_location)}\n"
             f"Feels like {current.get('apparent_temperature', '—')}°  ·  "
             f"Humidity {current.get('relative_humidity_2m', '—')}%"
         )
