@@ -62,12 +62,24 @@ jobs:
         run: |
           python -m pytest -q
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $version = python -c "from core.version import APP_VERSION; print(APP_VERSION)"
+          # Build and retain the portable one-file executable before the
+          # onedir build used by the installer.
+          python build.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $portable = ".\dist\SeekR.exe"
+          if (-not (Test-Path -LiteralPath $portable)) { throw "Portable executable was not created: $portable" }
+          $portableMetadata = [System.Diagnostics.FileVersionInfo]::GetVersionInfo((Resolve-Path $portable).Path)
+          if ($portableMetadata.ProductName -ne "SeekR" -or $portableMetadata.ProductVersion -notlike "$version*") {
+            throw "Unexpected portable executable metadata: ProductName=$($portableMetadata.ProductName), ProductVersion=$($portableMetadata.ProductVersion)"
+          }
+          New-Item -ItemType Directory -Force -Path ".\release" | Out-Null
+          Copy-Item $portable ".\release\SeekR.exe"
           python build.py --onedir
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $version = python -c "from core.version import APP_VERSION; print(APP_VERSION)"
           $metadata = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$PWD\dist\SeekR\SeekR.exe")
           if ($metadata.ProductName -ne "SeekR" -or $metadata.ProductVersion -notlike "$version*") {
-            throw "Unexpected executable metadata: ProductName=$($metadata.ProductName), ProductVersion=$($metadata.ProductVersion)"
+            throw "Unexpected installer executable metadata: ProductName=$($metadata.ProductName), ProductVersion=$($metadata.ProductVersion)"
           }
       - name: Install Inno Setup
         run: choco install innosetup --yes --no-progress
@@ -116,7 +128,6 @@ jobs:
       - name: Stage installer and checksums
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path ".\release" | Out-Null
           $version = python -c "from core.version import APP_VERSION; print(APP_VERSION)"
           Copy-Item ".\dist\installer\SeekR-Setup-$version.exe" ".\release\"
           Get-ChildItem ".\release" -File | ForEach-Object {
@@ -150,5 +161,5 @@ jobs:
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
               --title "SeekR $TAG" --generate-notes
-          gh release upload "$TAG" artifacts/SeekR-Setup-*.exe artifacts/SHA256SUMS.txt \
+          gh release upload "$TAG" artifacts/SeekR.exe artifacts/SeekR-Setup-*.exe artifacts/SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" --clobber
