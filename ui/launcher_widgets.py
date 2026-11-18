@@ -367,7 +367,10 @@ class MemeWidget(WidgetCard):
             self._busy = False
             self._fetch_task = None
             self._cached_date = datetime.now().date().isoformat()
-            self.retry_timer.start(15 * 60 * 1000)
+            # A request may finish after the user disables this card. Do not
+            # restart its retry timer while it is explicitly hidden.
+            if not self.isHidden():
+                self.retry_timer.start(15 * 60 * 1000)
             self.title.setText("Meme unavailable")
             self.subreddit.setText("Could not load today's meme")
 
