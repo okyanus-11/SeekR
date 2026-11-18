@@ -308,6 +308,11 @@ class LauncherWindow(QWidget):
 
     # ---------------------------------------------------------------- show
     def show_launcher(self) -> None:
+        # Preserve the current opacity when reopening during a fade-out. The
+        # animation must continue from the visible state, not restart at zero.
+        was_visible = self.isVisible()
+        interrupted_opacity = self.windowOpacity() if was_visible else 0.0
+        self._show_start_opacity = interrupted_opacity
         self._hiding = False
         # Any fade-out still in flight belongs to an earlier hide; a show that
         # arrives mid-animation must win.
@@ -390,7 +395,8 @@ class LauncherWindow(QWidget):
         group = QParallelAnimationGroup(self)
         opacity = QPropertyAnimation(self, b"windowOpacity", group)
         opacity.setDuration(duration)
-        opacity.setStartValue(self.windowOpacity() if self._hiding else 0.0)
+        opacity.setStartValue(max(0.0, min(target_opacity, float(getattr(self, "_show_start_opacity", 0.0)))))
+        self._show_start_opacity = 0.0
         opacity.setEndValue(target_opacity)
         opacity.setEasingCurve(QEasingCurve.Type.OutCubic)
         slide = QPropertyAnimation(self, b"pos", group)
