@@ -276,7 +276,6 @@ class MemeWidget(WidgetCard):
         self._fetch_task = None
         self._cache_path = self._get_cache_path()
         self._cached_date = ""
-        self._load_daily()
         self.day_timer = QTimer(self)
         self.day_timer.timeout.connect(self._check_new_day)
         self.day_timer.start(60_000)
@@ -427,6 +426,9 @@ class LauncherWidgets(QWidget):
             card = self._cards[key]
             enabled = bool(self.config.get(f"widgets.{key}_enabled", True))
             card.setVisible(enabled)
+            timer = getattr(card, "timer", None)
+            if timer is not None:
+                timer.start(1000 if key == "clock" else 2000) if enabled else timer.stop()
             if enabled:
                 self._left_layout.addWidget(card)
                 card.reveal(False)
@@ -435,6 +437,9 @@ class LauncherWidgets(QWidget):
             card = self._cards[key]
             enabled = bool(self.config.get(f"widgets.{key}_enabled", True))
             card.setVisible(enabled)
+            timer = getattr(card, "timer", None) if key == "weather" else getattr(card, "day_timer", None)
+            if timer is not None:
+                timer.start(30 * 60 * 1000 if key == "weather" else 60_000) if enabled else timer.stop()
             if enabled:
                 self._right_layout.addWidget(card)
                 card.reveal(False)
