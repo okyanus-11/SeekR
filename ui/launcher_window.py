@@ -463,7 +463,7 @@ class LauncherWindow(QWidget):
         query = self.search_input.text()
         self._search_generation += 1
         request = (self._search_generation, query)
-        if self._active_searches >= 2:
+        if self._active_searches >= 1:
             # Keep only the latest pending request; never build a backlog of
             # obsolete keystrokes behind slow providers.
             self._queued_search = request
