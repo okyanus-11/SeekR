@@ -4,6 +4,25 @@ All notable changes to SeekR are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 semantic versioning.
 
+## [1.1.0] - 2026-11-18
+
+### Added
+
+- Four launcher widgets around the Alt+Space results: local clock, CPU and memory usage, current weather, and a daily wholesome meme with an image preview.
+- A dedicated Settings → Widgets page with individual toggles and a city/town weather location field.
+- Daily meme caching and periodic weather refreshes; network work runs outside the UI thread.
+
+### Changed
+
+- Redesigned the launcher with two widget cards on each side of the central results list, a wider default layout, theme-aware cards, hover states and fade transitions.
+- Search scheduling can run two searches concurrently and keeps only the latest pending query; stale results are ignored.
+- Existing 1.0.x configurations are migrated to the new widget defaults while custom window dimensions are preserved.
+
+### Notes
+
+- Weather data is provided by Open-Meteo. The daily meme uses the Meme API wholesome-meme feed.
+- The clock and system usage widgets work locally; weather and meme widgets require an internet connection.
+
 ## [1.0.2] - 2026-11-17
 
 ### Changed
