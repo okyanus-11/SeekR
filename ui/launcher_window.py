@@ -128,7 +128,12 @@ class LauncherWindow(QWidget):
         # Search providers may query large SQLite indexes or rank hundreds of
         # candidates. Keep that work off Qt's GUI thread so typing stays fluid.
         self._search_pool = QThreadPool(self)
-        self._search_pool.setMaxThreadCount(2)
+        # Search is latency-sensitive and only the newest query matters. A
+        # single worker plus a replaceable pending request prevents rapid
+        # typing from building a queue of obsolete SQLite/fuzzy searches.
+        self._search_pool.setMaxThreadCount(1)
+        self._search_running = False
+        self._queued_search: tuple[int, str] | None = None
         self._search_generation = 0
         self._pending_execute_query: str | None = None
         # Keep Python QRunnable wrappers alive until their native pool tasks finish.
@@ -414,8 +419,16 @@ class LauncherWindow(QWidget):
     def _run_search(self) -> None:
         query = self.search_input.text()
         self._search_generation += 1
-        generation = self._search_generation
+        request = (self._search_generation, query)
+        if self._search_running:
+            # Replace, rather than append to, the pending request. Intermediate
+            # keystrokes are obsolete as soon as a newer query exists.
+            self._queued_search = request
+            return
+        self._start_search(*request)
 
+    def _start_search(self, generation: int, query: str) -> None:
+        self._search_running = True
         # Worker callbacks only emit Qt signals. The bound slots below belong
         # to this QWidget, so Qt queues delivery onto the GUI thread before
         # touching widgets. Calling a closure directly from QRunnable can run
@@ -426,11 +439,26 @@ class LauncherWindow(QWidget):
         self._search_workers.add(worker)
         self._search_pool.start(worker)
 
+    def _start_queued_search(self) -> bool:
+        """Start the newest pending query after the active worker completes."""
+        self._search_running = False
+        request = self._queued_search
+        self._queued_search = None
+        if request is None:
+            return False
+        generation, query = request
+        if generation != self._search_generation or query != self.search_input.text():
+            return False
+        self._start_search(generation, query)
+        return True
+
     @Slot(int, str, object, object)
     def _on_search_finished(
         self, generation: int, query: str, results: list[SearchResult], worker
     ) -> None:
         self._search_workers.discard(worker)
+        if self._start_queued_search():
+            return
         if generation != self._search_generation or query != self.search_input.text():
             return
         elapsed_ms = 0.0
@@ -444,6 +472,8 @@ class LauncherWindow(QWidget):
     @Slot(int, str, str, object)
     def _on_search_failed(self, generation: int, query: str, message: str, worker) -> None:
         self._search_workers.discard(worker)
+        if self._start_queued_search():
+            return
         if generation != self._search_generation or query != self.search_input.text():
             return
         log.error("Background search failed: %s", message)
