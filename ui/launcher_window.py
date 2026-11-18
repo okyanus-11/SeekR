@@ -44,6 +44,7 @@ from core.models import SearchResult
 from core.workers import Debouncer
 from ui import i18n
 from ui.components import ElidedLabel, label
+from ui.launcher_widgets import LauncherWidgets
 
 log = get_logger(__name__)
 
@@ -199,7 +200,19 @@ class LauncherWindow(QWidget):
         header_layout.addWidget(self.settings_button)
         root_layout.addWidget(header)
 
-        # Results ----------------------------------------------------------
+        # Main content: two compact widget rails frame the search results.
+        body = QWidget()
+        body_layout = QHBoxLayout(body)
+        body_layout.setContentsMargins(12, 2, 12, 2)
+        body_layout.setSpacing(12)
+
+        self.launcher_widgets = LauncherWidgets(self.config, self)
+        body_layout.addWidget(self.launcher_widgets.left_column, 0)
+
+        results_panel = QWidget()
+        results_layout = QVBoxLayout(results_panel)
+        results_layout.setContentsMargins(0, 0, 0, 0)
+        results_layout.setSpacing(0)
         self.results_list = QListWidget()
         self.results_list.setObjectName("ResultList")
         self.results_list.setFrameShape(QFrame.Shape.NoFrame)
@@ -214,7 +227,10 @@ class LauncherWindow(QWidget):
         self.results_list.itemClicked.connect(self._on_item_clicked)
         self.results_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.results_list.customContextMenuRequested.connect(self._show_context_menu)
-        root_layout.addWidget(self.results_list, 1)
+        results_layout.addWidget(self.results_list, 1)
+        body_layout.addWidget(results_panel, 1)
+        body_layout.addWidget(self.launcher_widgets.right_column, 0)
+        root_layout.addWidget(body, 1)
 
         # Footer -----------------------------------------------------------
         footer = QWidget()
@@ -279,8 +295,8 @@ class LauncherWindow(QWidget):
     def _apply_geometry(self) -> None:
         screen = self._screen()
         available = screen.availableGeometry() if screen else None
-        width = int(self.config.get("appearance.window_width", 780) or 780) + _MARGIN * 2
-        height = int(self.config.get("appearance.window_height", 500) or 500) + _MARGIN * 2
+        width = int(self.config.get("appearance.window_width", 1180) or 780) + _MARGIN * 2
+        height = int(self.config.get("appearance.window_height", 620) or 500) + _MARGIN * 2
         if available is not None:
             width = min(width, available.width() - 24)
             height = min(height, available.height() - 80)
@@ -320,6 +336,7 @@ class LauncherWindow(QWidget):
         self._force_windows_foreground()
         QTimer.singleShot(0, self._force_windows_foreground)
         self._run_search()
+        self.launcher_widgets.refresh_settings(animate=True)
         self._animate_show()
 
     def _force_windows_foreground(self) -> None:
