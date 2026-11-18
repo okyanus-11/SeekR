@@ -81,6 +81,11 @@ jobs:
           if ($metadata.ProductName -ne "SeekR" -or $metadata.ProductVersion -notlike "$version*") {
             throw "Unexpected installer executable metadata: ProductName=$($metadata.ProductName), ProductVersion=$($metadata.ProductVersion)"
           }
+          # Verify the portable one-file executable starts independently too.
+          $portableProcess = Start-Process -FilePath (Resolve-Path ".\release\SeekR.exe").Path -ArgumentList @("--hidden", "--no-hotkey") -PassThru
+          Start-Sleep -Seconds 8
+          if ($portableProcess.HasExited) { throw "Portable SeekR.exe exited during startup (code $($portableProcess.ExitCode))" }
+          Stop-Process -Id $portableProcess.Id -Force
       - name: Install Inno Setup
         run: choco install innosetup --yes --no-progress
       - name: Build installer
