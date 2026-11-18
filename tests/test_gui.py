@@ -595,3 +595,13 @@ def test_launcher_widget_coordinator_does_not_create_an_overlay(qapp, controller
     widgets.refresh_settings()
     assert widgets.clock.parentWidget() is widgets.left_column
     assert not widgets.clock.isHidden()
+
+
+def test_daily_meme_only_opens_safe_reddit_links():
+    from ui.launcher_widgets import MemeWidget
+
+    assert MemeWidget._safe_post_url("https://www.reddit.com/r/test/comments/123/") == "https://www.reddit.com/r/test/comments/123/"
+    assert MemeWidget._safe_post_url("https://redd.it/123") == "https://redd.it/123"
+    assert MemeWidget._safe_post_url("javascript:alert(1)") == ""
+    assert MemeWidget._safe_post_url("https://example.com/") == ""
+    assert MemeWidget._safe_post_url("https://[:::]/") == ""
