@@ -14,7 +14,7 @@ from PySide6.QtCore import (
     QEasingCurve, QObject, QPropertyAnimation, QRunnable, QThreadPool,
     QTimer, Qt, Signal, Slot,
 )
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QDesktopServices, QPixmap
 from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import (
     QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QProgressBar,
@@ -63,6 +63,11 @@ class _FetchTask(QRunnable):
                 self.signals.finished.emit(self.kind, data)
             elif self.kind == "meme":
                 data = self._get_json("https://meme-api.com/gimme/wholesomememes")
+                image_url = str(data.get("url", ""))
+                if image_url.startswith("https://"):
+                    request = urllib.request.Request(image_url, headers={"User-Agent": "SeekR/1.1.0"})
+                    with urllib.request.urlopen(request, timeout=8) as response:
+                        data["_image_bytes"] = response.read(1_500_000)
                 self.signals.finished.emit(self.kind, data)
         except Exception as exc:
             self.signals.failed.emit(self.kind, str(exc))
@@ -238,6 +243,12 @@ class MemeWidget(WidgetCard):
         self.title = QLabel("Today's internet moment")
         self.title.setObjectName("WidgetValue")
         self.title.setWordWrap(True)
+        self.preview = QLabel()
+        self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.preview.setFixedHeight(54)
+        self.preview.setMinimumWidth(150)
+        self.preview.setScaledContents(False)
+        self.content.addWidget(self.preview)
         self.subreddit = QLabel("A fresh meme, once per day")
         self.subreddit.setObjectName("WidgetSecondary")
         self.subreddit.setWordWrap(True)
@@ -296,6 +307,14 @@ class MemeWidget(WidgetCard):
             "subreddit": str(data.get("subreddit", "reddit"))[:60],
             "url": str(data.get("postLink", "")),
         }
+        image_bytes = data.get("_image_bytes")
+        if image_bytes:
+            image_path = self._cache_path.with_name("daily_meme_preview.jpg")
+            try:
+                image_path.write_bytes(image_bytes)
+                item["image_file"] = str(image_path)
+            except OSError:
+                pass
         self._cached_date = item["date"]
         self._show_meme(item)
         try:
@@ -313,6 +332,16 @@ class MemeWidget(WidgetCard):
             self.subreddit.setText("Could not load today's meme")
 
     def _show_meme(self, item):
+        image_path = Path(item.get("image_file", "")) if item.get("image_file") else None
+        if image_path and image_path.is_file():
+            pixmap = QPixmap(str(image_path))
+            if not pixmap.isNull():
+                self.preview.setPixmap(pixmap.scaled(168, 54, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+                self.preview.show()
+            else:
+                self.preview.hide()
+        else:
+            self.preview.hide()
         self.title.setText(item.get("title", "Today's meme"))
         self.subreddit.setText("r/" + item.get("subreddit", "reddit") + "  ·  Open meme ↗")
         self.setToolTip(item.get("url", ""))
@@ -340,7 +369,7 @@ class LauncherWidgets(QWidget):
         self._cards = {"clock": self.clock, "weather": self.weather, "system": self.system, "meme": self.meme}
         for card in self._cards.values():
             card.setMinimumHeight(126)
-            card.setMaximumHeight(150)
+            card.setMaximumHeight(164)
             card.setStyleSheet(
                 "QFrame#LauncherWidgetCard { background: rgba(255,255,255,0.025); border: 1px solid rgba(145,165,195,0.14); border-radius: 13px; } "
                 "QFrame#LauncherWidgetCard:hover { background: rgba(104,169,255,0.07); border: 1px solid rgba(104,169,255,0.38); } "
