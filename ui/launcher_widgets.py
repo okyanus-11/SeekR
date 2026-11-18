@@ -32,6 +32,7 @@ class _FetchSignals(QObject):
 class _FetchTask(QRunnable):
     def __init__(self, kind: str, location: str = ""):
         super().__init__()
+        self.setAutoDelete(False)
         self.kind = kind
         self.location = location
         self.signals = _FetchSignals()
@@ -183,6 +184,7 @@ class WeatherWidget(WidgetCard):
         self.content.addWidget(self.details)
         self._last_location = ""
         self._busy = False
+        self._fetch_task = None
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._refresh_periodic)
         self.timer.start(30 * 60 * 1000)
@@ -203,6 +205,7 @@ class WeatherWidget(WidgetCard):
         self._last_location = location
         self.value.setText("Loading…")
         task = _FetchTask("weather", location)
+        self._fetch_task = task
         task.signals.finished.connect(self.set_weather)
         task.signals.failed.connect(self.set_error)
         self.pool.start(task)
@@ -212,6 +215,7 @@ class WeatherWidget(WidgetCard):
         if kind != "weather":
             return
         self._busy = False
+        self._fetch_task = None
         if str(self.config.get("widgets.weather_location", "") or "").strip() != self._last_location:
             self._last_location = ""
             self.refresh()
@@ -228,6 +232,7 @@ class WeatherWidget(WidgetCard):
     def set_error(self, kind, message):
         if kind == "weather":
             self._busy = False
+            self._fetch_task = None
             if str(self.config.get("widgets.weather_location", "") or "").strip() != self._last_location:
                 self._last_location = ""
                 self.refresh()
@@ -243,11 +248,13 @@ class MemeWidget(WidgetCard):
         self.title = QLabel("Today's internet moment")
         self.title.setObjectName("WidgetValue")
         self.title.setWordWrap(True)
+        self.title.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.preview = QLabel()
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.preview.setFixedHeight(54)
         self.preview.setMinimumWidth(150)
         self.preview.setScaledContents(False)
+        self.preview.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.content.addWidget(self.preview)
         self.subreddit = QLabel("A fresh meme, once per day")
         self.subreddit.setObjectName("WidgetSecondary")
@@ -255,6 +262,7 @@ class MemeWidget(WidgetCard):
         self.content.addWidget(self.title)
         self.content.addWidget(self.subreddit)
         self._busy = False
+        self._fetch_task = None
         self._cache_path = self._get_cache_path()
         self._cached_date = ""
         self._load_daily()
@@ -292,6 +300,7 @@ class MemeWidget(WidgetCard):
         self._busy = True
         self.title.setText("Finding today's meme…")
         task = _FetchTask("meme")
+        self._fetch_task = task
         task.signals.finished.connect(self.set_meme)
         task.signals.failed.connect(self.set_error)
         self.pool.start(task)
@@ -301,6 +310,7 @@ class MemeWidget(WidgetCard):
         if kind != "meme":
             return
         self._busy = False
+        self._fetch_task = None
         item = {
             "date": datetime.now().date().isoformat(),
             "title": str(data.get("title", "Today's meme"))[:180],
@@ -327,6 +337,7 @@ class MemeWidget(WidgetCard):
     def set_error(self, kind, message):
         if kind == "meme":
             self._busy = False
+            self._fetch_task = None
             self._cached_date = datetime.now().date().isoformat()
             self.title.setText("Meme unavailable")
             self.subreddit.setText("Could not load today's meme")
@@ -371,14 +382,14 @@ class LauncherWidgets(QWidget):
             card.setMinimumHeight(126)
             card.setMaximumHeight(164)
             card.setStyleSheet(
-                "QFrame#LauncherWidgetCard { background: rgba(255,255,255,0.025); border: 1px solid rgba(145,165,195,0.14); border-radius: 13px; } "
-                "QFrame#LauncherWidgetCard:hover { background: rgba(104,169,255,0.07); border: 1px solid rgba(104,169,255,0.38); } "
-                "QLabel#WidgetEyebrow { color: #8c9bb2; font-size: 9px; font-weight: 700; letter-spacing: 1px; } "
-                "QLabel#WidgetClock { font-size: 25px; font-weight: 650; color: #eef4ff; } "
-                "QLabel#WidgetValue { font-size: 19px; font-weight: 650; color: #eef4ff; } "
-                "QLabel#WidgetSecondary { color: #9aa9bd; font-size: 10px; } "
-                "QProgressBar#WidgetProgress { background: rgba(130,150,180,0.15); border: 0; border-radius: 2px; } "
-                "QProgressBar#WidgetProgress::chunk { background: #68a9ff; border-radius: 2px; }"
+                "QFrame#LauncherWidgetCard { background: palette(window); border: 1px solid palette(mid); border-radius: 13px; } "
+                "QFrame#LauncherWidgetCard:hover { border: 1px solid palette(highlight); } "
+                "QLabel#WidgetEyebrow { color: palette(mid); font-size: 9px; font-weight: 700; letter-spacing: 1px; } "
+                "QLabel#WidgetClock { font-size: 25px; font-weight: 650; color: palette(windowText); } "
+                "QLabel#WidgetValue { font-size: 19px; font-weight: 650; color: palette(windowText); } "
+                "QLabel#WidgetSecondary { color: palette(mid); font-size: 10px; } "
+                "QProgressBar#WidgetProgress { background: palette(base); border: 0; border-radius: 2px; } "
+                "QProgressBar#WidgetProgress::chunk { background: palette(highlight); border-radius: 2px; }"
             )
         self.left_column = QWidget(self)
         self.right_column = QWidget(self)
