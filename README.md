@@ -4,7 +4,7 @@
 
 SeekR is a native desktop application built with Python and PySide6. It searches your applications and files, evaluates expressions, opens websites, runs safe commands, previews documents, manages clipboard history and notes, and bundles a set of everyday developer utilities — all from one floating window.
 
-**Current version:** 1.1.0 · **License:** MIT
+**Current version:** 1.1.1 · **License:** MIT
 
 
 <p align="center">
@@ -15,7 +15,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 > **Windows 10/11:** Click the installer above to install the app. No Python setup or ZIP extraction required.
 
 
-> Plugins are **not** part of 1.1.0. The Settings → Plugins page shows the planned marketplace as *Coming Soon*; no plugin code is loaded or executed.
+> Plugins are **not** part of 1.1.1. The Settings → Plugins page shows the planned marketplace as *Coming Soon*; no plugin code is loaded or executed.
 
 ---
 
