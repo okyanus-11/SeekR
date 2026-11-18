@@ -81,7 +81,7 @@ jobs:
             throw "Unexpected installer executable metadata: ProductName=$($metadata.ProductName), ProductVersion=$($metadata.ProductVersion)"
           }
           # Verify the portable one-file executable starts independently too.
-          $portableProcess = Start-Process -FilePath (Resolve-Path ".\release\SeekR.exe").Path -ArgumentList @("--hidden", "--no-hotkey") -PassThru
+          $portableProcess = Start-Process -FilePath (Resolve-Path ".\release\SeekR.exe").Path -ArgumentList @("--hidden", "--no-hotkey", "--allow-multiple") -PassThru
           Start-Sleep -Seconds 8
           if ($portableProcess.HasExited) { throw "Portable SeekR.exe exited during startup (code $($portableProcess.ExitCode))" }
           Stop-Process -Id $portableProcess.Id -Force
