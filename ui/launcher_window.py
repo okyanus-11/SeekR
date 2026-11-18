@@ -488,7 +488,7 @@ class LauncherWindow(QWidget):
         generation, query = request
         if generation != self._search_generation or query != self.search_input.text():
             return False
-        if self._active_searches < 2:
+        if self._active_searches < self._search_pool.maxThreadCount():
             self._start_search(generation, query)
             return True
         self._queued_search = request
