@@ -141,7 +141,7 @@ No screenshots are included. The Qt full-screen capture and Windows Snipping Too
 
 ## Installation
 
-Download the [latest Windows setup installer](https://github.com/okyanus-11/SeekR/releases/latest) for a guided per-user installation (no Python required). Main-branch installers are available from GitHub Actions artifacts; tagged releases include the setup executable, standalone executable and SHA-256 checksums. See [docs/INSTALLATION.md](docs/INSTALLATION.md) for installation, build, upgrade, and user-data details.
+Download the [latest Windows setup installer](https://github.com/okyanus-11/SeekR/releases/latest) for a guided per-user installation (no Python required). The release also provides a portable `SeekR.exe` and `SHA256SUMS.txt`; main-branch builds are available as GitHub Actions artifacts. See [docs/INSTALLATION.md](docs/INSTALLATION.md) for installation, build, upgrade, and user-data details.
 
 ### From a local build
 
