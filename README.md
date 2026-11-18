@@ -297,12 +297,12 @@ Python. Use `--onedir` for a troubleshooting folder build at
 window and shows startup errors. On Linux the same command produces `dist/SeekR`
 and `dist/SeekR/SeekR`, which are not Windows executables.
 
-> Windows 11 build 26300: the automated suite passed (169 passed, 2 skipped at
-> Python 3.12), the 62.8 MiB `dist\SeekR.exe` was built and its metadata
-> checked, a hidden frozen-app startup smoke test passed, and the installer
-> compiled with Inno Setup 6.7.3. Interactive Windows shell/GUI behavior and
-> clean-profile installation remain unverified. See
-> [Windows compatibility](#windows-compatibility).
+> The [latest release workflow](https://github.com/okyanus-11/SeekR/actions) runs the test suite on
+> Windows Latest, Windows Server 2022 and Ubuntu, then builds both Windows
+> distributions. It also opens the packaged portable and installed executables
+> to verify that all four enabled launcher widgets are visible, and performs
+> installer, startup and uninstallation smoke tests. These automated checks do
+> not replace the [manual Windows GUI checklist](docs/WINDOWS_MANUAL_TEST.md).
 
 ---
 
