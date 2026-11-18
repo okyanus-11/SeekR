@@ -318,8 +318,8 @@ def test_settings_window_pages(qapp, controller):
     qapp.processEvents()
     window = controller._settings_window
     assert window is not None
-    assert len(window.pages) == 13
-    for key in ("general", "appearance", "search", "applications", "files", "web", "calculator", "commands", "clipboard", "privacy", "advanced", "plugins", "about"):
+    assert len(window.pages) == 14
+    for key in ("general", "appearance", "search", "applications", "files", "web", "calculator", "commands", "clipboard", "privacy", "advanced", "widgets", "plugins", "about"):
         assert key in window.pages
 
     window.open_page("plugins")
