@@ -110,3 +110,16 @@ def test_saved_file_is_valid_json(config, tmp_path):
     config.set("appearance.accent", "#112233")
     payload = json.loads(config.path.read_text(encoding="utf-8"))
     assert payload["appearance"]["accent"] == "#112233"
+
+
+
+def test_malformed_schema_version_recovers_as_legacy_config(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text(
+        json.dumps({"schema_version": "not-a-number", "appearance": {"window_width": 780, "window_height": 500}}),
+        encoding="utf-8",
+    )
+    config = ConfigManager(path)
+    assert config.get("schema_version") == 2
+    assert config.get("appearance.window_width") == 1180
+    assert config.get("appearance.window_height") == 620
