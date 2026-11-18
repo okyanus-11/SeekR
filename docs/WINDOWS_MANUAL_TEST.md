@@ -137,7 +137,7 @@ earlier SeekR build is available and record it as N/A.
 
 | ID | Test | Steps | Expected | Result | Notes |
 |---|---|---|---|---|---|
-| S01 | Settings pages | Open Settings and visit every page: General, Appearance, Search, Applications, Files, Web, Calculator, Commands, Clipboard, Privacy, Advanced, Plugins, About. | Every page renders without errors; Plugins clearly says Coming Soon with no fake install action. | | |
+| S01 | Settings pages | Open Settings and visit every page: General, Appearance, Widgets, Search, Applications, Files, Web, Calculator, Commands, Clipboard, Privacy, Advanced, Plugins, About. | Every page renders without errors; Plugins clearly says Coming Soon with no fake install action. | | |
 | S02 | Persistence | Change a visible setting (for example result count or font size), close and restart SeekR. | Setting is preserved. | | |
 | S03 | Hotkey settings | Change the hotkey and restart. | New hotkey persists and registers. | | |
 | S04 | Screenshot folder, full-screen and region capture | Settings → Files → Screenshots: choose a folder, capture the full desktop, then use Capture region and drag a selection across one display. Repeat with all connected displays at mixed scaling if available. | Both full-screen and region captures save PNGs directly in the configured folder. Check clipping, scaling, selection coordinates and monitor offsets. The Snipping Tool is an optional external alternative. | | |
@@ -157,6 +157,12 @@ earlier SeekR build is available and record it as N/A.
 | S18 | Bookmarks | Open Tools → Bookmarks with at least one browser profile available. | Readable bookmarks appear; locked/unreadable profiles are skipped with a message. | | |
 | S19 | Quick Connect | Add/validate an SSH profile; never enter a password into SeekR. | Profile validation and launch behaviour are clear; no password is stored. | | |
 | S20 | Quick actions | Create one quick action for a folder, one website and one application with arguments; run each. | Each action performs exactly what it says. | | |
+| S21 | Default widget layout | Reset settings to defaults, open the launcher and inspect both sides of the results list. | Clock and System usage appear in the left rail; Weather and Daily meme appear in the right rail. All four cards have visible content and do not cover the search results. | | |
+| S22 | Widget toggles | Settings → Widgets: disable and re-enable each card individually. | Only the selected card hides/shows; the remaining cards stay visible and the rails collapse when both cards on a side are disabled. | | |
+| S23 | Widget persistence | Change the four widget toggles, close and restart SeekR. | Each enabled/disabled choice persists and the layout matches the saved settings. | | |
+| S24 | Weather lookup | Set a valid city, wait for the lookup, then try an invalid city. | Valid conditions and the Open-Meteo attribution appear; invalid locations show an honest unavailable message without hiding the card or freezing the launcher. | | |
+| S25 | Weather offline | Disconnect the network with Weather enabled, then reopen the launcher. | The Weather card remains visible and reports unavailable; the clock and system usage continue updating. | | |
+| S26 | Daily meme | Open the launcher online, then test with network unavailable and after restarting on the same day. | Meme title/preview/link appear when the service responds; failures leave the card visible with an unavailable state; a valid daily result is cached. | | |
 
 ### Tray, startup and shutdown
 
