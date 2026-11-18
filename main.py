@@ -7,7 +7,7 @@ import os
 import sys
 from typing import Optional
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QApplication
 
 from core.application import SeekRApplication
@@ -30,6 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument("--no-hotkey", action="store_true", help="Do not register the global hotkey")
     parser.add_argument("--hidden", action="store_true", help="Start without showing the launcher")
+    parser.add_argument("--verify-ui", action="store_true", help="Show the launcher, verify all enabled widgets render, then exit")
     parser.add_argument("--settings", action="store_true", help="Open the settings window on start")
     parser.add_argument("--tools", action="store_true", help="Open the tools window on start")
     parser.add_argument("--reset-config", action="store_true", help="Reset the configuration to defaults")
@@ -105,13 +106,45 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     start_minimized = bool(config.get("general.start_minimized", False))
     controller.start(
-        show_window=not args.hidden and not start_minimized,
+        show_window=not args.hidden and not start_minimized and not args.verify_ui,
         register_hotkey=not args.no_hotkey,
     )
     if args.settings:
         controller.open_settings("general")
     if args.tools:
         controller.open_tools()
+
+    if args.verify_ui:
+        # Used by CI against the packaged portable and installed executables.
+        # This exercises the real application entry point, Qt layout, widget
+        # ownership and visible geometry rather than merely importing modules.
+        def verify_launcher_widgets() -> None:
+            launcher = controller.launcher
+            widgets = launcher.launcher_widgets if launcher is not None else None
+            failures = []
+            if launcher is None or not launcher.isVisible():
+                failures.append("launcher window is not visible")
+            if widgets is None:
+                failures.append("launcher widget coordinator is missing")
+            else:
+                if not widgets.left_column.isVisible():
+                    failures.append("left widget rail is not visible")
+                if not widgets.right_column.isVisible():
+                    failures.append("right widget rail is not visible")
+                for name, card in widgets._cards.items():
+                    if not card.isVisible():
+                        failures.append(f"{name} widget is not visible")
+                    if card.width() <= 0 or card.height() <= 0:
+                        failures.append(f"{name} widget has empty geometry")
+            if failures:
+                log.error("UI_SMOKE_FAIL: %s", "; ".join(failures))
+                app.exit(3)
+            else:
+                log.info("UI_SMOKE_OK: all four launcher widgets are visible with non-empty geometry")
+                app.exit(0)
+
+        controller.show_launcher()
+        QTimer.singleShot(1200, verify_launcher_widgets)
 
     exit_code = app.exec()
     if instance is not None:
