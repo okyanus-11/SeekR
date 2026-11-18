@@ -500,17 +500,18 @@ class ConfigManager:
         if save:
             self.save()
 
-    def reset(self, save: bool = True) -> None:
+    def reset(self, save: bool = True) -> bool:
+        """Restore defaults and report whether they were persisted successfully."""
         with self._lock:
             self._data = copy.deepcopy(self._defaults)
             self._dirty = True
-            if save:
-                self.save()
+            saved = self.save() if save else True
             for listener in list(self._listeners):
                 try:
                     listener("*", None)
                 except Exception:
                     log.exception("Configuration listener failed during reset")
+            return saved
 
     def subscribe(self, listener: Callable[[str, Any], None]) -> None:
         if listener not in self._listeners:
