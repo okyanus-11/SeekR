@@ -179,8 +179,12 @@ class WeatherWidget(WidgetCard):
         self._last_location = ""
         self._busy = False
         self.timer = QTimer(self)
-        self.timer.timeout.connect(self.refresh)
+        self.timer.timeout.connect(self._refresh_periodic)
         self.timer.start(30 * 60 * 1000)
+
+    def _refresh_periodic(self):
+        self._last_location = ""
+        self.refresh()
 
     def refresh(self):
         location = str(self.config.get("widgets.weather_location", "") or "").strip()
@@ -203,6 +207,10 @@ class WeatherWidget(WidgetCard):
         if kind != "weather":
             return
         self._busy = False
+        if str(self.config.get("widgets.weather_location", "") or "").strip() != self._last_location:
+            self._last_location = ""
+            self.refresh()
+            return
         current = data.get("current", {})
         self.value.setText(f"{current.get('temperature_2m', '—')}°")
         self.details.setText(
@@ -215,6 +223,10 @@ class WeatherWidget(WidgetCard):
     def set_error(self, kind, message):
         if kind == "weather":
             self._busy = False
+            if str(self.config.get("widgets.weather_location", "") or "").strip() != self._last_location:
+                self._last_location = ""
+                self.refresh()
+                return
             self.value.setText("Weather unavailable")
             self.details.setText(message[:90])
 
@@ -296,6 +308,7 @@ class MemeWidget(WidgetCard):
     def set_error(self, kind, message):
         if kind == "meme":
             self._busy = False
+            self._cached_date = datetime.now().date().isoformat()
             self.title.setText("Meme unavailable")
             self.subreddit.setText("Could not load today's meme")
 
