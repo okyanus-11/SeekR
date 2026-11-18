@@ -17,7 +17,7 @@ All four widgets are enabled by default and can be individually enabled or disab
 
 ### Search responsiveness
 - Search execution remains off the GUI thread.
-- The scheduler now permits up to two concurrent searches and retains only the newest pending query.
+- The scheduler runs one search at a time and retains only the newest pending query, avoiding redundant intermediate work.
 - Outdated results are ignored, preventing old searches from replacing the current query.
 
 ### Settings and configuration
