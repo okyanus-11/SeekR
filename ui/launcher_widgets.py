@@ -6,6 +6,7 @@ import json
 import logging
 import urllib.parse
 import urllib.request
+from urllib.parse import urlparse
 from datetime import datetime
 from pathlib import Path
 
@@ -257,6 +258,7 @@ class MemeWidget(WidgetCard):
         self.pool = pool
         self.title = QLabel("Today's internet moment")
         self.title.setObjectName("WidgetValue")
+        self.title.setTextFormat(Qt.TextFormat.PlainText)
         self.title.setWordWrap(True)
         self.title.setMaximumHeight(34)
         self.title.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -269,6 +271,7 @@ class MemeWidget(WidgetCard):
         self.content.addWidget(self.preview)
         self.subreddit = QLabel("A fresh meme, once per day")
         self.subreddit.setObjectName("WidgetSecondary")
+        self.subreddit.setTextFormat(Qt.TextFormat.PlainText)
         self.subreddit.setWordWrap(True)
         self.subreddit.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.content.addWidget(self.title)
@@ -296,7 +299,7 @@ class MemeWidget(WidgetCard):
         today = datetime.now().date().isoformat()
         try:
             cached = json.loads(self._cache_path.read_text(encoding="utf-8"))
-            if cached.get("date") == today and cached.get("title"):
+            if isinstance(cached, dict) and cached.get("date") == today and cached.get("title"):
                 self._cached_date = today
                 self._show_meme(cached)
                 return
@@ -333,7 +336,7 @@ class MemeWidget(WidgetCard):
             "date": datetime.now().date().isoformat(),
             "title": str(data.get("title", "Today's meme"))[:180],
             "subreddit": str(data.get("subreddit", "reddit"))[:60],
-            "url": str(data.get("postLink", "")),
+            "url": self._safe_post_url(data.get("postLink", "")),
         }
         image_bytes = data.get("_image_bytes")
         if image_bytes:
@@ -363,8 +366,27 @@ class MemeWidget(WidgetCard):
             self.title.setText("Meme unavailable")
             self.subreddit.setText("Could not load today's meme")
 
+    @staticmethod
+    def _safe_post_url(value) -> str:
+        url = str(value or "")
+        parsed = urlparse(url)
+        if parsed.scheme == "https" and parsed.hostname in {
+            "reddit.com", "www.reddit.com", "old.reddit.com", "redd.it"
+        }:
+            return url
+        return ""
+
     def _show_meme(self, item):
-        image_path = Path(item.get("image_file", "")) if item.get("image_file") else None
+        image_path = None
+        image_file = item.get("image_file")
+        if isinstance(image_file, str) and image_file:
+            try:
+                candidate = Path(image_file).resolve()
+                cache_dir = self._cache_path.parent.resolve()
+                if candidate.parent == cache_dir:
+                    image_path = candidate
+            except (OSError, RuntimeError):
+                image_path = None
         if image_path and image_path.is_file():
             pixmap = QPixmap(str(image_path))
             if not pixmap.isNull():
