@@ -136,6 +136,14 @@ def main(argv: Optional[list[str]] = None) -> int:
                         failures.append(f"{name} widget is not visible")
                     if card.width() <= 0 or card.height() <= 0:
                         failures.append(f"{name} widget has empty geometry")
+                    else:
+                        # QWidget visibility/geometry alone does not prove that
+                        # the packaged Qt widget can actually paint. Capture
+                        # each card after the window is mapped and reject empty
+                        # snapshots as a stronger rendering smoke test.
+                        snapshot = card.grab()
+                        if snapshot.isNull() or snapshot.width() <= 0 or snapshot.height() <= 0:
+                            failures.append(f"{name} widget produced an empty render snapshot")
             if failures:
                 log.error("UI_SMOKE_FAIL: %s", "; ".join(failures))
                 app.exit(3)
