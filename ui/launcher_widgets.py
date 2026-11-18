@@ -62,7 +62,7 @@ class _FetchTask(QRunnable):
                 data["place_name"] = ", ".join(filter(None, [place.get("name"), place.get("country")]))
                 self.signals.finished.emit(self.kind, data)
             elif self.kind == "meme":
-                data = self._get_json("https://meme-api.com/gimme")
+                data = self._get_json("https://meme-api.com/gimme/wholesomememes")
                 self.signals.finished.emit(self.kind, data)
         except Exception as exc:
             self.signals.failed.emit(self.kind, str(exc))
@@ -233,7 +233,11 @@ class MemeWidget(WidgetCard):
         self.content.addWidget(self.subreddit)
         self._busy = False
         self._cache_path = self._get_cache_path()
+        self._cached_date = ""
         self._load_daily()
+        self.day_timer = QTimer(self)
+        self.day_timer.timeout.connect(self._check_new_day)
+        self.day_timer.start(60_000)
 
     @staticmethod
     def _get_cache_path() -> Path:
@@ -248,11 +252,16 @@ class MemeWidget(WidgetCard):
         try:
             cached = json.loads(self._cache_path.read_text(encoding="utf-8"))
             if cached.get("date") == today and cached.get("title"):
+                self._cached_date = today
                 self._show_meme(cached)
                 return
         except (OSError, ValueError, TypeError):
             pass
         self.refresh()
+
+    def _check_new_day(self):
+        if self._cached_date != datetime.now().date().isoformat():
+            self._load_daily()
 
     def refresh(self):
         if self._busy:
@@ -275,6 +284,7 @@ class MemeWidget(WidgetCard):
             "subreddit": str(data.get("subreddit", "reddit"))[:60],
             "url": str(data.get("postLink", "")),
         }
+        self._cached_date = item["date"]
         self._show_meme(item)
         try:
             self._cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -320,6 +330,7 @@ class LauncherWidgets(QWidget):
             card.setMaximumHeight(150)
             card.setStyleSheet(
                 "QFrame#LauncherWidgetCard { background: rgba(255,255,255,0.025); border: 1px solid rgba(145,165,195,0.14); border-radius: 13px; } "
+                "QFrame#LauncherWidgetCard:hover { background: rgba(104,169,255,0.07); border: 1px solid rgba(104,169,255,0.38); } "
                 "QLabel#WidgetEyebrow { color: #8c9bb2; font-size: 9px; font-weight: 700; letter-spacing: 1px; } "
                 "QLabel#WidgetClock { font-size: 25px; font-weight: 650; color: #eef4ff; } "
                 "QLabel#WidgetValue { font-size: 19px; font-weight: 650; color: #eef4ff; } "
