@@ -270,6 +270,7 @@ class MemeWidget(WidgetCard):
         self.subreddit = QLabel("A fresh meme, once per day")
         self.subreddit.setObjectName("WidgetSecondary")
         self.subreddit.setWordWrap(True)
+        self.subreddit.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.content.addWidget(self.title)
         self.content.addWidget(self.subreddit)
         self._busy = False
@@ -331,6 +332,7 @@ class MemeWidget(WidgetCard):
         if image_bytes:
             image_path = self._cache_path.with_name("daily_meme_preview.jpg")
             try:
+                image_path.parent.mkdir(parents=True, exist_ok=True)
                 image_path.write_bytes(image_bytes)
                 item["image_file"] = str(image_path)
             except OSError:
