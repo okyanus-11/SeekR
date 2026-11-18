@@ -588,10 +588,10 @@ def test_launcher_widget_coordinator_does_not_create_an_overlay(qapp, controller
 
     controller.config.set("widgets.clock_enabled", False)
     widgets.refresh_settings()
-    assert not widgets.clock.isVisible()
+    assert widgets.clock.isHidden()
     assert widgets.clock.parentWidget() is launcher
 
     controller.config.set("widgets.clock_enabled", True)
     widgets.refresh_settings()
     assert widgets.clock.parentWidget() is widgets.left_column
-    assert widgets.clock.isVisible()
+    assert not widgets.clock.isHidden()
