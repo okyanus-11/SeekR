@@ -403,11 +403,12 @@ class ConfigManager:
                     old_schema_version = int(parsed.get("schema_version", 1) or 1)
                 except (TypeError, ValueError):
                     old_schema_version = 1
-                old_appearance = parsed.get("appearance", {})
-                if isinstance(old_appearance, dict) and old_schema_version < 2:
-                    if old_appearance.get("window_width") == 780:
+                if old_schema_version < 2:
+                    # Compare the sanitised values so legacy numeric strings
+                    # receive the same default-size migration as JSON numbers.
+                    if self._data["appearance"]["window_width"] == 780:
                         self._data["appearance"]["window_width"] = 1180
-                    if old_appearance.get("window_height") == 500:
+                    if self._data["appearance"]["window_height"] == 500:
                         self._data["appearance"]["window_height"] = 620
             self._data["schema_version"] = CONFIG_SCHEMA_VERSION
             privacy = parsed.get("privacy") if isinstance(parsed, dict) else None
