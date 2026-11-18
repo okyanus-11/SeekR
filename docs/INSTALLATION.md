@@ -14,7 +14,7 @@ configuration, SQLite database, notes, and clipboard history under
 `%APPDATA%\SeekR`; remove that profile separately only if you intend to delete
 all SeekR data.
 
-Download the current installer from the [latest SeekR GitHub Release](https://github.com/okyanus-11/SeekR/releases/latest). Main-branch builds are also uploaded as 30-day GitHub Actions artifacts. A version tag (`v*`) or a manual workflow run with a release tag publishes the installer, standalone executable and SHA-256 checksums to GitHub Releases. The installer is unsigned, so Windows may display an unfamiliar-app SmartScreen warning.
+Download the portable `SeekR.exe`, setup installer, and `SHA256SUMS.txt` from the [latest SeekR GitHub Release](https://github.com/okyanus-11/SeekR/releases/latest). The portable executable runs without installation; the setup installer provides a per-user installation and uninstaller. Main-branch builds are also uploaded as 30-day GitHub Actions artifacts. A version tag (`v*`) publishes both executables and their SHA-256 checksums to GitHub Releases. The installer and portable executable are unsigned, so Windows may display an unfamiliar-app SmartScreen warning.
 
 ### Upgrading
 
@@ -52,11 +52,13 @@ python -m pip install -r requirements-dev.txt
 python build.py
 ```
 
-The standalone executable is written to `dist\SeekR.exe`. To build an onedir
-folder for diagnostics, run `python build.py --onedir`. To retain a console
-for troubleshooting, add `--console`. GitHub Actions builds the standalone
-executable and Inno Setup installer, then publishes them as workflow artifacts;
-it does not create a GitHub Release automatically.
+The standalone executable is written to `dist\SeekR.exe`. To build the onedir
+folder required by the installer, run `python build.py --onedir`. To retain a
+console for troubleshooting, add `--console`. GitHub Actions builds both the
+portable executable and the onedir installer payload, validates the installer
+with an install/start/uninstall smoke test, and publishes the executable,
+installer, and SHA-256 manifest as workflow artifacts. Tag-triggered builds
+also attach those files to the matching GitHub Release.
 
 See [the Windows manual test checklist](WINDOWS_MANUAL_TEST.md) before
 describing native shell integration as verified.
