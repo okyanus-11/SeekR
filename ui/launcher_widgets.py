@@ -299,7 +299,12 @@ class MemeWidget(WidgetCard):
         today = datetime.now().date().isoformat()
         try:
             cached = json.loads(self._cache_path.read_text(encoding="utf-8"))
-            if isinstance(cached, dict) and cached.get("date") == today and cached.get("title"):
+            if (
+                isinstance(cached, dict)
+                and cached.get("date") == today
+                and isinstance(cached.get("title"), str)
+                and cached.get("title")
+            ):
                 self._cached_date = today
                 self._show_meme(cached)
                 return
@@ -369,7 +374,10 @@ class MemeWidget(WidgetCard):
     @staticmethod
     def _safe_post_url(value) -> str:
         url = str(value or "")
-        parsed = urlparse(url)
+        try:
+            parsed = urlparse(url)
+        except ValueError:
+            return ""
         if parsed.scheme == "https" and parsed.hostname in {
             "reddit.com", "www.reddit.com", "old.reddit.com", "redd.it"
         }:
@@ -396,11 +404,16 @@ class MemeWidget(WidgetCard):
                 self.preview.hide()
         else:
             self.preview.hide()
-        self.title.setText(item.get("title", "Today's meme"))
-        self.subreddit.setText("r/" + item.get("subreddit", "reddit") + "  ·  Open meme ↗")
-        self.setToolTip(item.get("url", ""))
-        self.setCursor(Qt.CursorShape.PointingHandCursor if item.get("url") else Qt.CursorShape.ArrowCursor)
-        self._meme_url = item.get("url", "")
+        title = item.get("title")
+        subreddit = item.get("subreddit")
+        self.title.setText(title[:180] if isinstance(title, str) and title else "Today's meme")
+        subreddit = subreddit[:60] if isinstance(subreddit, str) and subreddit else "reddit"
+        self.subreddit.setText("r/" + subreddit + "  ·  Open meme ↗")
+        self._meme_url = self._safe_post_url(item.get("url", ""))
+        self.setToolTip(self._meme_url)
+        self.setCursor(
+            Qt.CursorShape.PointingHandCursor if self._meme_url else Qt.CursorShape.ArrowCursor
+        )
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton and getattr(self, "_meme_url", ""):
