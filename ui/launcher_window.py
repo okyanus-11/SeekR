@@ -131,14 +131,12 @@ class LauncherWindow(QWidget):
         # Search providers may query large SQLite indexes or rank hundreds of
         # candidates. Keep that work off Qt's GUI thread so typing stays fluid.
         self._search_pool = QThreadPool(self)
-        # Search is latency-sensitive and only the newest query matters. A
-        # single worker plus a replaceable pending request prevents rapid
-        # typing from building a queue of obsolete SQLite/fuzzy searches.
-        # Two workers let the newest keystroke start immediately even if an
-        # older provider query is still waiting on SQLite or the filesystem.
+        # Search is latency-sensitive and only the newest query matters.
+        # A single worker plus one replaceable pending request prevents rapid
+        # typing from launching intermediate searches that are already stale.
         # Results are generation-checked before touching the UI, so stale work
         # can never replace the current query.
-        self._search_pool.setMaxThreadCount(2)
+        self._search_pool.setMaxThreadCount(1)
         self._active_searches = 0
         self._queued_search: tuple[int, str] | None = None
         self._search_generation = 0
