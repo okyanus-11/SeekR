@@ -193,7 +193,10 @@ class WeatherWidget(WidgetCard):
         self._busy = True
         self._last_location = location
         self.value.setText("Loading…")
-        self.pool.start(_FetchTask("weather", location))
+        task = _FetchTask("weather", location)
+        task.signals.finished.connect(self.set_weather)
+        task.signals.failed.connect(self.set_error)
+        self.pool.start(task)
 
     @Slot(str, object)
     def set_weather(self, kind, data):
@@ -256,7 +259,10 @@ class MemeWidget(WidgetCard):
             return
         self._busy = True
         self.title.setText("Finding today's meme…")
-        self.pool.start(_FetchTask("meme"))
+        task = _FetchTask("meme")
+        task.signals.finished.connect(self.set_meme)
+        task.signals.failed.connect(self.set_error)
+        self.pool.start(task)
 
     @Slot(str, object)
     def set_meme(self, kind, data):
@@ -276,6 +282,13 @@ class MemeWidget(WidgetCard):
         except OSError:
             log.debug("Could not cache daily meme", exc_info=True)
 
+    @Slot(str, str)
+    def set_error(self, kind, message):
+        if kind == "meme":
+            self._busy = False
+            self.title.setText("Meme unavailable")
+            self.subreddit.setText("Could not load today's meme")
+
     def _show_meme(self, item):
         self.title.setText(item.get("title", "Today's meme"))
         self.subreddit.setText("r/" + item.get("subreddit", "reddit") + "  ·  Open meme ↗")
@@ -290,77 +303,77 @@ class MemeWidget(WidgetCard):
 
 
 class LauncherWidgets(QWidget):
-    """Owns the four optional widgets and their background refresh tasks."""
+    """Owns the four optional widgets, split into two side rails."""
 
     def __init__(self, config, parent=None):
         super().__init__(parent)
         self.config = config
         self.pool = QThreadPool(self)
         self.pool.setMaxThreadCount(2)
-        self.weather = WeatherWidget(config, self.pool, self)
-        self.meme = MemeWidget(self.pool, self)
-        self.weather_widget = self.weather
-        self.meme_widget = self.meme
         self.clock = ClockWidget(self)
         self.system = SystemWidget(self)
-        self.weather.eyebrow.setText("WEATHER")
-        self.meme.eyebrow.setText("DAILY MEME")
-        self.clock.eyebrow.setText("CLOCK")
-        self.system.eyebrow.setText("SYSTEM USAGE")
-        self.pool_task_signals = []
-        # Worker tasks use a shared pool. Connect signals through a relay by
-        # intercepting task creation, keeping all QWidget updates on the GUI thread.
-        self._original_start = self.pool.start
-        self.pool.start = self._start_task
-        self._cards = {
-            "clock": self.clock, "weather": self.weather,
-            "system": self.system, "meme": self.meme,
-        }
+        self.weather = WeatherWidget(config, self.pool, self)
+        self.meme = MemeWidget(self.pool, self)
+        self._cards = {"clock": self.clock, "weather": self.weather, "system": self.system, "meme": self.meme}
         for card in self._cards.values():
             card.setMinimumHeight(126)
             card.setMaximumHeight(150)
-            card.setStyleSheet("QFrame#LauncherWidgetCard { background: rgba(255,255,255,0.025); border: 1px solid rgba(145,165,195,0.14); border-radius: 13px; } QLabel#WidgetEyebrow { color: #8c9bb2; font-size: 9px; font-weight: 700; letter-spacing: 1px; } QLabel#WidgetClock { font-size: 25px; font-weight: 650; color: #eef4ff; } QLabel#WidgetValue { font-size: 19px; font-weight: 650; color: #eef4ff; } QLabel#WidgetSecondary { color: #9aa9bd; font-size: 10px; } QProgressBar#WidgetProgress { background: rgba(130,150,180,0.15); border: 0; border-radius: 2px; } QProgressBar#WidgetProgress::chunk { background: #68a9ff; border-radius: 2px; }")
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 8, 0, 8)
-        layout.setSpacing(9)
-        self._layout = layout
+            card.setStyleSheet(
+                "QFrame#LauncherWidgetCard { background: rgba(255,255,255,0.025); border: 1px solid rgba(145,165,195,0.14); border-radius: 13px; } "
+                "QLabel#WidgetEyebrow { color: #8c9bb2; font-size: 9px; font-weight: 700; letter-spacing: 1px; } "
+                "QLabel#WidgetClock { font-size: 25px; font-weight: 650; color: #eef4ff; } "
+                "QLabel#WidgetValue { font-size: 19px; font-weight: 650; color: #eef4ff; } "
+                "QLabel#WidgetSecondary { color: #9aa9bd; font-size: 10px; } "
+                "QProgressBar#WidgetProgress { background: rgba(130,150,180,0.15); border: 0; border-radius: 2px; } "
+                "QProgressBar#WidgetProgress::chunk { background: #68a9ff; border-radius: 2px; }"
+            )
+        self.left_column = QWidget(self)
+        self.right_column = QWidget(self)
+        self.left_column.setFixedWidth(196)
+        self.right_column.setFixedWidth(196)
+        self._left_layout = QVBoxLayout(self.left_column)
+        self._right_layout = QVBoxLayout(self.right_column)
+        for layout in (self._left_layout, self._right_layout):
+            layout.setContentsMargins(0, 8, 0, 8)
+            layout.setSpacing(9)
         self._rebuild()
-        self.weather.refresh()
-
-    def _start_task(self, task):
-        task.signals.finished.connect(self._on_task_finished)
-        task.signals.failed.connect(self._on_task_failed)
-        self._original_start(task)
-
-    @Slot(str, object)
-    def _on_task_finished(self, kind, data):
-        if kind == "weather":
-            self.weather.set_weather(kind, data)
-        elif kind == "meme":
-            self.meme.set_meme(kind, data)
-
-    @Slot(str, str)
-    def _on_task_failed(self, kind, message):
-        if kind == "weather":
-            self.weather.set_error(kind, message)
-        elif kind == "meme":
-            self.meme._busy = False
-            self.meme.title.setText("Meme unavailable")
-            self.meme.subreddit.setText("Try again tomorrow")
+        if self.config.get("widgets.weather_enabled", True):
+            self.weather.refresh()
+        if self.config.get("widgets.meme_enabled", True):
+            self.meme._load_daily()
 
     def _rebuild(self):
-        while self._layout.count():
-            item = self._layout.takeAt(0)
-            if item.widget():
-                item.widget().setParent(None)
-        for key, card in self._cards.items():
+        for layout in (self._left_layout, self._right_layout):
+            while layout.count():
+                item = layout.takeAt(0)
+                if item.widget():
+                    item.widget().setParent(None)
+        for key in ("clock", "system"):
+            card = self._cards[key]
             enabled = bool(self.config.get(f"widgets.{key}_enabled", True))
             card.setVisible(enabled)
             if enabled:
-                self._layout.addWidget(card)
+                self._left_layout.addWidget(card)
                 card.reveal(False)
+        self._left_layout.addStretch(1)
+        for key in ("weather", "meme"):
+            card = self._cards[key]
+            enabled = bool(self.config.get(f"widgets.{key}_enabled", True))
+            card.setVisible(enabled)
+            if enabled:
+                self._right_layout.addWidget(card)
+                card.reveal(False)
+        self._right_layout.addStretch(1)
 
-    def refresh_settings(self):
+    def refresh_settings(self, animate=False):
         self._rebuild()
-        self.weather._last_location = ""
-        self.weather.refresh()
+        if self.config.get("widgets.weather_enabled", True):
+            self.weather._last_location = ""
+            self.weather.refresh()
+        if self.config.get("widgets.meme_enabled", True):
+            self.meme._load_daily()
+        if animate:
+            for card in self._cards.values():
+                if card.isVisible():
+                    card.reveal(True)
+
