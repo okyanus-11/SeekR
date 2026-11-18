@@ -38,6 +38,10 @@ jobs:
           sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libfontconfig1 libfreetype6
       - name: Install dependencies
         run: python -m pip install -r requirements-dev.txt
+      - name: Validate Python source and dependencies
+        run: |
+          python -m compileall -q core features ui tests main.py build.py tools
+          python -m pip check
       - name: Run test suite
         run: python -m pytest -q
 
