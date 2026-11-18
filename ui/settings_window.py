@@ -479,10 +479,10 @@ class WidgetsPage(SettingsPage):
 
     def build(self) -> None:
         cards = self.section("Launcher widgets", "Enabled by default. Changes are saved immediately.")
-        self.row(cards, "Clock", "Live local time and date · left rail.", bind_switch(self.config, "widgets.clock_enabled"))
-        self.row(cards, "System usage", "Live CPU and memory usage · left rail.", bind_switch(self.config, "widgets.system_enabled"))
-        self.row(cards, "Weather", "Current conditions for your chosen location · right rail.", bind_switch(self.config, "widgets.weather_enabled"))
-        self.row(cards, "Daily meme", "A daily pick cached locally until the next day · right rail.", bind_switch(self.config, "widgets.meme_enabled"))
+        self.row(cards, "Clock", "Live local time and date · left rail.", bind_switch(self.config, "widgets.clock_enabled", self._widgets_changed))
+        self.row(cards, "System usage", "Live CPU and memory usage · left rail.", bind_switch(self.config, "widgets.system_enabled", self._widgets_changed))
+        self.row(cards, "Weather", "Current conditions for your chosen location · right rail.", bind_switch(self.config, "widgets.weather_enabled", self._widgets_changed))
+        self.row(cards, "Daily meme", "A daily pick cached locally until the next day · right rail.", bind_switch(self.config, "widgets.meme_enabled", self._widgets_changed))
         location = self.section("Weather location", "Enter a city or town. SeekR uses Open-Meteo for geocoding and current conditions.")
         self.location_edit = QLineEdit(str(self.config.get("widgets.weather_location", "") or ""))
         self.location_edit.setPlaceholderText("e.g. Izmir, Türkiye")
@@ -490,9 +490,15 @@ class WidgetsPage(SettingsPage):
         self.row(location, "Location", "No GPS permission is requested; this text is used for the weather lookup.", self.location_edit)
         location.add_widget(label("Weather and daily meme require an internet connection. System usage and clock stay local.", "Muted", wrap=True))
 
+    def _widgets_changed(self, _checked: bool) -> None:
+        launcher = getattr(self.controller, "launcher", None)
+        if launcher is not None and hasattr(launcher, "launcher_widgets"):
+            launcher.launcher_widgets.refresh_settings(animate=True)
+
     def _save_location(self) -> None:
         value = self.location_edit.text().strip()
         self.config.set("widgets.weather_location", value)
+        self._widgets_changed(True)
         self.saved("Weather location saved")
 
 
