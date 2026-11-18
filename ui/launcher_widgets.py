@@ -67,9 +67,14 @@ class _FetchTask(QRunnable):
                 data = self._get_json("https://meme-api.com/gimme/wholesomememes")
                 image_url = str(data.get("url", ""))
                 if image_url.startswith("https://"):
-                    request = urllib.request.Request(image_url, headers={"User-Agent": "SeekR/1.1.0"})
-                    with urllib.request.urlopen(request, timeout=8) as response:
-                        data["_image_bytes"] = response.read(1_500_000)
+                    try:
+                        request = urllib.request.Request(image_url, headers={"User-Agent": "SeekR/1.1.0"})
+                        with urllib.request.urlopen(request, timeout=8) as response:
+                            data["_image_bytes"] = response.read(1_500_000)
+                    except Exception:
+                        # The meme itself is still useful if its preview host
+                        # is down or rejects the image request.
+                        log.debug("Could not fetch daily meme preview", exc_info=True)
                 self.signals.finished.emit(self.kind, data)
         except Exception as exc:
             self.signals.failed.emit(self.kind, str(exc))
