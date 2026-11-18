@@ -133,8 +133,12 @@ class LauncherWindow(QWidget):
         # Search is latency-sensitive and only the newest query matters. A
         # single worker plus a replaceable pending request prevents rapid
         # typing from building a queue of obsolete SQLite/fuzzy searches.
-        self._search_pool.setMaxThreadCount(1)
-        self._search_running = False
+        # Two workers let the newest keystroke start immediately even if an
+        # older provider query is still waiting on SQLite or the filesystem.
+        # Results are generation-checked before touching the UI, so stale work
+        # can never replace the current query.
+        self._search_pool.setMaxThreadCount(2)
+        self._active_searches = 0
         self._queued_search: tuple[int, str] | None = None
         self._search_generation = 0
         self._pending_execute_query: str | None = None
@@ -444,19 +448,15 @@ class LauncherWindow(QWidget):
         query = self.search_input.text()
         self._search_generation += 1
         request = (self._search_generation, query)
-        if self._search_running:
-            # Replace, rather than append to, the pending request. Intermediate
-            # keystrokes are obsolete as soon as a newer query exists.
+        if self._active_searches >= 2:
+            # Keep only the latest pending request; never build a backlog of
+            # obsolete keystrokes behind slow providers.
             self._queued_search = request
             return
         self._start_search(*request)
 
     def _start_search(self, generation: int, query: str) -> None:
-        self._search_running = True
-        # Worker callbacks only emit Qt signals. The bound slots below belong
-        # to this QWidget, so Qt queues delivery onto the GUI thread before
-        # touching widgets. Calling a closure directly from QRunnable can run
-        # it on the worker thread and cause undefined Qt GUI behaviour.
+        self._active_searches += 1
         worker = _SearchWorker(self.engine, query, generation)
         worker.signals.finished.connect(self._on_search_finished)
         worker.signals.failed.connect(self._on_search_failed)
@@ -464,8 +464,8 @@ class LauncherWindow(QWidget):
         self._search_pool.start(worker)
 
     def _start_queued_search(self) -> bool:
-        """Start the newest pending query after the active worker completes."""
-        self._search_running = False
+        """Start the newest pending query as soon as a worker slot is free."""
+        self._active_searches = max(0, self._active_searches - 1)
         request = self._queued_search
         self._queued_search = None
         if request is None:
@@ -473,16 +473,18 @@ class LauncherWindow(QWidget):
         generation, query = request
         if generation != self._search_generation or query != self.search_input.text():
             return False
-        self._start_search(generation, query)
-        return True
+        if self._active_searches < 2:
+            self._start_search(generation, query)
+            return True
+        self._queued_search = request
+        return False
 
     @Slot(int, str, object, object)
     def _on_search_finished(
         self, generation: int, query: str, results: list[SearchResult], worker
     ) -> None:
         self._search_workers.discard(worker)
-        if self._start_queued_search():
-            return
+        self._start_queued_search()
         if generation != self._search_generation or query != self.search_input.text():
             return
         elapsed_ms = 0.0
