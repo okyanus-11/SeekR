@@ -653,6 +653,8 @@ def test_launcher_shows_all_enabled_widget_cards_in_visible_rails(qapp, controll
     for name, card in widgets._cards.items():
         assert card.isVisible(), f"{name} widget is not visible"
         assert card.width() > 0 and card.height() > 0, f"{name} widget has empty geometry"
+        snapshot = card.grab()
+        assert not snapshot.isNull(), f"{name} widget failed to render a snapshot"
         assert card.parentWidget() in (widgets.left_column, widgets.right_column)
     assert widgets.left_column.geometry().width() >= 190
     assert widgets.right_column.geometry().width() >= 190
