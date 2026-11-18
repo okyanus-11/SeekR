@@ -9,6 +9,12 @@ def test_defaults_are_complete(config):
     assert config.get("general.hotkey") == "Alt+Space"
     assert config.get("appearance.theme") == "dark"
     assert config.get("search.max_results") == 12
+    assert config.get("widgets.clock_enabled") is True
+    assert config.get("widgets.weather_enabled") is True
+    assert config.get("widgets.system_enabled") is True
+    assert config.get("widgets.meme_enabled") is True
+    assert config.get("widgets.weather_location") == ""
+    assert config.get("appearance.window_width") == 1180
     assert config.get("files.directories") == default_config()["files"]["directories"]
     assert config.get("clipboard.enabled") is False
     assert config.get("privacy.clipboard_history") is False
