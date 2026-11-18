@@ -123,3 +123,17 @@ def test_malformed_schema_version_recovers_as_legacy_config(tmp_path):
     assert config.get("schema_version") == 2
     assert config.get("appearance.window_width") == 1180
     assert config.get("appearance.window_height") == 620
+
+
+def test_v1_config_migrates_numeric_string_default_dimensions(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text(
+        json.dumps({
+            "schema_version": 1,
+            "appearance": {"window_width": "780", "window_height": "500"},
+        }),
+        encoding="utf-8",
+    )
+    config = ConfigManager(path)
+    assert config.get("appearance.window_width") == 1180
+    assert config.get("appearance.window_height") == 620
