@@ -4,8 +4,11 @@
 
 - Keep each launcher widget permanently parented to its side rail. Refreshing
   widget settings no longer reparents cards, which could make Qt hide them.
-- Add a GUI regression test that opens the launcher and checks that all enabled
-  cards and both rails are visible with non-empty geometry.
+- Add GUI regression tests that open the launcher and check that all enabled
+  cards and both rails are visible, have non-empty geometry, and produce render
+  snapshots.
+- Correct `--reset-config` success/failure reporting so a successful reset no
+  longer prints a false error.
 - Add packaged-application verification to the Windows release workflow. CI
   launches the portable executable and the installed executable in UI-check
   mode and verifies all four enabled widgets render.
