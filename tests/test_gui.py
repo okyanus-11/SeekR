@@ -605,3 +605,15 @@ def test_daily_meme_only_opens_safe_reddit_links():
     assert MemeWidget._safe_post_url("javascript:alert(1)") == ""
     assert MemeWidget._safe_post_url("https://example.com/") == ""
     assert MemeWidget._safe_post_url("https://[:::]/") == ""
+
+
+def test_disabled_daily_meme_does_not_restart_retry_timer(qapp):
+    from PySide6.QtCore import QThreadPool
+    from ui.launcher_widgets import MemeWidget
+
+    widget = MemeWidget(QThreadPool())
+    widget.setVisible(False)
+    widget.set_error("meme", "network unavailable")
+    assert not widget.retry_timer.isActive()
+    widget.deleteLater()
+    qapp.processEvents()
