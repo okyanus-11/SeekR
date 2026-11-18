@@ -481,6 +481,7 @@ class LauncherWidgets(QObject):
                 timer.start(1000 if key == "clock" else 2000) if enabled else timer.stop()
             if enabled:
                 self._left_layout.addWidget(card)
+                card.setVisible(True)
                 card.reveal(False)
         self._left_layout.addStretch(1)
         for key in ("weather", "meme"):
@@ -494,6 +495,7 @@ class LauncherWidgets(QObject):
                 card.retry_timer.stop()
             if enabled:
                 self._right_layout.addWidget(card)
+                card.setVisible(True)
                 card.reveal(False)
         self._right_layout.addStretch(1)
 
