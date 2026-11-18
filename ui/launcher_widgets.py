@@ -386,7 +386,7 @@ class MemeWidget(WidgetCard):
         super().mouseReleaseEvent(event)
 
 
-class LauncherWidgets(QWidget):
+class LauncherWidgets(QObject):
     """Owns the four optional widgets, split into two side rails."""
 
     def __init__(self, config, parent=None):
@@ -394,10 +394,12 @@ class LauncherWidgets(QWidget):
         self.config = config
         self.pool = QThreadPool(self)
         self.pool.setMaxThreadCount(2)
-        self.clock = ClockWidget(self)
-        self.system = SystemWidget(self)
-        self.weather = WeatherWidget(config, self.pool, self)
-        self.meme = MemeWidget(self.pool, self)
+        # This object coordinates timers and network workers; it is not a
+        # visual overlay. Give actual widgets to the launcher/layout instead.
+        self.clock = ClockWidget(parent)
+        self.system = SystemWidget(parent)
+        self.weather = WeatherWidget(config, self.pool, parent)
+        self.meme = MemeWidget(self.pool, parent)
         self._cards = {"clock": self.clock, "weather": self.weather, "system": self.system, "meme": self.meme}
         for card in self._cards.values():
             card.setMinimumHeight(126)
@@ -412,8 +414,8 @@ class LauncherWidgets(QWidget):
                 "QProgressBar#WidgetProgress { background: palette(base); border: 0; border-radius: 2px; } "
                 "QProgressBar#WidgetProgress::chunk { background: palette(highlight); border-radius: 2px; }"
             )
-        self.left_column = QWidget(self)
-        self.right_column = QWidget(self)
+        self.left_column = QWidget(parent)
+        self.right_column = QWidget(parent)
         self.left_column.setFixedWidth(196)
         self.right_column.setFixedWidth(196)
         self._left_layout = QVBoxLayout(self.left_column)
@@ -432,7 +434,9 @@ class LauncherWidgets(QWidget):
             while layout.count():
                 item = layout.takeAt(0)
                 if item.widget():
-                    item.widget().setParent(None)
+                    # Keep disabled cards owned by the launcher instead of
+                    # turning them into independent top-level windows.
+                    item.widget().setParent(self.parent())
         for key in ("clock", "system"):
             card = self._cards[key]
             enabled = bool(self.config.get(f"widgets.{key}_enabled", True))
