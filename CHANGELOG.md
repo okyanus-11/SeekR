@@ -9,7 +9,8 @@ semantic versioning.
 ### Fixed
 
 - Keep launcher widget cards permanently parented to their side rails instead of reparenting them during every refresh, preventing Qt from hiding or detaching cards.
-- Add a real launcher-visibility regression test that checks all enabled widget cards have visible, non-empty geometry when the launcher is shown.
+- Add launcher-visibility and render-snapshot regression checks for all enabled widget cards.
+- Make the `--reset-config` command report persistence failures correctly; a successful reset no longer prints a false error.
 
 ## [1.1.0] - 2026-11-18
 
