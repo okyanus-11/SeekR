@@ -452,12 +452,25 @@ class LauncherWidgets(QObject):
         self.config = config
         self.pool = QThreadPool(self)
         self.pool.setMaxThreadCount(2)
-        # This object coordinates timers and network workers; it is not a
-        # visual overlay. Give actual widgets to the launcher/layout instead.
-        self.clock = ClockWidget(parent)
-        self.system = SystemWidget(parent)
-        self.weather = WeatherWidget(config, self.pool, parent)
-        self.meme = MemeWidget(self.pool, parent)
+        # Build the visual containers first and make each card a permanent
+        # child of its rail. Reparenting cards on every refresh can silently
+        # hide Qt widgets and leave them outside the visible layout.
+        self.left_column = QWidget(parent)
+        self.right_column = QWidget(parent)
+        self.left_column.setObjectName("LauncherWidgetRail")
+        self.right_column.setObjectName("LauncherWidgetRail")
+        self.left_column.setFixedWidth(196)
+        self.right_column.setFixedWidth(196)
+        self._left_layout = QVBoxLayout(self.left_column)
+        self._right_layout = QVBoxLayout(self.right_column)
+        for layout in (self._left_layout, self._right_layout):
+            layout.setContentsMargins(0, 8, 0, 8)
+            layout.setSpacing(9)
+
+        self.clock = ClockWidget(self.left_column)
+        self.system = SystemWidget(self.left_column)
+        self.weather = WeatherWidget(config, self.pool, self.right_column)
+        self.meme = MemeWidget(self.pool, self.right_column)
         self._cards = {"clock": self.clock, "weather": self.weather, "system": self.system, "meme": self.meme}
         for card in self._cards.values():
             card.setMinimumHeight(126)
@@ -473,15 +486,6 @@ class LauncherWidgets(QObject):
                 "QProgressBar#WidgetProgress { background: palette(base); border: 0; border-radius: 2px; } "
                 "QProgressBar#WidgetProgress::chunk { background: palette(highlight); border-radius: 2px; }"
             )
-        self.left_column = QWidget(parent)
-        self.right_column = QWidget(parent)
-        self.left_column.setFixedWidth(196)
-        self.right_column.setFixedWidth(196)
-        self._left_layout = QVBoxLayout(self.left_column)
-        self._right_layout = QVBoxLayout(self.right_column)
-        for layout in (self._left_layout, self._right_layout):
-            layout.setContentsMargins(0, 8, 0, 8)
-            layout.setSpacing(9)
         self._rebuild()
         if self.config.get("widgets.weather_enabled", True):
             self.weather.refresh()
@@ -489,29 +493,33 @@ class LauncherWidgets(QObject):
             self.meme._load_daily()
 
     def _rebuild(self):
+        # Remove layout items, never reparent the cards. QWidget.setParent()
+        # hides a widget as a side effect; keeping stable rail ownership avoids
+        # cards disappearing during settings refreshes or launcher activation.
         for layout in (self._left_layout, self._right_layout):
             while layout.count():
                 item = layout.takeAt(0)
-                if item.widget():
-                    # Keep disabled cards owned by the launcher instead of
-                    # turning them into independent top-level windows.
-                    item.widget().setParent(self.parent())
+                widget = item.widget()
+                if widget is not None:
+                    widget.hide()
+
         for key in ("clock", "system"):
             card = self._cards[key]
             enabled = bool(self.config.get(f"widgets.{key}_enabled", True))
-            card.setVisible(enabled)
             timer = getattr(card, "timer", None)
             if timer is not None:
                 timer.start(1000 if key == "clock" else 2000) if enabled else timer.stop()
             if enabled:
                 self._left_layout.addWidget(card)
-                card.setVisible(True)
+                card.show()
                 card.reveal(False)
+            else:
+                card.hide()
         self._left_layout.addStretch(1)
+
         for key in ("weather", "meme"):
             card = self._cards[key]
             enabled = bool(self.config.get(f"widgets.{key}_enabled", True))
-            card.setVisible(enabled)
             timer = getattr(card, "timer", None) if key == "weather" else getattr(card, "day_timer", None)
             if timer is not None:
                 timer.start(30 * 60 * 1000 if key == "weather" else 60_000) if enabled else timer.stop()
@@ -519,9 +527,15 @@ class LauncherWidgets(QObject):
                 card.retry_timer.stop()
             if enabled:
                 self._right_layout.addWidget(card)
-                card.setVisible(True)
+                card.show()
                 card.reveal(False)
+            else:
+                card.hide()
         self._right_layout.addStretch(1)
+
+        # Empty rails should collapse rather than reserving blank space.
+        self.left_column.setVisible(any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("clock", "system")))
+        self.right_column.setVisible(any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("weather", "meme")))
 
     def refresh_settings(self, animate=False):
         self._rebuild()
