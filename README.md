@@ -15,7 +15,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 > **Windows 10/11:** Click the installer above to install the app. No Python setup or ZIP extraction required.
 
 
-> Plugins are **not** part of 1.0.0. The Settings → Plugins page shows the planned marketplace as *Coming Soon*; no plugin code is loaded or executed.
+> Plugins are **not** part of 1.1.0. The Settings → Plugins page shows the planned marketplace as *Coming Soon*; no plugin code is loaded or executed.
 
 ---
 
@@ -287,7 +287,7 @@ something is missing.
 The script:
 
 1. Generates the icon assets if missing (`tools/make_icons.py`).
-2. Writes a Windows version resource (product name, version 1.0.0, copyright) to `build/version_info.txt`.
+2. Writes a Windows version resource (product name, current application version, copyright) to `build/version_info.txt`.
 3. Runs PyInstaller with `--onefile --windowed`, bundling `assets/` and `tzdata`.
 
 Output on Windows: **`dist\SeekR.exe`** — a single-file, windowed GUI build with
@@ -428,7 +428,7 @@ SeekR/
 │   └── util.py
 ├── ui/
 │   ├── launcher_window.py      # Frameless launcher, keyboard model
-│   ├── settings_window.py      # 13 settings pages
+│   ├── settings_window.py      # 14 settings pages
 │   ├── tools_window.py         # 14 tool pages
 │   ├── tools/basic.py          # Calculator, developer, date/time, color, dictionary
 │   ├── tools/system.py         # System, processes, power, screenshots
