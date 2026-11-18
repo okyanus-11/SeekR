@@ -35,6 +35,21 @@ def test_set_and_persist(tmp_path):
     assert "apps_alias_check" in reloaded.data  # unknown keys survive round-trips
 
 
+def test_v1_config_migrates_default_launcher_dimensions(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"schema_version": 1, "appearance": {"window_width": 780, "window_height": 500}}), encoding="utf-8")
+    config = ConfigManager(path)
+    assert config.get("schema_version") == 2
+    assert config.get("appearance.window_width") == 1180
+    assert config.get("appearance.window_height") == 620
+
+def test_v1_config_preserves_custom_launcher_dimensions(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"schema_version": 1, "appearance": {"window_width": 920, "window_height": 540}}), encoding="utf-8")
+    config = ConfigManager(path)
+    assert config.get("appearance.window_width") == 920
+    assert config.get("appearance.window_height") == 540
+
 def test_invalid_values_are_sanitised(config):
     config.set("appearance.theme", "not-a-theme")
     assert config.get("appearance.theme") == "dark"
