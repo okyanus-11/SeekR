@@ -346,9 +346,9 @@ class AppService:
         if not text:
             return []
         candidates = self.db.app_candidates(text[:40], limit=600)
-        if len(candidates) < 6:
-            # Widen for typo tolerance: a misspelt query rarely matches LIKE.
-            candidates = self.db.all_apps()
+        # Keep interactive searches bounded. Falling back to all_apps() when a
+        # short LIKE query finds few matches makes every typo/partial keystroke
+        # scan and fuzzy-rank the entire installed-app database.
         typo = bool(self.config.get("search.typo_tolerance", True))
         prioritize = bool(self.config.get("search.prioritize_recent", True))
         now = time.time()
