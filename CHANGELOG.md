@@ -15,7 +15,7 @@ semantic versioning.
 ### Changed
 
 - Redesigned the launcher with two widget cards on each side of the central results list, a wider default layout, theme-aware cards, hover states and fade transitions.
-- Search scheduling can run two searches concurrently and keeps only the latest pending query; stale results are ignored.
+- Search scheduling runs one search at a time and keeps only the latest pending query; stale results are ignored.
 - Existing 1.0.x configurations are migrated to the new widget defaults while custom window dimensions are preserved.
 
 ### Notes
