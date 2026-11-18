@@ -52,6 +52,16 @@ class IconStore:
             self._cache.popitem(last=False)
         return icon if not icon.isNull() else None
 
+    def cached_icon_for(self, path: str | None) -> QIcon | None:
+        """Return an already-resolved icon without touching the Windows shell."""
+        if not path:
+            return None
+        icon = self._cache.get(path)
+        if icon is not None:
+            self._cache.move_to_end(path)
+            return icon
+        return None
+
     def clear(self) -> None:
         self._cache.clear()
 
