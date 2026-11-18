@@ -4,6 +4,13 @@ All notable changes to SeekR are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 semantic versioning.
 
+## [1.1.1] - 2026-11-18
+
+### Fixed
+
+- Keep launcher widget cards permanently parented to their side rails instead of reparenting them during every refresh, preventing Qt from hiding or detaching cards.
+- Add a real launcher-visibility regression test that checks all enabled widget cards have visible, non-empty geometry when the launcher is shown.
+
 ## [1.1.0] - 2026-11-18
 
 ### Added
