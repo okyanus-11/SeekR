@@ -163,7 +163,10 @@ class SystemWidget(WidgetCard):
                 self.cpu_bar = bar
             else:
                 self.ram_bar = bar
-        psutil.cpu_percent(interval=None)
+        try:
+            psutil.cpu_percent(interval=None)
+        except Exception:
+            log.debug("Could not prime CPU usage sampling", exc_info=True)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh)
         self.timer.start(2000)
