@@ -678,3 +678,32 @@ def test_screenshot_provider(config, db, hooks):
     provider = ScreenshotProvider(config, db, hooks)
     results = provider.search("", 5)
     assert results and results[0].category == "Screenshot"
+
+
+def test_file_search_modified_yesterday_excludes_today_files(config, db, tmp_path):
+    from datetime import datetime, timedelta
+
+    root = tmp_path / "calendar-filter"
+    root.mkdir()
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+    entries = []
+    for name, modified in (
+        ("invoice-yesterday-morning.pdf", today_start - 16 * 3600),
+        ("invoice-yesterday-evening.pdf", today_start - 2 * 3600),
+        ("invoice-today.pdf", today_start + 1 * 3600),
+    ):
+        path = root / name
+        path.write_text("invoice", encoding="utf-8")
+        entries.append({
+            "path": str(path), "name": name, "name_lower": name.lower(),
+            "dir": str(root), "ext": ".pdf", "is_dir": False,
+            "size": 7, "mtime": modified, "indexed": time.time(),
+        })
+    db.upsert_files(entries)
+    config.set("files.directories", [str(root)])
+
+    results = FileService(config, db).search("invoice modified yesterday", 10)
+    names = {row["name"] for row in results}
+    assert names == {"invoice-yesterday-morning.pdf", "invoice-yesterday-evening.pdf"}
+
+
