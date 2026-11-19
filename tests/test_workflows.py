@@ -131,3 +131,53 @@ def test_workflow_import_rejects_oversized_payload(config, db, hooks):
     assert "too large" in message.lower()
 
 
+
+def test_workflow_runs_existing_command_with_tokenized_arguments(config, db, hooks):
+    from features.commands import CommandOutcome, CommandService
+
+    commands = CommandService(config, db, hooks)
+    calls = []
+    commands._handlers["taskmgr"] = lambda args: (
+        calls.append(args) or CommandOutcome(True, "Task Manager opened")
+    )
+    service = WorkflowService(config, db, hooks, command_service=commands)
+    workflow = {
+        "title": "Open task manager",
+        "steps": [{"type": "run_command", "command": "taskmgr", "args": ["--test", "two words"]}],
+    }
+    ok, message, completed = service.run(workflow)
+    assert ok, message
+    assert completed == 1
+    assert calls == [["--test", "two words"]]
+
+
+def test_workflow_destructive_command_requires_confirmation(config, db, hooks):
+    from features.commands import CommandOutcome, CommandService
+
+    commands = CommandService(config, db, hooks)
+    calls = []
+    commands._handlers["empty_recycle"] = lambda args: (
+        calls.append("empty") or CommandOutcome(True, "Recycle Bin emptied")
+    )
+    service = WorkflowService(config, db, hooks, command_service=commands)
+    workflow = {
+        "title": "Dangerous",
+        "steps": [{"type": "run_command", "command": "empty_recycle", "args": []}],
+    }
+    ok, message, completed = service.run(workflow)
+    assert not ok
+    assert completed == 0
+    assert calls == []
+    assert "cancelled" in message.lower()
+
+
+def test_workflow_command_step_validation_bounds_arguments():
+    valid = {"title": "Run command", "steps": [
+        {"type": "run_command", "command": "taskmgr", "args": ["--safe"]}
+    ]}
+    assert validate_workflow(valid)[0]
+    invalid = {"title": "Bad args", "steps": [
+        {"type": "run_command", "command": "taskmgr", "args": ["x"] * 65}
+    ]}
+    assert not validate_workflow(invalid)[0]
+
