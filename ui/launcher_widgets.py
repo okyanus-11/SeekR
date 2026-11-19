@@ -443,6 +443,7 @@ class LauncherWidgets(QObject):
     def __init__(self, config, parent=None):
         super().__init__(parent)
         self.config = config
+        self._active = False
         self.pool = QThreadPool(self)
         self.pool.setMaxThreadCount(2)
         # Build the visual containers first and make each card a permanent
@@ -537,16 +538,34 @@ class LauncherWidgets(QObject):
             card.setVisible(enabled)
             card.reveal(False)
 
+        self._sync_timers()
+
+    def _sync_timers(self):
+        """Poll live data only while its rail is enabled and the launcher is visible."""
+        for key, card in self._cards.items():
+            enabled = bool(self.config.get(f"widgets.{key}_enabled", True))
+            running = self._active and enabled
             if key == "clock":
-                card.timer.start(1000) if enabled else card.timer.stop()
+                card.timer.start(1000) if running else card.timer.stop()
+                if running:
+                    card.refresh()
             elif key == "system":
-                card.timer.start(2000) if enabled else card.timer.stop()
+                card.timer.start(2000) if running else card.timer.stop()
+                if running:
+                    card.refresh()
             elif key == "weather":
-                card.timer.start(30 * 60 * 1000) if enabled else card.timer.stop()
+                card.timer.start(30 * 60 * 1000) if running else card.timer.stop()
             else:
-                card.day_timer.start(60_000) if enabled else card.day_timer.stop()
-                if not enabled:
+                card.day_timer.start(60_000) if running else card.day_timer.stop()
+                if not running:
                     card.retry_timer.stop()
+
+    def set_active(self, active: bool):
+        active = bool(active)
+        if self._active == active:
+            return
+        self._active = active
+        self._sync_timers()
 
         self.left_column.setVisible(
             any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("clock", "system"))
