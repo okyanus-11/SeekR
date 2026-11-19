@@ -328,6 +328,9 @@ def test_widget_polling_pauses_when_launcher_is_hidden(qapp, controller):
 
 def test_widget_refresh_intervals_are_configurable_and_bounded(qapp, controller):
     widgets = controller.launcher.launcher_widgets
+    # Keep this test hermetic: interval changes must not trigger live network calls.
+    widgets.weather.refresh = lambda: None
+    widgets.meme._load_daily = lambda: None
     controller.config.set("widgets.clock_refresh_ms", 1500)
     controller.config.set("widgets.system_refresh_ms", 5000)
     controller.config.set("widgets.weather_refresh_minutes", 45)
