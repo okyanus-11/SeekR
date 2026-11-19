@@ -45,6 +45,7 @@ KEYWORDS = {
     "snip": "Search and copy text snippets",
     "chain": "Run a sequence of existing commands",
     "wm": "Manage open application windows",
+    "update": "Check for official SeekR updates",
 }
 
 #: Keywords providers claim at runtime; kept here so settings can list them.
@@ -120,6 +121,7 @@ CATEGORIES = (
     "Widgets",
     "Search",
     "Windows",
+    "Updates",
     "Keyword",
 )
 
