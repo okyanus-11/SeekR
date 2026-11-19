@@ -160,3 +160,14 @@ def test_command_chain_provider_is_explicit(service, config, db, hooks):
     result = provider.search("taskmgr then explorer", 5)
     assert len(result) == 1
     assert "2 command steps" in result[0].title
+
+def test_command_chain_resolves_multiword_alias_and_custom_title(service, hooks):
+    from features.commands import CommandOutcome
+
+    calls = []
+    hooks.confirm = lambda *_args: True
+    service._handlers["empty_recycle"] = lambda args: (calls.append(("empty", args)) or CommandOutcome(True, "done"))
+    outcome = service.run_chain("empty trash")
+    assert outcome.success
+    assert calls == [("empty", [])]
+
