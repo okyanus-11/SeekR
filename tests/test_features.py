@@ -40,6 +40,43 @@ def indexed_files(config, db, tmp_path):
     return service, stats, root
 
 
+
+def test_file_index_prunes_stale_rows_only_after_complete_scan(config, db, tmp_path):
+    root = tmp_path / "incremental"
+    root.mkdir()
+    current = root / "current.txt"
+    current.write_text("current", encoding="utf-8")
+    stale = root / "removed.txt"
+    stale.write_text("old", encoding="utf-8")
+    config.set("files.directories", [str(root)])
+    indexer = FileIndexer(config, db)
+    indexer.index()
+    stale.unlink()
+
+    stats = indexer.index()
+    assert not stats["cancelled"]
+    names = {row["name"] for row in db.recent_files(20, [str(root)])}
+    assert "current.txt" in names
+    assert "removed.txt" not in names
+
+
+def test_cancelled_file_index_preserves_previous_rows(config, db, tmp_path):
+    root = tmp_path / "cancelled-index"
+    root.mkdir()
+    existing = root / "existing.txt"
+    existing.write_text("existing", encoding="utf-8")
+    config.set("files.directories", [str(root)])
+    indexer = FileIndexer(config, db)
+    indexer.index()
+    token = CancelToken()
+    token.cancel()
+
+    stats = indexer.index(token=token)
+    assert stats["cancelled"]
+    assert any(row["name"] == "existing.txt"
+               for row in db.recent_files(20, [str(root)]))
+
+
 def test_file_index_finds_documents(indexed_files, config):
     service, stats, root = indexed_files
     assert stats["indexed"] >= 3
