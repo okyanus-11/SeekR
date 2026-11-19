@@ -159,18 +159,18 @@ class CommandService:
         entries = self.entries()
         completed: list[str] = []
         for index, segment in enumerate(segments, 1):
-            tokens = util.split_args(segment)
-            if not tokens:
-                return CommandOutcome(False, f"Step {index} is empty")
-            key = tokens[0].lower()
-            entry = next(
-                (candidate for candidate in entries
-                 if candidate.key.lower() == key
-                 or any(alias.lower() == key for alias in candidate.aliases)),
-                None,
-            )
-            if entry is None:
-                return CommandOutcome(False, f"Step {index}: unknown command '{tokens[0]}'")
+            lowered = segment.casefold()
+            matches = []
+            for candidate in entries:
+                names = [candidate.key, candidate.title, *candidate.aliases]
+                for name in names:
+                    normalized = str(name).strip().casefold()
+                    if normalized and (lowered == normalized or lowered.startswith(normalized + " ")):
+                        matches.append((len(normalized), candidate, normalized))
+            if not matches:
+                return CommandOutcome(False, f"Step {index}: unknown command '{segment.split()[0]}'")
+            _length, entry, matched_name = max(matches, key=lambda item: item[0])
+            args_text = segment[len(matched_name):].strip()
             if entry.confirmation:
                 if not self.hooks.confirm(
                     f"Confirm chain step: {entry.title}",
@@ -178,7 +178,6 @@ class CommandService:
                     f"Step {index} of {len(segments)}. The chain stops if a step fails.",
                 ):
                     return CommandOutcome(False, f"Chain cancelled at step {index}")
-            args_text = segment[len(tokens[0]):].strip()
             outcome = self.run(entry, args_text)
             if not outcome.success:
                 return CommandOutcome(False, f"Step {index} ({entry.title}) failed: {outcome.message}",
