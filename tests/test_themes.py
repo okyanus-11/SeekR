@@ -1,3 +1,4 @@
+from PySide6.QtCore import QAbstractAnimation
 from ui.themes import DESIGN_TOKENS, THEMES, build_stylesheet, palette_for, tokens_for
 
 
