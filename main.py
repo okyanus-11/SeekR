@@ -133,26 +133,31 @@ def main(argv: Optional[list[str]] = None) -> int:
                     failures.append("right widget rail is not visible")
                 for name, card in widgets._cards.items():
                     if not card.isVisible():
-                        failures.append(f"{name} widget is not visible")
+                        failures.append(f"{name} widget is not visible after delayed repaint")
                     if card.width() <= 0 or card.height() <= 0:
                         failures.append(f"{name} widget has empty geometry")
-                    else:
-                        # QWidget visibility/geometry alone does not prove that
-                        # the packaged Qt widget can actually paint. Capture
-                        # each card after the window is mapped and reject empty
-                        # snapshots as a stronger rendering smoke test.
-                        snapshot = card.grab()
-                        if snapshot.isNull() or snapshot.width() <= 0 or snapshot.height() <= 0:
-                            failures.append(f"{name} widget produced an empty render snapshot")
+                    if card.graphicsEffect() is not None:
+                        failures.append(f"{name} widget unexpectedly has an opacity/graphics effect")
+                    snapshot = card.grab()
+                    if snapshot.isNull() or snapshot.width() <= 0 or snapshot.height() <= 0:
+                        failures.append(f"{name} widget produced an empty render snapshot")
+                for name in ("clock", "system", "weather", "meme"):
+                    card = widgets._cards[name]
+                    timer = getattr(card, "timer", None) or getattr(card, "day_timer", None)
+                    if timer is None or not timer.isActive():
+                        failures.append(f"{name} widget refresh timer is not active")
+                if widgets.clock.time_label.text() == initial_clock_text:
+                    failures.append("clock widget did not update during the delayed visibility check")
             if failures:
                 log.error("UI_SMOKE_FAIL: %s", "; ".join(failures))
                 app.exit(3)
             else:
-                log.info("UI_SMOKE_OK: all four launcher widgets are visible with non-empty geometry")
+                log.info("UI_SMOKE_OK: all four widgets remained visible, rendered and live after delayed repaint")
                 app.exit(0)
 
+        initial_clock_text = controller.launcher.launcher_widgets.clock.time_label.text()
         controller.show_launcher()
-        QTimer.singleShot(1200, verify_launcher_widgets)
+        QTimer.singleShot(2200, verify_launcher_widgets)
 
     exit_code = app.exec()
     if instance is not None:
