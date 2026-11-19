@@ -430,6 +430,8 @@ class Database:
         for directory in scopes:
             prefix = directory.rstrip("/\\")
             if not prefix:
+                clauses.append("(dir = ? OR substr(dir, 1, 1) = ?)")
+                params.extend((directory, directory[:1]))
                 continue
             clauses.append(
                 "(dir IN (?, ?) OR (substr(dir, 1, ?) = ? AND "
