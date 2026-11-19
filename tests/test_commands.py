@@ -118,3 +118,45 @@ def test_provider_custom_commands(service, config, db, hooks):
     results = provider.search("say hi", 5)
     assert results and results[0].title == "Say hi"
     assert any(action.label == "Edit command" for action in results[0].actions)
+
+def test_command_chain_runs_known_commands_in_order(service, hooks):
+    from features.commands import CommandOutcome
+
+    calls = []
+    service._handlers["taskmgr"] = lambda args: (calls.append(("taskmgr", args)) or CommandOutcome(True, "Task Manager opened"))
+    service._handlers["explorer"] = lambda args: (calls.append(("explorer", args)) or CommandOutcome(True, "Explorer opened"))
+    outcome = service.run_chain("taskmgr then explorer")
+    assert outcome.success
+    assert calls == [("taskmgr", []), ("explorer", [])]
+    assert len(service.history()) == 2
+
+
+def test_command_chain_stops_on_unknown_step(service):
+    from features.commands import CommandOutcome
+
+    calls = []
+    service._handlers["taskmgr"] = lambda args: (calls.append("taskmgr") or CommandOutcome(True, "ok"))
+    outcome = service.run_chain("taskmgr then not-a-real-command")
+    assert not outcome.success
+    assert calls == ["taskmgr"]
+    assert "unknown command" in outcome.message.lower()
+
+
+def test_command_chain_requires_confirmation_for_destructive_steps(service, hooks):
+    from features.commands import CommandOutcome
+
+    calls = []
+    service._handlers["empty_recycle"] = lambda args: (calls.append("empty") or CommandOutcome(True, "emptied"))
+    outcome = service.run_chain("empty_recycle then taskmgr")
+    assert not outcome.success
+    assert calls == []
+    assert any(name == "confirm" for name, _args in hooks.calls)
+
+
+def test_command_chain_provider_is_explicit(service, config, db, hooks):
+    from features.commands import CommandChainProvider
+
+    provider = CommandChainProvider(config, db, hooks, service)
+    result = provider.search("taskmgr then explorer", 5)
+    assert len(result) == 1
+    assert "2 command steps" in result[0].title
