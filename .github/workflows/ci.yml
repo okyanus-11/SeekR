@@ -157,11 +157,18 @@ jobs:
   release:
     name: Publish GitHub release
     needs: windows-build
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
+      - name: Resolve release version
+        id: release_version
+        shell: bash
+        run: |
+          version="$(python -c 'import re; print(re.search(r\'APP_VERSION = "([^"]+)"\', open("core/version.py", encoding="utf-8").read()).group(1))')"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v8
         with:
           name: SeekR-Windows-${{ github.sha }}
@@ -169,8 +176,16 @@ jobs:
       - name: Publish installer
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ steps.release_version.outputs.tag }}
+        shell: bash
         run: |
+          # A main-branch push publishes a release only when this version has
+          # not already been released. Tag-triggered runs can refresh assets.
+          if [[ "$GITHUB_REF" == "refs/heads/main" ]] && \
+             gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; skipping automatic main-branch republish."
+            exit 0
+          fi
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
               --title "SeekR $TAG" --generate-notes
