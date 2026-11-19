@@ -479,8 +479,9 @@ class WidgetsPage(SettingsPage):
 
     def build(self) -> None:
         cards = self.section("Launcher widgets", "Enabled by default. Changes are saved immediately.")
-        self.row(cards, "Clock", "Live local time and date · left rail.", bind_switch(self.config, "widgets.clock_enabled", self._widgets_changed))
-        self.row(cards, "System usage", "Live CPU and memory usage · left rail.", bind_switch(self.config, "widgets.system_enabled", self._widgets_changed))
+        self.row(cards, "Clock", "Live local time, date and focus timer · left rail.", bind_switch(self.config, "widgets.clock_enabled", self._widgets_changed))
+        self.row(cards, "Focus session length", "Duration used by the clock widget focus timer.", bind_spin(self.config, "widgets.focus_duration_minutes", 5, 180, " minutes"))
+        self.row(cards, "System usage", "Live CPU, memory, storage, battery and network throughput · left rail.", bind_switch(self.config, "widgets.system_enabled", self._widgets_changed))
         self.row(cards, "Weather", "Current conditions for your chosen location · right rail.", bind_switch(self.config, "widgets.weather_enabled", self._widgets_changed))
         self.row(cards, "Daily meme", "A daily pick cached locally until the next day · right rail.", bind_switch(self.config, "widgets.meme_enabled", self._widgets_changed))
         location = self.section("Weather location", "Enter a city or town. SeekR uses Open-Meteo for geocoding and current conditions.")
