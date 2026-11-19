@@ -5,7 +5,7 @@ import json
 from typing import Any
 
 from core.config_manager import ConfigManager
-from core.database import Database
+from core.database import Database, DatabaseError
 from core.fuzzy import fuzzy_score
 from core.logging_setup import get_logger
 from core.models import ResultAction, SearchResult
@@ -72,8 +72,13 @@ class SnippetService:
         }, ensure_ascii=False, indent=2)
 
     def import_json(self, content: str) -> tuple[bool, str, int]:
-        if not isinstance(content, str) or len(content.encode("utf-8")) > MAX_SNIPPET_IMPORT_BYTES:
-            return False, "Snippet export is too large", 0
+        if not isinstance(content, str):
+            return False, "Snippet export must be UTF-8 text", 0
+        try:
+            if len(content.encode("utf-8")) > MAX_SNIPPET_IMPORT_BYTES:
+                return False, "Snippet export is too large", 0
+        except UnicodeEncodeError:
+            return False, "Snippet export contains invalid Unicode text", 0
         try:
             payload = json.loads(content)
         except (TypeError, ValueError):
@@ -94,7 +99,11 @@ class SnippetService:
                 "shortcut": str(row.get("shortcut", "")).strip(),
                 "content": row["content"],
             })
-        self.db.insert_snippets_atomic(prepared)
+        try:
+            self.db.insert_snippets_atomic(prepared)
+        except DatabaseError as exc:
+            log.exception("Snippet import failed")
+            return False, str(exc), 0
         return True, "Snippets imported", len(prepared)
 
     def search(self, query: str, limit: int = 10) -> list[dict[str, Any]]:
