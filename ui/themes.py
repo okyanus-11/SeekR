@@ -505,4 +505,4 @@ def apply_theme(app: QApplication, config: ConfigManager) -> None:
     app.setPalette(qt_palette)
 
 
-__all__: list[Any] = ["THEMES", "palette_for", "build_stylesheet", "apply_theme"]
+__all__: list[Any] = ["THEMES", "palette_for", "DESIGN_TOKENS", "tokens_for", "build_stylesheet", "apply_theme"]
