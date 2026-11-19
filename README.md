@@ -85,6 +85,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 | Workflows | Local multi-step routines built from validated folder, website, application and copy actions; import/export as versioned JSON; searchable with `flow:`. |
 | Text snippets | Local reusable text with categories and aliases; searchable with `snip:` and copied only after explicit selection. |
 | Command chains | Explicit `chain:` sequences of existing named commands, with per-step confirmation for destructive actions and stop-on-failure behavior. |
+| Command Center | Press `>` for one searchable palette covering settings, system tools, network, workflows, snippets, clipboard, search shortcuts and widget toggles. |
 | Quick Connect | SSH profiles with validation; detects OpenSSH on PATH and in the standard Windows installation folder. Passwords are never stored. |
 | Power | Lists and switches Windows power schemes where `powercfg` supports it. |
 | Quick Actions | Open folders, open websites, launch applications with arguments, copy predefined text. |
@@ -330,10 +331,11 @@ and `dist/SeekR/SeekR`, which are not Windows executables.
 
 ## Keyword reference
 
-Keywords are matched case-insensitively at the start of the query (`web: python`).
+Keywords are matched case-insensitively at the start of the query (`web: python`). Press `>` at the start of a query to open the Command Center.
 
 | Keyword | Example | Result |
 |---|---|---|
+| `>` | `> workflows` | Opens the unified Command Center. |
 | `web:` | `web: Raspberry Pi 5` | Opens the configured search engine |
 | `calc:` | `calc: sqrt(144) + 25 * 4` | `112` |
 | `flow:` | `flow: prepare work` | Search and run saved local workflows. |
