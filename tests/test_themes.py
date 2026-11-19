@@ -33,7 +33,7 @@ def test_switch_respects_reduced_motion_preference(qapp, config):
     switch = Switch()
     switch.setChecked(True)
     assert switch._position == 1.0
-    assert not switch._animation.state()
+    assert switch._animation.state() == QAbstractAnimation.State.Stopped
 
     config.set("appearance.animations", True)
     apply_theme(qapp, config)
