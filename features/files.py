@@ -271,7 +271,7 @@ class FileService:
         if not text:
             if extension:
                 candidates = self.db.files_by_extension(extension, limit=limit * 20)
-            elif parsed.modified_after is not None or parsed.size_bytes is not None:
+            elif parsed.modified_after is not None or parsed.modified_before is not None or parsed.size_bytes is not None:
                 candidates = self.db.recent_files(limit=800)
             else:
                 return []
@@ -295,7 +295,10 @@ class FileService:
         for row in candidates:
             if extension and str(row.get("ext", "")).lower() != extension:
                 continue
-            if parsed.modified_after is not None and float(row.get("mtime") or 0) < parsed.modified_after:
+            modified_at = float(row.get("mtime") or 0)
+            if parsed.modified_after is not None and modified_at < parsed.modified_after:
+                continue
+            if parsed.modified_before is not None and modified_at >= parsed.modified_before:
                 continue
             if parsed.size_bytes is not None:
                 size = int(row.get("size") or 0)
