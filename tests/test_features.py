@@ -226,6 +226,24 @@ def test_clipboard_service(config, db):
     assert service.capture("ignored") is None
 
 
+
+def test_clipboard_retention_expires_old_unpinned_entries_but_keeps_pinned(config, db):
+    service = ClipboardService(config, db)
+    config.set("privacy.clipboard_history", True)
+    config.set("privacy.retention_days", 2)
+    old_id = db.add_clipboard("old unpinned")
+    pinned_id = db.add_clipboard("old pinned")
+    db.set_clipboard_pinned(pinned_id, True)
+    db._write("UPDATE clipboard SET created = ? WHERE id IN (?, ?)",
+              (time.time() - 5 * 86400, old_id, pinned_id))
+
+    service.capture("fresh entry")
+    remaining = {entry["id"]: entry["text"] for entry in service.items()}
+    assert old_id not in remaining
+    assert remaining[pinned_id] == "old pinned"
+    assert "fresh entry" in remaining.values()
+
+
 def test_clipboard_capture_is_off_by_default(config, db):
     service = ClipboardService(config, db)
     assert not service.enabled
