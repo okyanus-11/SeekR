@@ -38,6 +38,7 @@ from features.quick_connect import QuickConnectService, SSHProvider
 from features.screenshots import ScreenshotProvider
 from features.snippets import SnippetProvider, SnippetService
 from features.system_info import SystemInfoProvider
+from features.updates import UpdateProvider, UpdateService
 from features.web_search import (
     GitHubProvider,
     TranslateProvider,
@@ -118,6 +119,7 @@ class SeekRApplication(QObject, UIHooks):
         self.quick_action_service = QuickActionService(self.config, self.db, self)
         self.workflow_service = WorkflowService(self.config, self.db, self, self.command_service)
         self.snippet_service = SnippetService(self.config, self.db, self)
+        self.update_service = UpdateService(self.config)
 
     def _register_providers(self) -> None:
         providers = [
@@ -141,6 +143,7 @@ class SeekRApplication(QObject, UIHooks):
             DateTimeProvider(self.config, self.db, self),
             WindowProvider(self.config, self.db, self),
             WindowManagerProvider(self.config, self.db, self),
+            UpdateProvider(self.config, self.db, self, self.update_service),
             EmojiProvider(self.config, self.db, self),
             ColorProvider(self.config, self.db, self),
             ScreenshotProvider(self.config, self.db, self),
@@ -181,6 +184,12 @@ class SeekRApplication(QObject, UIHooks):
         self._prune_data()
         self.config.subscribe(self._on_config_changed)
         self.app.aboutToQuit.connect(self.shutdown)
+        if self.config.get("updates.check_automatically", False) and self.update_service.check_due():
+            run_async(
+                self.update_service.check_latest,
+                on_finished=self._on_update_check_finished,
+                on_failed=self._on_update_check_failed,
+            )
         # Prime the cached GPU probe so the first sys: lookup has data without
         # ever running PowerShell/WMI on the GUI thread.
         system_info.warm_up()
@@ -190,6 +199,16 @@ class SeekRApplication(QObject, UIHooks):
             self.launcher.show_launcher()
         QTimer.singleShot(300, self._auto_index)
         log.info("SeekR %s started", APP_VERSION)
+
+    def _on_update_check_finished(self, info: dict) -> None:
+        if info.get("update_available"):
+            self.notify(
+                f"SeekR {info.get('latest_version')} is available. Search update: to view the official release.",
+                "info",
+            )
+
+    def _on_update_check_failed(self, message: str, _traceback_text: str) -> None:
+        log.info("Automatic update check did not complete: %s", message)
 
     def _setup_hotkey(self) -> None:
         if self.hotkey is None:
