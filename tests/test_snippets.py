@@ -42,3 +42,36 @@ def test_snippets_persist_across_service_instances(config, db, hooks):
     first.save({"title": "Persisted", "content": "Saved text"})
     second = SnippetService(config, db, hooks)
     assert second.snippets()[0]["content"] == "Saved text"
+
+
+def test_snippet_export_import_round_trip(config, db, hooks):
+    service = SnippetService(config, db, hooks)
+    service.save({"title": "Signature", "category": "Work", "shortcut": "sig",
+                  "content": "Line one\\nLine two"})
+    exported = service.export_json()
+
+    imported_db = type(db)(":memory:")
+    try:
+        imported = SnippetService(config, imported_db, hooks)
+        ok, message, count = imported.import_json(exported)
+        assert ok, message
+        assert count == 1
+        row = imported.snippets()[0]
+        assert row["title"] == "Signature"
+        assert row["content"] == "Line one\\nLine two"
+    finally:
+        imported_db.close()
+
+
+def test_snippet_import_validates_all_entries_before_writing(config, db, hooks):
+    import json
+
+    service = SnippetService(config, db, hooks)
+    payload = {"schema_version": 1, "snippets": [
+        {"title": "Valid", "content": "keep"},
+        {"title": "Invalid", "content": ""},
+    ]}
+    ok, _message, count = service.import_json(json.dumps(payload))
+    assert not ok
+    assert count == 0
+    assert service.snippets() == []
