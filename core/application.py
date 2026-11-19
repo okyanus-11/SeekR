@@ -23,7 +23,7 @@ from features.calculator import (
 )
 from features.clipboard import ClipboardMonitor, ClipboardProvider, ClipboardService
 from features.color_tools import ColorProvider
-from features.commands import CommandService, CommandsProvider
+from features.commands import CommandChainProvider, CommandService, CommandsProvider
 from features.date_time import DateTimeProvider
 from features.dictionary import DefineProvider
 from features.emoji_search import EmojiProvider
@@ -127,6 +127,7 @@ class SeekRApplication(QObject, UIHooks):
             TranslateProvider(self.config, self.db, self, self.web_service),
             DefineProvider(self.config, self.db, self),
             CommandsProvider(self.config, self.db, self, self.command_service),
+            CommandChainProvider(self.config, self.db, self, self.command_service),
             ClipboardProvider(self.config, self.db, self, self.clipboard_service),
             NotesProvider(self.config, self.db, self, self.notes_service),
             SystemInfoProvider(self.config, self.db, self),
