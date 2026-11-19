@@ -46,6 +46,7 @@ KEYWORDS = {
     "chain": "Run a sequence of existing commands",
     "wm": "Manage open application windows",
     "update": "Check for official SeekR updates",
+    "task": "Search and manage local tasks",
 }
 
 #: Keywords providers claim at runtime; kept here so settings can list them.
@@ -122,6 +123,7 @@ CATEGORIES = (
     "Search",
     "Windows",
     "Updates",
+    "Task",
     "Keyword",
 )
 
