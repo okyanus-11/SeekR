@@ -42,6 +42,9 @@ class FileContentProvider(SearchProvider):
                 category="File content", score=1.0, icon_glyph="⌕",
             )]
         roots = [Path(item).expanduser() for item in (self.config.get("files.directories", []) or [])]
+        if not roots:
+            return []
+        resolved_roots = [root.resolve() for root in roots]
         extensions = {
             str(ext).lower() if str(ext).startswith(".") else "." + str(ext).lower()
             for ext in (self.config.get("files.content_search_extensions", DEFAULT_CONTENT_EXTENSIONS) or [])
@@ -67,7 +70,7 @@ class FileContentProvider(SearchProvider):
                 resolved = path.resolve(strict=True)
                 if not resolved.is_file() or resolved.stat().st_size > max_bytes:
                     continue
-                if roots and not any(resolved.is_relative_to(root.resolve()) for root in roots):
+                if not any(resolved.is_relative_to(root) for root in resolved_roots):
                     continue
                 read_limit = min(max_bytes, remaining_budget)
                 # Bound the read itself, not just stat() checks: a file can
