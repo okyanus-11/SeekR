@@ -489,8 +489,8 @@ class Database:
     def clipboard_items(self, search: str = "", limit: int = 100) -> list[dict[str, Any]]:
         if search:
             rows = self._query(
-                "SELECT * FROM clipboard WHERE text LIKE ? ORDER BY pinned DESC, created DESC LIMIT ?",
-                (f"%{search}%", limit),
+                "SELECT * FROM clipboard WHERE text LIKE ? OR category LIKE ? ORDER BY pinned DESC, created DESC LIMIT ?",
+                (f"%{search}%", f"%{search}%", limit),
             )
         else:
             rows = self._query(
