@@ -28,6 +28,7 @@ from features.date_time import DateTimeProvider
 from features.dictionary import DefineProvider
 from features.emoji_search import EmojiProvider
 from features.files import FileService, FilesProvider
+from features.file_content import FileContentProvider
 from features.notes import NotesProvider, NotesService
 from features.power import supported as power_supported
 from features.process_manager import ProcessProvider
@@ -121,6 +122,7 @@ class SeekRApplication(QObject, UIHooks):
         providers = [
             ApplicationsProvider(self.config, self.db, self, self.app_service),
             FilesProvider(self.config, self.db, self, self.file_service),
+            FileContentProvider(self.config, self.db, self),
             CalculatorProvider(self.config, self.db, self, self.calculator_service),
             UnitProvider(self.config, self.db, self, self.calculator_service),
             WebProvider(self.config, self.db, self, self.web_service),
