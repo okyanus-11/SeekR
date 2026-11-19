@@ -146,7 +146,12 @@ class SearchEngine(QObject):
         return mapping
 
     def resolve(self, text: str) -> tuple[SearchProvider, str] | None:
-        """Split ``"calc: 2+2"`` into its provider and remaining query."""
+        """Split keyword queries and the leading-> command-center mode."""
+        cleaned = (text or "").lstrip()
+        if cleaned.startswith(">"):
+            provider = self._providers.get("command_center")
+            if provider is not None:
+                return provider, cleaned[1:].strip()
         match = _KEYWORD_RE.match(text)
         if not match:
             return None
