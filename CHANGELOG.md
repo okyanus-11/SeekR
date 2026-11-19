@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.2] - 2026-11-19
+
+### Fixed
+
+- Keep widget cards in stable layouts and toggle visibility without removing or reparenting them during settings refreshes.
+- Remove child-widget opacity effects that could leave cards visually transparent after launcher repaint or activation.
+- Add a delayed Qt regression test proving all four widgets remain visible and the clock continues updating after refreshes.
+
+
 All notable changes to SeekR are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 semantic versioning.
