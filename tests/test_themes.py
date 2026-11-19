@@ -21,3 +21,22 @@ def test_theme_stylesheet_has_visible_keyboard_focus(config):
     assert "QPushButton:focus" in stylesheet
     assert "QTableWidget:focus" in stylesheet
     assert "border: 2px solid" in stylesheet
+
+
+
+def test_switch_respects_reduced_motion_preference(qapp, config):
+    from ui.components import Switch
+    from ui.themes import apply_theme
+
+    config.set("appearance.animations", False)
+    apply_theme(qapp, config)
+    switch = Switch()
+    switch.setChecked(True)
+    assert switch._position == 1.0
+    assert not switch._animation.state()
+
+    config.set("appearance.animations", True)
+    apply_theme(qapp, config)
+    switch.setChecked(False)
+    assert switch._animation.endValue() == 0.0
+    switch._animation.stop()
