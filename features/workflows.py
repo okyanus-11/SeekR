@@ -172,13 +172,16 @@ class WorkflowService:
                         executable = util.which(executable) or executable
                     success, detail = util.run_detached([executable, *step.get("args", [])])
                 else:
-                    self.hooks.copy_text(step["text"])
-                    success, detail = True, "Copied text"
+                    success = bool(self.hooks.copy_text(step["text"]))
+                    detail = "Copied text" if success else "Could not copy text"
             except Exception as exc:
                 log.exception("Workflow step %s failed", index)
                 return False, f"Step {index} failed: {exc}", index - 1
             if on_progress is not None:
-                on_progress(index, len(steps), detail)
+                try:
+                    on_progress(index, len(steps), detail)
+                except Exception:
+                    log.exception("Workflow progress callback failed")
             if not success:
                 return False, f"Step {index} failed: {detail}", index - 1
         return True, f"Completed {len(steps)} steps", len(steps)
