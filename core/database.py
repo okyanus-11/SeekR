@@ -778,6 +778,25 @@ class Database:
             (data["title"], data.get("description", ""), data["steps_json"], now, now),
         )
 
+
+    def insert_workflows_atomic(self, rows: Sequence[dict[str, Any]]) -> int:
+        """Insert a validated import as one SQLite transaction."""
+        now = time.time()
+        try:
+            conn = self.connection()
+            with self._lock:
+                with conn:
+                    conn.executemany(
+                        "INSERT INTO workflows(title, description, steps_json, created, updated) VALUES (?, ?, ?, ?, ?)",
+                        [
+                            (row["title"], row.get("description", ""), row["steps_json"], now, now)
+                            for row in rows
+                        ],
+                    )
+            return len(rows)
+        except sqlite3.Error as exc:
+            raise DatabaseError(f"Could not import workflows: {exc}") from exc
+
     def delete_workflow(self, workflow_id: int) -> None:
         self._write("DELETE FROM workflows WHERE id = ?", (int(workflow_id),))
 
