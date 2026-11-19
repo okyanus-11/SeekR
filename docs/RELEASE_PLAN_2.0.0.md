@@ -89,8 +89,8 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 
 ### Clipboard manager
 - [x] Preserve clipboard history as opt-in.
-- [ ] Add safe text, rich-text, and image previews with size limits.
-- [x] Add age-based retention for unpinned clipboard text; pinned entries remain. (Rich text/image previews, categories and favorites remain open.)
+- [ ] Add rich-text previews with safe formatting limits. (Plain text and separately opt-in, size-bounded PNG image previews are implemented.)
+- [x] Add age-based retention for unpinned clipboard entries; pinned entries remain. (Rich-text preservation remains open; categories and pinning are supported.)
 - [x] Explain local storage and encryption status honestly; never silently collect clipboard content.
 - [ ] Exclude sensitive formats where feasible and provide a pause/clear control.
 - [ ] Test large payloads, corrupt entries, pruning, and database migration.
