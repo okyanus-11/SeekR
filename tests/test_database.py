@@ -93,7 +93,7 @@ def test_extension_index_replaces_v1_index(tmp_path):
 
     assert "idx_files_ext_mtime" in indexes
     assert "idx_files_ext" not in indexes
-    assert upgraded.get_meta("schema_version") == "5"
+    assert upgraded.get_meta("schema_version") == "6"
     upgraded.close()
 
 
@@ -290,7 +290,7 @@ def test_database_migrates_clipboard_category_column(tmp_path):
     database = Database(str(path))
     try:
         columns = {row["name"] for row in database._query("PRAGMA table_info(clipboard)")}
-        assert "category" in columns
-        assert database.get_meta("schema_version") == "5"
+        assert {"category", "kind", "image_path", "width", "height"} <= columns
+        assert database.get_meta("schema_version") == "6"
     finally:
         database.close()
