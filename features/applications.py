@@ -370,7 +370,7 @@ class AppService:
                     score += 0.04
                 elif last_used > 0:
                     score += 0.01
-            scored.append((min(1.0, score), app))
+            scored.append((score, app))
         scored.sort(key=lambda pair: pair[0], reverse=True)
         return [app for _, app in scored[:limit]]
 
