@@ -247,12 +247,15 @@ class FileService:
 
         if not text:
             if extension:
-                rows = self.db.files_by_extension(extension, limit=limit * 20)
-                return [(0.5, row) for row in rows[:limit]]
-            return []
-
-        term = text
-        candidates = self.db.file_candidates(term[:40], limit=800, ext=extension or None)
+                candidates = self.db.files_by_extension(extension, limit=limit * 20)
+            elif parsed.modified_after is not None or parsed.size_bytes is not None:
+                candidates = self.db.recent_files(limit=800)
+            else:
+                return []
+            term = ""
+        else:
+            term = text
+            candidates = self.db.file_candidates(term[:40], limit=800, ext=extension or None)
         if len(candidates) < limit and len(term) >= 3 and len(term.split()) > 1:
             # Widen using the longest word to allow typo-tolerant ranking.
             longest = max(re.split(r"\s+", term), key=len)
@@ -263,7 +266,17 @@ class FileService:
         now = time.time()
         scored: list[tuple[float, dict]] = []
         for row in candidates:
-            score = fuzzy_score(text, row["name"], typo_tolerance=typo)
+            if extension and str(row.get("ext", "")).lower() != extension:
+                continue
+            if parsed.modified_after is not None and float(row.get("mtime") or 0) < parsed.modified_after:
+                continue
+            if parsed.size_bytes is not None:
+                size = int(row.get("size") or 0)
+                if parsed.size_operator == ">" and size <= parsed.size_bytes:
+                    continue
+                if parsed.size_operator == "<" and size >= parsed.size_bytes:
+                    continue
+            score = fuzzy_score(text, row["name"], typo_tolerance=typo) if text else 0.5
             if score <= 0:
                 continue
             mtime = float(row.get("mtime") or 0)
