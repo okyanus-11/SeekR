@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import datetime as dt
+from pathlib import Path
 from typing import Optional
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHBoxLayout,
+    QFileDialog,
     QHeaderView,
     QLabel,
     QLineEdit,
@@ -599,4 +601,122 @@ class ActionsTab(QWidget):
         self.reload()
 
 
-__all__ = ["ClipboardTab", "NotesTab", "BookmarksTab", "ConnectionsTab", "ActionsTab"]
+
+class WorkflowsTab(QWidget):
+    """Create, edit, import, export and run local structured workflows."""
+
+    def __init__(self, controller, window):
+        super().__init__()
+        self.controller = controller
+        self.service = controller.workflow_service
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(10)
+        layout.addWidget(label("Workflows", "Heading"))
+        layout.addWidget(label(
+            "Chain safe built-in actions into repeatable routines. Workflows are stored locally; "
+            "they cannot run shell scripts or load third-party code.",
+            "Muted", wrap=True,
+        ))
+        self.table = QTableWidget(0, 3)
+        self.table.setHorizontalHeaderLabels(["Title", "Steps", "Description"])
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.doubleClicked.connect(lambda _index: self._run())
+        layout.addWidget(self.table, 1)
+
+        buttons = QHBoxLayout()
+        buttons.addWidget(primary_button("Run", self._run))
+        buttons.addWidget(secondary_button("New…", self._new))
+        buttons.addWidget(secondary_button("Edit…", self._edit))
+        buttons.addWidget(danger_button("Delete", self._delete))
+        buttons.addWidget(secondary_button("Import…", self._import))
+        buttons.addWidget(secondary_button("Export…", self._export))
+        buttons.addStretch(1)
+        self.status = label("", "Muted")
+        buttons.addWidget(self.status)
+        layout.addLayout(buttons)
+        self.reload()
+
+    def reload(self) -> None:
+        rows = self.service.workflows()
+        self.table.setRowCount(0)
+        for workflow in rows:
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            values = [workflow["title"], str(len(workflow["steps"])), workflow.get("description", "")]
+            for column, value in enumerate(values):
+                item = QTableWidgetItem(str(value))
+                if column == 0:
+                    item.setData(Qt.ItemDataRole.UserRole, workflow)
+                self.table.setItem(row, column, item)
+        self.status.setText(f"{len(rows)} workflows")
+
+    def _selected(self) -> Optional[dict]:
+        row = self.table.currentRow()
+        if row < 0:
+            return None
+        item = self.table.item(row, 0)
+        return item.data(Qt.ItemDataRole.UserRole) if item else None
+
+    def _run(self) -> None:
+        workflow = self._selected()
+        if workflow is None:
+            self.status.setText("Select a workflow first")
+            return
+        ok, message, completed = self.service.run(workflow)
+        self.status.setText(f"{message} ({completed}/{len(workflow['steps'])})")
+        if not ok:
+            self.controller.show_error("Workflow", message)
+
+    def _new(self) -> None:
+        if dialogs.WorkflowDialog(self.service, parent=self).exec():
+            self.reload()
+
+    def _edit(self) -> None:
+        workflow = self._selected()
+        if workflow and dialogs.WorkflowDialog(self.service, workflow, parent=self).exec():
+            self.reload()
+
+    def _delete(self) -> None:
+        workflow = self._selected()
+        if workflow is None:
+            return
+        if not dialogs.ask_confirm(self, "Delete workflow", f"Delete “{workflow['title']}”?"):
+            return
+        self.service.delete(workflow["id"])
+        self.reload()
+
+    def _import(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, "Import workflows", "", "SeekR workflows (*.json)")
+        if not path:
+            return
+        try:
+            content = Path(path).read_text(encoding="utf-8")
+        except OSError as exc:
+            dialogs.show_error(self, "Could not read workflow file", str(exc))
+            return
+        ok, message, count = self.service.import_json(content)
+        if not ok:
+            dialogs.show_error(self, "Workflow import failed", message)
+            return
+        self.reload()
+        self.status.setText(f"Imported {count} workflows")
+
+    def _export(self) -> None:
+        path, _ = QFileDialog.getSaveFileName(self, "Export workflows", "SeekR-workflows.json", "SeekR workflows (*.json)")
+        if not path:
+            return
+        try:
+            Path(path).write_text(self.service.export_json(), encoding="utf-8")
+        except OSError as exc:
+            dialogs.show_error(self, "Could not export workflows", str(exc))
+            return
+        self.status.setText("Workflows exported")
+
+
+__all__ = ["ClipboardTab", "NotesTab", "BookmarksTab", "ConnectionsTab", "ActionsTab", "WorkflowsTab"]
