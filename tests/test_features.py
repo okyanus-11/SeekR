@@ -10,6 +10,8 @@ from pathlib import Path
 
 import pytest
 
+from PySide6.QtGui import QImage
+
 from core.config_manager import ConfigManager
 from features import applications as applications_module
 from features import bookmarks, color_tools, emoji_search, power, process_manager, quicklook, screenshots, system_info
@@ -323,6 +325,47 @@ def test_application_usage_ranking_respects_privacy_opt_in(config, db):
     personalized = service.search("Editor", 5)
     assert personalized[0]["path"] == "b.exe"
     assert service.suggestions(5)[0]["path"] == "b.exe"
+
+
+
+def test_clipboard_image_capture_is_separately_opt_in_and_cleans_up(config, db, tmp_path, monkeypatch):
+    monkeypatch.setenv("SEEKR_HOME", str(tmp_path / "seekr-data"))
+    service = ClipboardService(config, db)
+    config.set("privacy.clipboard_history", True)
+    config.set("privacy.clipboard_history_consent", True)
+    config.set("clipboard.enabled", True)
+    image = QImage(32, 24, QImage.Format.Format_ARGB32)
+    image.fill(0xFF336699)
+
+    assert service.capture_image(image) is None
+    config.set("clipboard.capture_images", True)
+    stored = service.capture_image(image)
+    assert stored is not None
+    assert stored["kind"] == "image"
+    assert Path(stored["image_path"]).is_file()
+    row = service.items()[0]
+    assert row["kind"] == "image"
+    assert row["width"] == 32 and row["height"] == 24
+
+    assert service.capture_image(image) is None  # adjacent duplicate suppressed
+    image_path = Path(stored["image_path"])
+    service.clear(keep_pinned=False)
+    assert not image_path.exists()
+
+
+def test_clipboard_image_capture_rejects_oversized_dimensions(config, db, tmp_path, monkeypatch):
+    monkeypatch.setenv("SEEKR_HOME", str(tmp_path / "seekr-data"))
+    service = ClipboardService(config, db)
+    config.set("privacy.clipboard_history", True)
+    config.set("privacy.clipboard_history_consent", True)
+    config.set("clipboard.enabled", True)
+    config.set("clipboard.capture_images", True)
+
+    oversized = QImage(4097, 1, QImage.Format.Format_ARGB32)
+    assert service.capture_image(oversized) is None
+    too_many_pixels = QImage(4096, 4096, QImage.Format.Format_ARGB32)
+    assert service.capture_image(too_many_pixels) is None
+    assert service.items() == []
 
 
 # -------------------------------------------------------------------- clipboard
