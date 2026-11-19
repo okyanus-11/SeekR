@@ -307,6 +307,14 @@ class LauncherWindow(QWidget):
         self._target_position = QPoint(x, y)
 
     # ---------------------------------------------------------------- show
+    def showEvent(self, event) -> None:  # noqa: N802
+        super().showEvent(event)
+        self.launcher_widgets.set_active(True)
+
+    def hideEvent(self, event) -> None:  # noqa: N802
+        self.launcher_widgets.set_active(False)
+        super().hideEvent(event)
+
     def show_launcher(self) -> None:
         # Preserve the current opacity when reopening during a fade-out. The
         # animation must continue from the visible state, not restart at zero.
