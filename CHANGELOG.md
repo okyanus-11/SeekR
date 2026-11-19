@@ -26,7 +26,7 @@
   UI thread and refresh only when active.
 - Clipboard history applies age-based retention to unpinned entries while
   preserving pinned entries; separately opt-in PNG image capture is size-bounded,
-  stored locally, previewed in the manager and copied back on explicit selection.
+  stored as unencrypted local files, previewed in the manager and copied back on explicit selection.
 - Widget layout, visibility, theme application and refresh behavior are covered
   by Qt regression tests.
 
