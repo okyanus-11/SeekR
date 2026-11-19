@@ -13,7 +13,7 @@ import pytest
 from core.config_manager import ConfigManager
 from features import applications as applications_module
 from features import bookmarks, color_tools, emoji_search, power, process_manager, quicklook, screenshots, system_info
-from features.applications import AppService
+from features.applications import AppService, ApplicationsProvider
 from features.clipboard import ClipboardProvider, ClipboardService
 from features.files import FileIndexer, FileService, FilesProvider
 from features.notes import NotesService
@@ -260,6 +260,23 @@ def test_application_launch_records_history(config, db, tmp_path, monkeypatch):
     ok, message = service.launch(app)
     assert ok, message
     assert db.history("app")
+
+
+
+def test_application_ranking_uses_bounded_usage_only_when_enabled(config):
+    now = time.time()
+    apps = [
+        {"name": "Editor", "path": "a.exe", "use_count": 0, "last_used": 0},
+        {"name": "Editor", "path": "b.exe", "use_count": 80, "last_used": now},
+    ]
+    config.set("privacy.usage_tracking", True)
+    personalized = ApplicationsProvider._scored("Editor", apps, 5, config)
+    assert personalized[0][1]["path"] == "b.exe"
+    assert personalized[0][0] <= 1.0
+
+    config.set("privacy.usage_tracking", False)
+    neutral = ApplicationsProvider._scored("Editor", apps, 5, config)
+    assert neutral[0][1]["path"] == "a.exe"
 
 
 # -------------------------------------------------------------------- clipboard
