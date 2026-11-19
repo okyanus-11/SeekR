@@ -41,7 +41,12 @@ function Wait-ForVisibleWindow([System.Diagnostics.Process]$Process, [int]$Timeo
 
 function Start-VisibleMeasurement([string]$Label, [string[]]$Arguments) {
     $watch = [Diagnostics.Stopwatch]::StartNew()
-    $process = Start-Process -FilePath $exe -ArgumentList $Arguments -PassThru
+    if ($Arguments.Count -gt 0) {
+        $process = Start-Process -FilePath $exe -ArgumentList $Arguments -PassThru
+    }
+    else {
+        $process = Start-Process -FilePath $exe -PassThru
+    }
     try {
         $visibleMs = Wait-ForVisibleWindow -Process $process -Timeout $TimeoutSeconds
         return [pscustomobject]@{
