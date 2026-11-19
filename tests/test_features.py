@@ -328,7 +328,7 @@ def test_application_usage_ranking_respects_privacy_opt_in(config, db):
 
 
 
-def test_clipboard_image_capture_is_separately_opt_in_and_cleans_up(config, db, tmp_path, monkeypatch):
+def test_clipboard_image_capture_is_separately_opt_in_and_cleans_up(qapp, config, db, tmp_path, monkeypatch):
     monkeypatch.setenv("SEEKR_HOME", str(tmp_path / "seekr-data"))
     service = ClipboardService(config, db)
     config.set("privacy.clipboard_history", True)
@@ -346,11 +346,32 @@ def test_clipboard_image_capture_is_separately_opt_in_and_cleans_up(config, db, 
     row = service.items()[0]
     assert row["kind"] == "image"
     assert row["width"] == 32 and row["height"] == 24
+    assert service.copy(row)
+    assert qapp.clipboard().mimeData().hasImage()
 
     assert service.capture_image(image) is None  # adjacent duplicate suppressed
     image_path = Path(stored["image_path"])
     service.clear(keep_pinned=False)
     assert not image_path.exists()
+
+
+
+def test_clipboard_image_cleanup_preserves_files_when_database_is_unavailable(config, db, tmp_path, monkeypatch):
+    monkeypatch.setenv("SEEKR_HOME", str(tmp_path / "seekr-data"))
+    service = ClipboardService(config, db)
+    config.set("privacy.clipboard_history", True)
+    config.set("privacy.clipboard_history_consent", True)
+    config.set("clipboard.enabled", True)
+    config.set("clipboard.capture_images", True)
+    image = QImage(12, 12, QImage.Format.Format_ARGB32)
+    image.fill(0xFF112233)
+    stored = service.capture_image(image)
+    assert stored is not None
+    image_path = Path(stored["image_path"])
+
+    monkeypatch.setattr(db, "clipboard_image_paths", lambda: None)
+    service._cleanup_orphan_images()
+    assert image_path.is_file()
 
 
 def test_clipboard_image_capture_rejects_oversized_dimensions(config, db, tmp_path, monkeypatch):
