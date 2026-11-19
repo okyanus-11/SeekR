@@ -448,12 +448,22 @@ class Database:
         else:
             self._write("DELETE FROM clipboard")
 
-    def prune_clipboard(self, limit: int) -> None:
+    def prune_clipboard(self, limit: int, retention_days: int | None = None) -> None:
+        """Apply count and optional age limits to unpinned clipboard entries.
+
+        Pinned entries are deliberately retained until the user deletes them.
+        """
+        if retention_days is not None:
+            cutoff = time.time() - max(1, int(retention_days)) * 86400
+            self._write(
+                "DELETE FROM clipboard WHERE pinned = 0 AND created < ?",
+                (cutoff,),
+            )
         self._write(
             """DELETE FROM clipboard WHERE pinned = 0 AND id NOT IN (
                    SELECT id FROM clipboard WHERE pinned = 0 ORDER BY created DESC LIMIT ?
                )""",
-            (max(1, limit),),
+            (max(1, int(limit)),),
         )
 
     def clipboard_count(self) -> int:
