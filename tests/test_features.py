@@ -92,6 +92,27 @@ def test_missing_configured_directory_does_not_prune_its_cached_rows(config, db,
     assert db.file_candidates("cached", limit=10)
 
 
+
+def test_file_index_skips_unchanged_records_and_force_reindexes(config, db, tmp_path):
+    root = tmp_path / "incremental-fast"
+    root.mkdir()
+    file = root / "stable.txt"
+    file.write_text("unchanged", encoding="utf-8")
+    config.set("files.directories", [str(root)])
+    indexer = FileIndexer(config, db)
+
+    first = indexer.index()
+    assert first["indexed"] >= 1
+    second = indexer.index()
+    assert second["scanned"] >= 1
+    assert second["unchanged"] >= 1
+    assert second["indexed"] == 0
+
+    forced = indexer.index(clear=True)
+    assert forced["indexed"] >= 1
+    assert forced["unchanged"] == 0
+
+
 def test_file_index_finds_documents(indexed_files, config):
     service, stats, root = indexed_files
     assert stats["indexed"] >= 3
