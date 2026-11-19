@@ -477,6 +477,8 @@ class ConnectionsTab(QWidget):
         buttons.addWidget(secondary_button("New profile…", self._new))
         buttons.addWidget(secondary_button("Edit…", self._edit))
         buttons.addWidget(danger_button("Delete", self._delete))
+        buttons.addWidget(secondary_button("Import…", self._import))
+        buttons.addWidget(secondary_button("Export…", self._export))
         buttons.addStretch(1)
         self.status = label("", "Muted")
         buttons.addWidget(self.status)
@@ -891,6 +893,37 @@ class SnippetsTab(QWidget):
             return
         self.service.delete(snippet["id"])
         self.reload()
+
+    def _import(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Import snippets", "", "SeekR snippet backup (*.json);;JSON files (*.json)"
+        )
+        if not path:
+            return
+        try:
+            content = Path(path).read_text(encoding="utf-8")
+            ok, message, count = self.service.import_json(content)
+        except (OSError, UnicodeError, ValueError) as exc:
+            dialogs.show_error(self, "Snippet import failed", str(exc))
+            return
+        if not ok:
+            dialogs.show_error(self, "Snippet import failed", message)
+            return
+        self.reload()
+        self.status.setText(f"Imported {count} snippets")
+
+    def _export(self) -> None:
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export snippets", "SeekR-snippets.json", "JSON files (*.json)"
+        )
+        if not path:
+            return
+        try:
+            Path(path).write_text(self.service.export_json(), encoding="utf-8")
+        except OSError as exc:
+            dialogs.show_error(self, "Snippet export failed", str(exc))
+            return
+        self.status.setText("Snippet backup exported")
 
     def on_show(self) -> None:
         self.reload()
