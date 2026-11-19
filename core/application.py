@@ -45,6 +45,7 @@ from features.web_search import (
     YouTubeProvider,
 )
 from features.window_search import WindowProvider
+from features.window_manager import WindowManagerProvider
 from features.workflows import WorkflowProvider, WorkflowService
 from ui import dialogs, i18n
 from ui.icons import IconStore, app_icon
@@ -135,6 +136,7 @@ class SeekRApplication(QObject, UIHooks):
             SystemInfoProvider(self.config, self.db, self),
             DateTimeProvider(self.config, self.db, self),
             WindowProvider(self.config, self.db, self),
+            WindowManagerProvider(self.config, self.db, self),
             EmojiProvider(self.config, self.db, self),
             ColorProvider(self.config, self.db, self),
             ScreenshotProvider(self.config, self.db, self),
