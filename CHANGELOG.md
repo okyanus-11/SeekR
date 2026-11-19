@@ -1,5 +1,53 @@
 # Changelog
 
+## [2.0.0] - 2026-11-19
+
+### Added
+
+- Local multi-step workflows with validated steps, preview, cancellation, progress,
+  per-step errors, and versioned JSON import/export.
+- A reusable snippets manager with categories, aliases, search, explicit copy,
+  and validated JSON backup/restore.
+- A local task manager with due dates, notes, completion state, launcher search,
+  and a compact launcher task-summary widget.
+- A unified Command Center, explicit command chains, and safer window-management
+  actions for switching, tiling and minimizing.
+- Natural-language file filters for extension, local calendar date and size,
+  plus opt-in local content search for configured roots and text extensions.
+- Configurable refresh intervals for launcher widgets and reduced-motion support
+  in shared animated controls.
+
+### Changed
+
+- File-content search now has strict candidate and aggregate read budgets.
+- File indexing preserves the last complete snapshot on cancellation, inaccessible
+  folders and index-limit exits.
+- Hidden launcher widgets stop polling; network-backed widgets fetch outside the
+  UI thread and refresh only when active.
+- Clipboard history applies age-based retention to unpinned entries while
+  preserving pinned entries.
+- Widget layout, visibility, theme application and refresh behavior are covered
+  by Qt regression tests.
+
+### Fixed
+
+- Widget cards no longer disappear or detach after settings refreshes, theme
+  changes, launcher hide/show cycles or asynchronous refreshes.
+- Calendar-day file searches now use local midnight boundaries, so “yesterday”
+  excludes files modified today.
+- Snippet and workflow restore validate complete imports before database writes
+  and report storage/encoding failures without crashing the Tools window.
+
+### Validation
+
+- Linux, Windows 10/11 runner matrix tests pass.
+- Windows portable and onedir builds pass; packaged UI verification, installer
+  build, install, launch, UI smoke test and uninstall pass.
+- CI publishes the portable executable, installer and SHA-256 manifest as
+  downloadable workflow artifacts.
+
+## [Unreleased]
+
 ## [1.1.2] - 2026-11-19
 
 ### Fixed
