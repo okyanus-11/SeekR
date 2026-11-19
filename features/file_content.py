@@ -83,7 +83,7 @@ class FileContentProvider(SearchProvider):
                     if read_limit == remaining_budget:
                         break
                     continue
-                encoding = "utf-16" if raw.startswith((b"\\xff\\xfe", b"\\xfe\\xff")) else "utf-8-sig"
+                encoding = "utf-16" if raw.startswith((b"\xff\xfe", b"\xfe\xff")) else "utf-8-sig"
                 content = raw.decode(encoding)
             except (OSError, UnicodeError, RuntimeError, ValueError):
                 continue
