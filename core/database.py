@@ -298,8 +298,8 @@ class Database:
         self._write("DELETE FROM apps")
 
     # ------------------------------------------------------------------ files
-    def upsert_files(self, entries: Iterable[dict[str, Any]]) -> int:
-        now = time.time()
+    def upsert_files(self, entries: Iterable[dict[str, Any]], indexed_at: float | None = None) -> int:
+        now = time.time() if indexed_at is None else float(indexed_at)
         rows = [
             (
                 entry["path"],
@@ -381,6 +381,30 @@ class Database:
     def count_files(self) -> int:
         row = self._query_one("SELECT COUNT(*) AS n FROM files")
         return int(row["n"]) if row else 0
+
+    def prune_files_before(self, directories: Sequence[str], indexed_before: float) -> int:
+        """Remove stale indexed rows under configured roots after a complete scan."""
+        scopes = [str(Path(directory)) for directory in directories if directory]
+        if not scopes:
+            return 0
+        clauses = []
+        params: list[Any] = []
+        for directory in scopes:
+            prefix = directory.rstrip("/\\")
+            if not prefix:
+                continue
+            clauses.append(
+                "(dir IN (?, ?) OR (substr(dir, 1, ?) = ? AND "
+                "substr(dir, ?, 1) IN ('/', char(92))))"
+            )
+            params.extend((directory, prefix, len(prefix), prefix, len(prefix) + 1))
+        if not clauses:
+            return 0
+        params.append(float(indexed_before))
+        return self._write(
+            "DELETE FROM files WHERE (" + " OR ".join(clauses) + ") AND indexed < ?",
+            params,
+        )
 
     def clear_files(self) -> None:
         self._write("DELETE FROM files")
