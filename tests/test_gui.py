@@ -759,6 +759,7 @@ def test_20_new_search_providers_are_registered(controller, tmp_path):
         ("wm: ", "window_manager"),
         ("> system", "command_center"),
         ("update: ", "updates"),
+        ("task: ", "tasks"),
     ):
         resolved = controller.engine.resolve(query)
         assert resolved is not None
@@ -771,6 +772,7 @@ def test_workflow_and_snippet_tools_pages_are_constructible(qapp, controller, tm
     window = ToolsWindow(controller)
     assert "workflows" in window.pages
     assert "snippets" in window.pages
+    assert "tasks" in window.pages
 
     folder = tmp_path / "workspace"
     folder.mkdir()
@@ -787,8 +789,10 @@ def test_workflow_and_snippet_tools_pages_are_constructible(qapp, controller, tm
 
     workflow_tab = window.pages["workflows"]
     snippet_tab = window.pages["snippets"]
+    tasks_tab = window.pages["tasks"]
     workflow_tab.reload()
     snippet_tab.reload()
+    tasks_tab.reload()
     assert workflow_tab.table.rowCount() >= 1
     assert snippet_tab.table.rowCount() >= 1
     window.close()
