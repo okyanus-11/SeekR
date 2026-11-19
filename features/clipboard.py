@@ -44,7 +44,10 @@ class ClipboardService:
         inserted = self.db.add_clipboard(text, source=source, dedupe=dedupe)
         if inserted is None:
             return None
-        self.db.prune_clipboard(int(self.config.get("clipboard.limit", 200) or 200))
+        self.db.prune_clipboard(
+            int(self.config.get("clipboard.limit", 200) or 200),
+            retention_days=int(self.config.get("privacy.retention_days", 90) or 90),
+        )
         return {"id": inserted, "text": text}
 
     @staticmethod
