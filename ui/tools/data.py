@@ -477,7 +477,6 @@ class ConnectionsTab(QWidget):
         buttons.addWidget(secondary_button("New profile…", self._new))
         buttons.addWidget(secondary_button("Edit…", self._edit))
         buttons.addWidget(danger_button("Delete", self._delete))
-        buttons.addWidget(secondary_button("Export…", self._export))
         buttons.addStretch(1)
         self.status = label("", "Muted")
         buttons.addWidget(self.status)
