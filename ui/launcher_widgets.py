@@ -553,10 +553,68 @@ class MemeWidget(WidgetCard):
         super().mouseReleaseEvent(event)
 
 
+class TasksWidget(WidgetCard):
+    """Small local task summary; refreshes only while the launcher is visible."""
+
+    def __init__(self, service, hooks, parent=None):
+        super().__init__("Tasks", parent)
+        self.service = service
+        self.hooks = hooks
+        self.summary = QLabel("Loading tasks…")
+        self.summary.setObjectName("WidgetValue")
+        self.content.addWidget(self.summary)
+        self.task_labels = []
+        for _ in range(2):
+            item = QLabel()
+            item.setObjectName("WidgetSecondary")
+            item.setWordWrap(True)
+            self.content.addWidget(item)
+            self.task_labels.append(item)
+        self.open_button = QPushButton("Open tasks")
+        self.open_button.setFixedHeight(24)
+        self.open_button.clicked.connect(self._open_tasks)
+        self.content.addWidget(self.open_button)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.refresh)
+        self.refresh()
+
+    def _open_tasks(self):
+        if self.hooks is not None:
+            self.hooks.open_tools("tasks")
+            self.hooks.hide_launcher()
+
+    def refresh(self):
+        try:
+            rows = self.service.tasks(include_completed=False) if self.service is not None else []
+            today = datetime.now().date().isoformat()
+            rows = [row for row in rows if not row.get("completed")]
+            rows.sort(key=lambda row: (
+                not bool(row.get("due_date")),
+                str(row.get("due_date") or "9999-12-31"),
+                str(row.get("title", "")).casefold(),
+            ))
+            overdue = sum(1 for row in rows if row.get("due_date") and row["due_date"] < today)
+            self.summary.setText(f"{len(rows)} open  ·  {overdue} overdue")
+            for index, label_widget in enumerate(self.task_labels):
+                if index < len(rows):
+                    row = rows[index]
+                    due = row.get("due_date") or "No due date"
+                    label_widget.setText(f"• {str(row.get('title', 'Task'))[:26]}  ·  {due}")
+                    label_widget.setVisible(True)
+                else:
+                    label_widget.clear()
+                    label_widget.setVisible(False)
+        except Exception:
+            log.debug("Task widget refresh failed", exc_info=True)
+            self.summary.setText("Tasks unavailable")
+            for label_widget in self.task_labels:
+                label_widget.clear()
+
+
 class LauncherWidgets(QObject):
     """Owns the four optional widgets, split into two side rails."""
 
-    def __init__(self, config, parent=None):
+    def __init__(self, config, parent=None, task_service=None, hooks=None):
         super().__init__(parent)
         self.config = config
         self._active = False
@@ -579,18 +637,20 @@ class LauncherWidgets(QObject):
 
         self.clock = ClockWidget(config, self.left_column)
         self.system = SystemWidget(self.left_column)
+        self.tasks = TasksWidget(task_service, hooks, self.left_column)
         self.weather = WeatherWidget(config, self.pool, self.right_column)
         self.meme = MemeWidget(self.pool, self.right_column)
-        self._cards = {"clock": self.clock, "weather": self.weather, "system": self.system, "meme": self.meme}
+        self._cards = {"clock": self.clock, "weather": self.weather, "system": self.system, "meme": self.meme, "tasks": self.tasks}
         self._left_layout.addWidget(self.clock)
         self._left_layout.addWidget(self.system)
+        self._left_layout.addWidget(self.tasks)
         self._left_layout.addStretch(1)
         self._right_layout.addWidget(self.weather)
         self._right_layout.addWidget(self.meme)
         self._right_layout.addStretch(1)
         for key, card in self._cards.items():
             card.setMinimumHeight(132)
-            card.setMaximumHeight(212 if key == "system" else 196 if key == "clock" else 168)
+            card.setMaximumHeight(212 if key == "system" else 196 if key == "clock" else 160 if key == "tasks" else 168)
             card.setContentsMargins(0, 0, 0, 0)
         self._apply_card_theme()
         self._rebuild()
@@ -644,7 +704,7 @@ class LauncherWidgets(QObject):
         # Settings refreshes only toggle visibility; they never remove, hide,
         # reparent, or recreate a card. This makes widget lifetime independent
         # of search refreshes, animation state, and asynchronous data replies.
-        for key in ("clock", "system", "weather", "meme"):
+        for key in ("clock", "system", "tasks", "weather", "meme"):
             card = self._cards[key]
             enabled = bool(self.config.get(f"widgets.{key}_enabled", True))
             card.setVisible(enabled)
@@ -652,7 +712,7 @@ class LauncherWidgets(QObject):
 
         self._sync_timers()
         self.left_column.setVisible(
-            any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("clock", "system"))
+            any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("clock", "system", "tasks"))
         )
         self.right_column.setVisible(
             any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("weather", "meme"))
@@ -669,6 +729,11 @@ class LauncherWidgets(QObject):
                     card.refresh()
             elif key == "system":
                 card.timer.start(int(self.config.get("widgets.system_refresh_ms", 2000))) if running else card.timer.stop()
+                if running:
+                    card.refresh()
+            elif key == "tasks":
+                interval = int(self.config.get("widgets.tasks_refresh_minutes", 5)) * 60 * 1000
+                card.timer.start(interval) if running else card.timer.stop()
                 if running:
                     card.refresh()
             elif key == "weather":
