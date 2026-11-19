@@ -4,7 +4,7 @@
 
 SeekR is a native desktop application built with Python and PySide6. It searches your applications and files, evaluates expressions, opens websites, runs safe commands, previews documents, manages clipboard history and notes, and bundles a set of everyday developer utilities — all from one floating window.
 
-**Current version:** 1.1.2 · **Next major release:** 2.0.0 (in development) · **License:** MIT
+**Current version:** 2.0.0 · **Next major release:** 3.0.0 (plugins planned) · **License:** MIT
 
 
 <p align="center">
@@ -15,7 +15,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 > **Windows 10/11:** Click the installer above to install the app. No Python setup or ZIP extraction required.
 
 
-> Plugins are **not** part of 1.1.1. The Settings → Plugins page shows the planned marketplace as *Coming Soon*; no plugin code is loaded or executed.
+> Plugins are **not** part of 2.0.0 and are planned for 3.0.0. The Settings → Plugins page shows the planned marketplace as *Coming Soon*; no plugin code is loaded or executed.
 
 ---
 
@@ -55,7 +55,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 - Recent and frequently used applications influence ranking.
 - Context menu for secondary actions, action cycling with `Tab`, and numbered actions with `Ctrl+1…9`.
 - Subtle open/close/selection animations that can be disabled in Settings.
-- Four optional live widgets around the results: clock and system usage on the left; weather and a daily wholesome meme on the right. All are enabled by default and individually configurable in Settings → Widgets.
+- Five optional live widgets around the results: clock, system usage and local task summary on the left; weather and a daily wholesome meme on the right. Each can be enabled independently, and refresh intervals are configurable in Settings → Widgets.
 - Weather uses a city or town entered in Settings (no location permission); the current conditions refresh every 30 minutes. The daily meme is cached locally and refreshes on the next calendar day.
 - Optional "hide when focus is lost", tray icon, and start-with-Windows support.
 - Single-instance enforcement: launching SeekR again brings the existing window forward.
@@ -71,7 +71,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 | Translation | `translate: Hello to Turkish` builds a Google Translate URL; supports 20+ language names. |
 | Dictionary | `define: algorithm` opens an in-app definition lookup. Successful lookups are cached locally and can be reopened offline. |
 | Commands | Built-in safe system commands and user-defined commands with confirmation for destructive actions, argument-safe execution, aliases and history. |
-| Clipboard | Opt-in text clipboard history, off by default; copied text is stored unencrypted in the local database with hash-based deduplication, pinning, search, deletion and automatic pruning. |
+| Clipboard | Opt-in text clipboard history, off by default; copied text is stored unencrypted in the local database with hash-based deduplication, pinning, categories, search, deletion and age/count retention for unpinned entries. |
 | Notes | Lightweight notes with autosave, pinning, search and timestamps. |
 | System info | Real CPU, memory, disks, GPU, battery, network, IP, uptime and OS data via `psutil` and platform APIs. No invented values. |
 | Date & time | Current time, time-zone lookup and conversion, date differences, countdown timer, configurable formats. |
