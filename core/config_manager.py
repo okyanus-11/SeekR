@@ -96,6 +96,9 @@ def default_config() -> dict[str, Any]:
             "max_depth": 10,
             "max_files": 200000,
             "include_folders": True,
+            "content_search_enabled": False,
+            "content_search_extensions": [".txt", ".md", ".py", ".json", ".csv", ".html", ".xml"],
+            "content_search_max_file_bytes": 1000000,
         },
         "web": {
             "engine": "duckduckgo",
