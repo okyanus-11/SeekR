@@ -288,6 +288,15 @@ class WorkflowProvider(SearchProvider):
         )
 
     def _run(self, workflow: dict[str, Any]) -> None:
+        valid, message, lines = self.service.preview(workflow)
+        if not valid:
+            self.hooks.notify(message, "error")
+            return
+        if not self.hooks.confirm(
+            f"Run workflow: {workflow['title']}?",
+            "The following actions will run in order:\\n\\n" + "\\n".join(lines),
+        ):
+            return
         ok, message, completed = self.service.run(workflow)
         self.hooks.notify(f"{message} ({completed}/{len(workflow['steps'])})",
                           "info" if ok else "error")
