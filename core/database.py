@@ -391,6 +391,29 @@ class Database:
         )
         return [dict(row) for row in rows]
 
+    def file_index_snapshot(self, limit: int, directories: Sequence[str]) -> list[dict[str, Any]]:
+        """Return indexed files and folders under the configured roots."""
+        if not directories:
+            return []
+        scopes = [(str(directory), str(directory).rstrip("/\\"))
+                  for directory in directories if directory]
+        if not scopes:
+            return []
+        clauses = " OR ".join(
+            "(dir IN (?, ?) OR (substr(dir, 1, ?) = ? AND "
+            "substr(dir, ?, 1) IN ('/', char(92))))"
+            for _ in scopes
+        )
+        params: list[Any] = []
+        for original, prefix in scopes:
+            params.extend((original, prefix, len(prefix), prefix, len(prefix) + 1))
+        params.append(max(1, int(limit)))
+        rows = self._query(
+            f"SELECT * FROM files WHERE ({clauses}) ORDER BY mtime DESC LIMIT ?",
+            params,
+        )
+        return [dict(row) for row in rows]
+
     def recent_files(self, limit: int = 5, directories: Sequence[str] = ()) -> list[dict[str, Any]]:
         if directories:
             scopes = [(directory, directory.rstrip("/\\"))
