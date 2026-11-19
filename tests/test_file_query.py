@@ -18,12 +18,17 @@ def test_parse_size_filter_and_preserve_unknown_words():
 
 
 def test_parse_smaller_than_and_yesterday():
-    parsed = parse_file_query("smaller than 2 KiB modified yesterday", now=200_000)
+    from datetime import datetime, timedelta
+
+    now = 200_000
+    local_now = datetime.fromtimestamp(now)
+    today_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    parsed = parse_file_query("smaller than 2 KiB modified yesterday", now=now)
     assert parsed.text == ""
     assert parsed.size_operator == "<"
     assert parsed.size_bytes == 2048
-    assert parsed.modified_after == 86_400
-    assert parsed.modified_before == 172_800
+    assert parsed.modified_after == (today_start - timedelta(days=1)).timestamp()
+    assert parsed.modified_before == today_start.timestamp()
 
 
 def test_unrecognised_query_is_unchanged():
