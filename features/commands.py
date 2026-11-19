@@ -171,7 +171,7 @@ class CommandService:
             )
             if entry is None:
                 return CommandOutcome(False, f"Step {index}: unknown command '{tokens[0]}'")
-            if self.needs_confirmation(entry):
+            if entry.confirmation:
                 if not self.hooks.confirm(
                     f"Confirm chain step: {entry.title}",
                     f"Run this step?\\n\\n{entry.description}\\n\\n"
@@ -496,8 +496,9 @@ class CommandChainProvider(SearchProvider):
                 primary=lambda: self.hooks.fill_query("chain: "),
                 icon_glyph="⇢",
             )]
+        step_count = len(re.split(r"\\s+then\\s+", expression, flags=re.IGNORECASE))
         return [self.make_result(
-            title=f"Run {len(re.split(r'\\s+then\\s+', expression, flags=re.IGNORECASE))} command steps",
+            title=f"Run {step_count} command steps",
             subtitle=expression,
             category="Command chain",
             score=1.0,
