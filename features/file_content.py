@@ -69,10 +69,18 @@ class FileContentProvider(SearchProvider):
                     continue
                 if roots and not any(resolved.is_relative_to(root.resolve()) for root in roots):
                     continue
-                raw = resolved.read_bytes()
-                if len(raw) > max_bytes:
+                read_limit = min(max_bytes, remaining_budget)
+                # Bound the read itself, not just stat() checks: a file can
+                # grow between stat and open. This provider runs on the search
+                # path, so total disk I/O must remain predictable.
+                with resolved.open("rb") as handle:
+                    raw = handle.read(read_limit + 1)
+                bytes_read += min(len(raw), read_limit)
+                if len(raw) > read_limit:
+                    if read_limit == remaining_budget:
+                        break
                     continue
-                encoding = "utf-16" if raw.startswith((b"\xff\xfe", b"\xfe\xff")) else "utf-8-sig"
+                encoding = "utf-16" if raw.startswith((b"\\xff\\xfe", b"\\xfe\\xff")) else "utf-8-sig"
                 content = raw.decode(encoding)
             except (OSError, UnicodeError, RuntimeError, ValueError):
                 continue
