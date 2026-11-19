@@ -668,6 +668,16 @@ class WorkflowsTab(QWidget):
         if workflow is None:
             self.status.setText("Select a workflow first")
             return
+        valid, message, lines = self.service.preview(workflow)
+        if not valid:
+            dialogs.show_error(self, "Workflow preview failed", message)
+            return
+        if not dialogs.ask_confirm(
+            self,
+            f"Run workflow: {workflow['title']}?",
+            "The following actions will run in order:\\n\\n" + "\\n".join(lines),
+        ):
+            return
         ok, message, completed = self.service.run(workflow)
         self.status.setText(f"{message} ({completed}/{len(workflow['steps'])})")
         if not ok:
