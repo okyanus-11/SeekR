@@ -1196,6 +1196,15 @@ class AdvancedPage(SettingsPage):
         self.row(card, "Performance statistics", "Show search timing in the launcher footer.", bind_switch(self.config, "advanced.performance_stats"))
         self.row(card, "Single instance", "Only allow one SeekR process. Applies on next launch.", bind_switch(self.config, "advanced.single_instance"))
 
+        updates = self.section("Updates", "Checks use the official SeekR GitHub releases API; no installer is downloaded or run automatically.")
+        self.row(
+            updates,
+            "Check automatically",
+            "Check once per day in the background. This sends a request to GitHub and is off by default.",
+            bind_switch(self.config, "updates.check_automatically"),
+        )
+        updates.add_widget(secondary_button("Check now", self._check_updates))
+
         paths = self.section("Storage")
         paths.add_widget(label(f"Configuration: {config_path()}", "Muted", wrap=True))
         paths.add_widget(label(f"Database: {database_path()}", "Muted", wrap=True))
@@ -1212,6 +1221,27 @@ class AdvancedPage(SettingsPage):
         holder.setLayout(buttons)
         paths.add_widget(holder)
         self._refresh_size()
+
+    def _check_updates(self) -> None:
+        from core.workers import run_async
+
+        run_async(
+            self.controller.update_service.check_latest,
+            on_finished=self._update_check_finished,
+            on_failed=self._update_check_failed,
+        )
+
+    def _update_check_finished(self, info: dict) -> None:
+        if info.get("update_available"):
+            self.controller.show_info(
+                "SeekR update available",
+                f"Version {info['latest_version']} is available. Open the official release page: {info['release_url']}",
+            )
+        else:
+            self.saved(f"SeekR {info['current_version']} is up to date")
+
+    def _update_check_failed(self, message: str, _traceback_text: str) -> None:
+        self.controller.show_error("Update check", message)
 
     def _refresh_size(self) -> None:
         path = database_path()
@@ -1316,8 +1346,8 @@ class AboutPage(SettingsPage):
         updates = self.section("Updates")
         updates.add_widget(
             label(
-                "SeekR does not phone home. Automatic update checks are disabled in this release; "
-                "new versions are published on the GitHub repository.",
+                "Automatic update checks are opt-in and run once per day when enabled. "
+                "Manual checks are available in Settings → Advanced or with update:.",
                 "Muted",
                 wrap=True,
             )
