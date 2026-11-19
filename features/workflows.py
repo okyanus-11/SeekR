@@ -12,7 +12,10 @@ from typing import Any, Callable
 from core.config_manager import ConfigManager
 from core.database import Database
 from core.logging_setup import get_logger
+from core.models import ResultAction, SearchResult
+from core.search_engine import SearchProvider
 from core.workers import CancelToken
+from core.fuzzy import fuzzy_score
 from . import util
 
 log = get_logger(__name__)
@@ -170,7 +173,73 @@ class WorkflowService:
         return True, f"Completed {len(steps)} steps", len(steps)
 
 
+
+class WorkflowProvider(SearchProvider):
+    """Explicit flow-keyword search for user-created local workflows."""
+
+    id = "workflows"
+    title = "Workflows"
+    keyword = "flow"
+    weight = 0.95
+    auto = False
+
+    def __init__(self, config, db, hooks, service: WorkflowService | None = None):
+        super().__init__(config, db, hooks)
+        self.service = service or WorkflowService(config, db, hooks)
+
+    def search(self, query: str, limit: int) -> list[SearchResult]:
+        text = (query or "").strip()
+        rows = self.service.workflows()
+        if text:
+            scored = [
+                (max(
+                    fuzzy_score(text, row["title"], typo_tolerance=True),
+                    fuzzy_score(text, row.get("description", ""), typo_tolerance=True) * 0.8,
+                ), row)
+                for row in rows
+            ]
+            rows = [row for score, row in sorted(scored, key=lambda item: item[0], reverse=True)
+                    if score >= 0.35][:limit]
+        else:
+            rows = rows[:limit]
+        return [self._result(row, 0.9 - index * 0.02) for index, row in enumerate(rows)]
+
+    def _result(self, workflow: dict[str, Any], score: float) -> SearchResult:
+        return self.make_result(
+            title=workflow["title"],
+            subtitle=f"{len(workflow['steps'])} steps  ·  {workflow.get('description', '')}",
+            category="Workflow",
+            score=score,
+            primary=lambda: self._run(workflow),
+            actions=[
+                ResultAction("Edit workflows", lambda: self.hooks.open_tools("workflows")),
+                ResultAction("Copy workflow JSON", lambda: self.hooks.copy_text(
+                    json.dumps(workflow, ensure_ascii=False, indent=2)
+                )),
+            ],
+            icon_glyph="⇢",
+            meta={"workflow": workflow},
+        )
+
+    def _run(self, workflow: dict[str, Any]) -> None:
+        ok, message, completed = self.service.run(workflow)
+        self.hooks.notify(f"{message} ({completed}/{len(workflow['steps'])})",
+                          "info" if ok else "error")
+        if ok:
+            self.hooks.hide_launcher()
+
+    def empty_help(self) -> SearchResult | None:
+        return self.make_result(
+            title="No workflows found",
+            subtitle="Create a workflow in Tools → Workflows, then search with flow:",
+            category="Workflow",
+            score=1.0,
+            primary=lambda: self.hooks.open_tools("workflows"),
+            icon_glyph="⇢",
+        )
+
+
 __all__ = [
     "WORKFLOW_SCHEMA_VERSION", "STEP_TYPES", "WorkflowService",
-    "validate_step", "validate_workflow",
+    "validate_step", "validate_workflow", "WorkflowProvider",
 ]
