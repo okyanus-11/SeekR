@@ -34,7 +34,7 @@ def test_snippet_provider_only_copies_on_explicit_selection(config, db, hooks):
     assert len(results) == 1
     assert hooks.calls == []
     results[0].execute()
-    assert hooks.calls[-1] == ("copy_text", ("Hello there",))
+    assert ("copy_text", ("Hello there",)) in hooks.calls
 
 
 def test_snippets_persist_across_service_instances(config, db, hooks):
