@@ -167,7 +167,7 @@ jobs:
         id: release_version
         shell: bash
         run: |
-          version="$(python -c 'import re; print(re.search(r\'APP_VERSION = "([^"]+)"\', open("core/version.py", encoding="utf-8").read()).group(1))')"
+          version="$(sed -n 's/^APP_VERSION = "\\(.*\\)"/\\1/p' core/version.py)"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v8
         with:
