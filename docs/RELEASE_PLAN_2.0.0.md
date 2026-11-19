@@ -16,9 +16,9 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [ ] Keep expensive initialization and I/O off the GUI thread.
 - [ ] Review Qt startup, first paint, animation, and repaint costs with profiling evidence.
 - [ ] Make application indexing incremental and avoid unnecessary full rescans.
-- [ ] Improve file indexing with incremental change detection and clear cancellation/recovery behavior.
+- [x] Preserve the existing file index during a scan, prune stale records only after a complete scan, and retain cached records when configured folders are unavailable or indexing is cancelled. (Incremental change detection and scan-cost optimization remain open.)
 - [ ] Review icon extraction/cache bounds and ensure cache eviction is deterministic.
-- [ ] Audit widget refresh intervals, visibility-aware polling, and network work.
+- [x] Pause widget polling while the launcher is hidden and defer weather/meme requests until activation. (Configurable refresh intervals and per-widget stale/offline states remain open.)
 - [ ] Reduce unnecessary widget updates and Qt repaints.
 - [ ] Benchmark large file indexes, including substring search and typo-tolerant ranking, before changing search semantics.
 - [ ] Keep repeatable benchmark scripts and publish methodology, hardware, and before/after results.
@@ -43,9 +43,9 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [ ] Audit ranking across exact, prefix, substring, token, fuzzy, alias, recent, and frequent matches.
 - [ ] Prefer exact and high-confidence matches without making typo tolerance worse.
 - [ ] Improve abbreviation and common-alias handling without keyword collisions.
-- [ ] Add opt-in, transparent usage-based ranking with controls to inspect, reset, and disable personalization.
+- [x] Add bounded recent/frequent application ranking behind the existing privacy usage-tracking setting; existing settings allow disabling and clearing usage data.
 - [ ] Ensure recent activity has bounded retention and never leaks private query content.
-- [ ] Add natural-language file filters for supported metadata (type, modified date, and size).
+- [x] Add natural-language file filters for supported metadata (type, modified date, and size).
 - [ ] Add indexed document-content search only for explicitly configured file types and folders.
 - [ ] Make indexing status, supported formats, exclusions, and privacy implications clear.
 - [ ] Add tests for ambiguous natural-language filters, time zones, locale parsing, and large indexes.
@@ -90,7 +90,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 ### Clipboard manager
 - [ ] Preserve clipboard history as opt-in.
 - [ ] Add safe text, rich-text, and image previews with size limits.
-- [ ] Add filters, favorites, categories, pinning, deletion, and configurable retention.
+- [x] Add age-based retention for unpinned clipboard text; pinned entries remain. (Rich text/image previews, categories and favorites remain open.)
 - [ ] Explain local storage and encryption status honestly; never silently collect clipboard content.
 - [ ] Exclude sensitive formats where feasible and provide a pause/clear control.
 - [ ] Test large payloads, corrupt entries, pruning, and database migration.
@@ -156,6 +156,22 @@ A 2.0.0 release candidate must not be tagged until all of the following are true
 7. README, changelog, version metadata, installer, release workflow, and checksums agree on 2.0.0.
 8. All release workflows are green; no failed, cancelled, skipped-required, or stale run is treated as a pass.
 9. No plugin loading or marketplace execution code is included; plugins remain a 3.0.0 project.
+
+
+## Verified implementation log (not a release checklist)
+
+The following 2.0.0 work has been added on the development branch and is awaiting full CI and platform validation:
+
+- Natural-language file metadata filters and plural-aware matching.
+- Safe file-index snapshot behavior during cancellation, inaccessible roots and complete scans.
+- Persistent widget lifecycle, visibility-aware polling, theme refresh and regression coverage.
+- Bounded app usage ranking controlled by the existing privacy setting.
+- Clipboard age retention that never expires pinned entries.
+- Structured local workflows with validation, import/export, atomic import storage, bounded steps and no shell/script execution.
+- Explicitly selected local text snippets, categories and aliases; no automatic text injection.
+- Explicit command chains over existing command entries, with per-step confirmation for destructive/custom-confirmed actions and stop-on-failure behavior.
+
+These entries are not a substitute for the release gates below. The remaining checklist items still apply.
 
 ## Explicitly deferred to 3.0.0
 
