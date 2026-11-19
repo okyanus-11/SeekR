@@ -60,7 +60,7 @@ def split_command_chain(expression: str) -> list[str]:
             escaped = False
             index += 1
             continue
-        if quote == '"' and char == "\\\\":
+        if quote == '"' and char == "\\":
             escaped = True
             index += 1
             continue
@@ -74,7 +74,7 @@ def split_command_chain(expression: str) -> list[str]:
             index += 1
             continue
         if char.isspace():
-            match = re.match(r"\\s+then\\s+", expression[index:], flags=re.IGNORECASE)
+            match = re.match(r"\s+then\s+", expression[index:], flags=re.IGNORECASE)
             if match:
                 parts.append(expression[start:index].strip())
                 index += match.end()
