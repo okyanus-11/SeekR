@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import urlsplit
 
 from core.config_manager import ConfigManager
 from core.database import Database
@@ -24,6 +25,7 @@ WORKFLOW_SCHEMA_VERSION = 1
 STEP_TYPES = {"open_folder", "open_url", "launch_app", "copy_text"}
 MAX_STEPS = 30
 MAX_TEXT = 20_000
+MAX_IMPORT_BYTES = 1_000_000
 
 
 def validate_step(step: Any) -> tuple[bool, str]:
@@ -38,7 +40,7 @@ def validate_step(step: Any) -> tuple[bool, str]:
             return False, "Workflow folder step must point to an existing folder"
     elif kind == "open_url":
         url = str(step.get("url", "")).strip()
-        if not url.lower().startswith(("https://", "http://")):
+        if urlsplit(url).scheme.lower() not in {"http", "https"} or not urlsplit(url).hostname:
             return False, "Workflow URLs must start with http:// or https://"
     elif kind == "launch_app":
         executable = str(step.get("executable", "")).strip()
@@ -48,7 +50,7 @@ def validate_step(step: Any) -> tuple[bool, str]:
         if not all(isinstance(arg, str) and len(arg) <= 2048 for arg in args):
             return False, "Application arguments must be strings of at most 2048 characters"
         candidate = Path(executable).expanduser()
-        if not candidate.exists() and util.which(executable) is None:
+        if not (candidate.exists() and candidate.is_file()) and util.which(executable) is None:
             return False, f"Application not found: {executable}"
     elif kind == "copy_text":
         value = step.get("text")
@@ -115,6 +117,8 @@ class WorkflowService:
         }, ensure_ascii=False, indent=2)
 
     def import_json(self, content: str) -> tuple[bool, str, int]:
+        if not isinstance(content, str) or len(content.encode("utf-8")) > MAX_IMPORT_BYTES:
+            return False, "Workflow export is too large", 0
         try:
             payload = json.loads(content)
         except (TypeError, ValueError):
@@ -129,8 +133,15 @@ class WorkflowService:
             ok, message = validate_workflow(row)
             if not ok:
                 return False, f"Workflow {index}: {message}", 0
-        for row in rows:
-            self.save(row)
+        prepared = [
+            {
+                "title": str(row["title"]).strip(),
+                "description": str(row.get("description", "")).strip()[:500],
+                "steps_json": json.dumps(row["steps"], ensure_ascii=False, separators=(",", ":")),
+            }
+            for row in rows
+        ]
+        self.db.insert_workflows_atomic(prepared)
         return True, "Workflows imported", len(rows)
 
     def run(
@@ -240,6 +251,6 @@ class WorkflowProvider(SearchProvider):
 
 
 __all__ = [
-    "WORKFLOW_SCHEMA_VERSION", "STEP_TYPES", "WorkflowService",
+    "WORKFLOW_SCHEMA_VERSION", "STEP_TYPES", "MAX_IMPORT_BYTES", "WorkflowService",
     "validate_step", "validate_workflow", "WorkflowProvider",
 ]
