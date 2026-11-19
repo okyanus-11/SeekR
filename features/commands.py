@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -148,6 +149,44 @@ class CommandService:
         if outcome.success:
             self.db.add_history("command", entry.title)
         return outcome
+
+
+    def run_chain(self, expression: str) -> CommandOutcome:
+        """Run a bounded chain of named commands; no shell syntax is interpreted."""
+        segments = [part.strip() for part in re.split(r"\\s+then\\s+", expression, flags=re.IGNORECASE)]
+        if not segments or len(segments) > 10 or any(not part for part in segments):
+            return CommandOutcome(False, "A command chain needs 1–10 non-empty steps separated by 'then'")
+        entries = self.entries()
+        completed: list[str] = []
+        for index, segment in enumerate(segments, 1):
+            tokens = util.split_args(segment)
+            if not tokens:
+                return CommandOutcome(False, f"Step {index} is empty")
+            key = tokens[0].lower()
+            entry = next(
+                (candidate for candidate in entries
+                 if candidate.key.lower() == key
+                 or any(alias.lower() == key for alias in candidate.aliases)),
+                None,
+            )
+            if entry is None:
+                return CommandOutcome(False, f"Step {index}: unknown command '{tokens[0]}'")
+            if self.needs_confirmation(entry):
+                if not self.hooks.confirm(
+                    f"Confirm chain step: {entry.title}",
+                    f"Run this step?\\n\\n{entry.description}\\n\\n"
+                    f"Step {index} of {len(segments)}. The chain stops if a step fails.",
+                ):
+                    return CommandOutcome(False, f"Chain cancelled at step {index}")
+            args_text = segment[len(tokens[0]):].strip()
+            outcome = self.run(entry, args_text)
+            if not outcome.success:
+                return CommandOutcome(False, f"Step {index} ({entry.title}) failed: {outcome.message}",
+                                      "\\n".join(completed))
+            completed.append(outcome.message or entry.title)
+        return CommandOutcome(True, f"Completed {len(completed)} command-chain steps",
+                              "\\n".join(completed))
+
 
     def _run_custom(self, entry: CommandEntry, args_text: str) -> CommandOutcome:
         command = str(entry.raw.get("command", "")).strip()
@@ -432,4 +471,47 @@ class CommandsProvider(SearchProvider):
         )
 
 
-__all__ = ["CommandService", "CommandEntry", "CommandOutcome", "CommandsProvider"]
+
+class CommandChainProvider(SearchProvider):
+    """Explicit chain: keyword for safe sequences of existing named commands."""
+
+    id = "command_chains"
+    title = "Command chains"
+    keyword = "chain"
+    weight = 1.0
+    auto = False
+
+    def __init__(self, config, db, hooks, service: CommandService | None = None):
+        super().__init__(config, db, hooks)
+        self.service = service or CommandService(config, db, hooks)
+
+    def search(self, query: str, limit: int) -> list[SearchResult]:
+        expression = (query or "").strip()
+        if not expression:
+            return [self.make_result(
+                title="Command chains",
+                subtitle="Use: chain: taskmgr then explorer",
+                category="Command chain",
+                score=1.0,
+                primary=lambda: self.hooks.fill_query("chain: "),
+                icon_glyph="⇢",
+            )]
+        return [self.make_result(
+            title=f"Run {len(re.split(r'\\s+then\\s+', expression, flags=re.IGNORECASE))} command steps",
+            subtitle=expression,
+            category="Command chain",
+            score=1.0,
+            primary=lambda: self._run(expression),
+            icon_glyph="⇢",
+        )]
+
+    def _run(self, expression: str) -> None:
+        outcome = self.service.run_chain(expression)
+        if outcome.success:
+            self.hooks.notify(outcome.message)
+            self.hooks.hide_launcher()
+        else:
+            self.hooks.show_error("Command chain", outcome.message)
+
+
+__all__ = ["CommandService", "CommandEntry", "CommandOutcome", "CommandsProvider", "CommandChainProvider"]
