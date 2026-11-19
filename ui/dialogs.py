@@ -497,6 +497,61 @@ class WorkflowDialog(QDialog):
         self.accept()
 
 
+
+class SnippetDialog(QDialog):
+    """Create or edit a reusable text snippet."""
+
+    def __init__(self, service, snippet: dict | None = None, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.service = service
+        self.snippet = snippet or {}
+        self.setWindowTitle("Edit snippet" if snippet else "New snippet")
+        self.resize(620, 520)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 18, 18, 12)
+        form = QFormLayout()
+        self.title_edit = QLineEdit(str(self.snippet.get("title", "")))
+        self.title_edit.setPlaceholderText("Email signature")
+        form.addRow("Title", self.title_edit)
+        self.category_edit = QLineEdit(str(self.snippet.get("category", "")))
+        self.category_edit.setPlaceholderText("Work, school, coding…")
+        form.addRow("Category", self.category_edit)
+        self.shortcut_edit = QLineEdit(str(self.snippet.get("shortcut", "")))
+        self.shortcut_edit.setPlaceholderText("Optional search alias, e.g. sig")
+        form.addRow("Shortcut / alias", self.shortcut_edit)
+        layout.addLayout(form)
+        layout.addWidget(QLabel("Text"))
+        self.content_edit = QPlainTextEdit()
+        self.content_edit.setPlainText(str(self.snippet.get("content", "")))
+        self.content_edit.setPlaceholderText("Write reusable text here…")
+        layout.addWidget(self.content_edit, 1)
+        hint = QLabel("Snippets are stored locally and copied only when you explicitly select them.")
+        hint.setObjectName("Muted")
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self._save)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _save(self) -> None:
+        data = {
+            "title": self.title_edit.text().strip(),
+            "category": self.category_edit.text().strip(),
+            "shortcut": self.shortcut_edit.text().strip(),
+            "content": self.content_edit.toPlainText(),
+        }
+        if self.snippet.get("id"):
+            data["id"] = self.snippet["id"]
+        ok, message = self.service.save(data)
+        if not ok:
+            show_error(self, "Could not save snippet", message)
+            return
+        self.accept()
+
+
 class EngineDialog(QDialog):
     """Add or edit a custom web search engine."""
 
@@ -558,5 +613,6 @@ __all__ = [
     "SSHProfileDialog",
     "QuickActionDialog",
     "WorkflowDialog",
+    "SnippetDialog",
     "EngineDialog",
 ]
