@@ -574,11 +574,17 @@ class Database:
         )
         return item_id if item_id and item_id > 0 else None
 
-    def clipboard_image_paths(self) -> set[str]:
-        return {
-            str(row["image_path"])
-            for row in self._query("SELECT image_path FROM clipboard WHERE kind = 'image' AND image_path != ''")
-        }
+    def clipboard_image_paths(self) -> set[str] | None:
+        """Return referenced image paths, or None if storage could not be queried."""
+        try:
+            with self._lock:
+                rows = self.connection().execute(
+                    "SELECT image_path FROM clipboard WHERE kind = 'image' AND image_path != ''"
+                ).fetchall()
+            return {str(row["image_path"]) for row in rows}
+        except (sqlite3.Error, DatabaseError):
+            log.exception("Could not read clipboard image references")
+            return None
 
     @staticmethod
     def _hash_text(text: str) -> str:
