@@ -15,7 +15,7 @@ from .logging_setup import get_logger
 
 log = get_logger(__name__)
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS apps (
@@ -106,6 +106,17 @@ CREATE TABLE IF NOT EXISTS quick_actions (
 );
 
 
+
+CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    notes TEXT NOT NULL DEFAULT '',
+    due_date TEXT NOT NULL DEFAULT '',
+    completed INTEGER NOT NULL DEFAULT 0,
+    created REAL NOT NULL,
+    updated REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tasks_status_due ON tasks(completed, due_date, created);
 
 CREATE TABLE IF NOT EXISTS snippets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -726,6 +737,45 @@ class Database:
         self._write("DELETE FROM quick_actions WHERE id = ?", (action_id,))
 
 
+
+    # ------------------------------------------------------------------- tasks
+    def list_tasks(self, include_completed: bool = True) -> list[dict[str, Any]]:
+        where = "" if include_completed else "WHERE completed = 0"
+        rows = self._query(
+            f"SELECT * FROM tasks {where} ORDER BY completed ASC, CASE WHEN due_date = '' THEN 1 ELSE 0 END, due_date ASC, created DESC"
+        )
+        return [dict(row) for row in rows]
+
+    def get_task(self, task_id: int) -> dict[str, Any] | None:
+        row = self._query_one("SELECT * FROM tasks WHERE id = ?", (int(task_id),))
+        return dict(row) if row else None
+
+    def upsert_task(self, data: dict[str, Any]) -> int:
+        now = time.time()
+        task_id = data.get("id")
+        values = (
+            data["title"], data.get("notes", ""), data.get("due_date", ""),
+            1 if data.get("completed") else 0, now,
+        )
+        if task_id:
+            self._write(
+                "UPDATE tasks SET title = ?, notes = ?, due_date = ?, completed = ?, updated = ? WHERE id = ?",
+                (*values, int(task_id)),
+            )
+            return int(task_id)
+        return self._write(
+            "INSERT INTO tasks(title, notes, due_date, completed, created, updated) VALUES (?, ?, ?, ?, ?, ?)",
+            (*values[:4], now, now),
+        )
+
+    def set_task_completed(self, task_id: int, completed: bool) -> None:
+        self._write(
+            "UPDATE tasks SET completed = ?, updated = ? WHERE id = ?",
+            (1 if completed else 0, time.time(), int(task_id)),
+        )
+
+    def delete_task(self, task_id: int) -> None:
+        self._write("DELETE FROM tasks WHERE id = ?", (int(task_id),))
 
     # ---------------------------------------------------------------- snippets
     def list_snippets(self) -> list[dict[str, Any]]:
