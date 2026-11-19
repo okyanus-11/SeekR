@@ -57,7 +57,7 @@ class ClipboardTab(QWidget):
         layout.addWidget(
             label(
                 "Clipboard text is stored unencrypted in SeekR’s local SQLite database. "
-                "Images are saved as local PNG files only when image capture is separately enabled. "
+                "Images are saved as unencrypted local PNG files only when image capture is separately enabled. "
                 "Capture is off until you opt in. Pin entries to keep them when the limit is reached.",
                 "Muted", wrap=True,
             )
