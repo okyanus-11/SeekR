@@ -198,31 +198,44 @@ class CommandService:
             self.db.add_history("command", entry.title)
         return outcome
 
-    def run_chain(self, expression: str) -> CommandOutcome:
-        """Run a bounded chain of named commands; no shell syntax is interpreted."""
+    def preview_chain(self, expression: str):
+        """Resolve a command chain without running anything and return a readable plan."""
         segments = split_command_chain(expression)
         if not segments or len(segments) > 10 or any(not part for part in segments):
-            return CommandOutcome(False, "A command chain needs 1–10 non-empty steps separated by 'then'")
+            return False, "A command chain needs 1–10 non-empty steps separated by 'then'", []
         entries = self.entries()
-        completed: list[str] = []
+        resolved = []
+        lines = []
         for index, segment in enumerate(segments, 1):
             lowered = segment.casefold()
             matches = []
             for candidate in entries:
-                names = [candidate.key, candidate.title, *candidate.aliases]
-                for name in names:
+                for name in [candidate.key, candidate.title, *candidate.aliases]:
                     normalized = str(name).strip().casefold()
                     if normalized and (lowered == normalized or lowered.startswith(normalized + " ")):
                         matches.append((len(normalized), candidate, normalized))
             if not matches:
-                return CommandOutcome(False, f"Step {index}: unknown command '{segment.split()[0]}'")
+                return False, f"Step {index}: unknown command '{segment.split()[0]}'", []
             _length, entry, matched_name = max(matches, key=lambda item: item[0])
             args_text = segment[len(matched_name):].strip()
+            marker = " (confirmation required)" if entry.confirmation else ""
+            lines.append(f"{index}. {entry.title} {args_text}{marker}".rstrip())
+            resolved.append((entry, args_text))
+        return True, "", (lines, resolved)
+
+    def run_chain(self, expression: str) -> CommandOutcome:
+        """Run a bounded chain of named commands; no shell syntax is interpreted."""
+        ok, message, plan = self.preview_chain(expression)
+        if not ok:
+            return CommandOutcome(False, message)
+        _lines, resolved = plan
+        completed: list[str] = []
+        for index, (entry, args_text) in enumerate(resolved, 1):
             if entry.confirmation:
                 if not self.hooks.confirm(
                     f"Confirm chain step: {entry.title}",
                     f"Run this step?\\n\\n{entry.description}\\n\\n"
-                    f"Step {index} of {len(segments)}. The chain stops if a step fails.",
+                    f"Step {index} of {len(resolved)}. The chain stops if a step fails.",
                 ):
                     return CommandOutcome(False, f"Chain cancelled at step {index}")
             outcome = self.run(entry, args_text)
