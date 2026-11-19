@@ -67,6 +67,8 @@ def default_config() -> dict[str, Any]:
             "system_refresh_ms": 2000,
             "weather_refresh_minutes": 30,
             "meme_refresh_minutes": 60,
+            "tasks_enabled": True,
+            "tasks_refresh_minutes": 5,
         },
         "search": {
             "max_results": 12,
@@ -287,6 +289,7 @@ _VALIDATORS: dict[str, Callable[[Any], Any]] = {
     "widgets.system_refresh_ms": _clamp_int(1000, 30000),
     "widgets.weather_refresh_minutes": _clamp_int(5, 180),
     "widgets.meme_refresh_minutes": _clamp_int(15, 360),
+    "widgets.tasks_refresh_minutes": _clamp_int(1, 60),
     "clipboard.limit": _clamp_int(10, 2000),
     "clipboard.poll_interval_ms": _clamp_int(200, 5000),
     "privacy.retention_days": _clamp_int(1, 3650),
