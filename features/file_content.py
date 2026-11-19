@@ -77,12 +77,8 @@ class FileContentProvider(SearchProvider):
                 # grow between stat and open. This provider runs on the search
                 # path, so total disk I/O must remain predictable.
                 with resolved.open("rb") as handle:
-                    raw = handle.read(read_limit + 1)
-                bytes_read += min(len(raw), read_limit)
-                if len(raw) > read_limit:
-                    if read_limit == remaining_budget:
-                        break
-                    continue
+                    raw = handle.read(read_limit)
+                bytes_read += len(raw)
                 encoding = "utf-16" if raw.startswith((b"\xff\xfe", b"\xfe\xff")) else "utf-8-sig"
                 content = raw.decode(encoding)
             except (OSError, UnicodeError, RuntimeError, ValueError):
