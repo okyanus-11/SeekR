@@ -466,7 +466,7 @@ class ApplicationsProvider(SearchProvider):
             self._request_index()
             return [self._indexing_result()]
         apps = self.service.search(query, limit)
-        return [self._result(app, score) for score, app in self._scored(query, apps, limit)]
+        return [self._result(app, score) for score, app in self._scored(query, apps, limit, self.config)]
 
     def _request_index(self) -> None:
         now = time.monotonic()
@@ -489,14 +489,12 @@ class ApplicationsProvider(SearchProvider):
         )
 
     @staticmethod
-    def _scored(query: str, apps: Iterable[dict], limit: int):
+    def _scored(query: str, apps: Iterable[dict], limit: int, config=None):
         from core.fuzzy import fuzzy_score
 
         typo = True
         results = []
-        tracking_enabled = bool(
-            getattr(getattr(apps, "config", None), "get", lambda *_: False)("privacy.usage_tracking", False)
-        )
+        tracking_enabled = bool(config.get("privacy.usage_tracking", False)) if config is not None else False
         for index, app in enumerate(apps):
             score = max(0.25, fuzzy_score(query, app["name"], typo_tolerance=typo))
             # Personalization is bounded and additive: it can break close
