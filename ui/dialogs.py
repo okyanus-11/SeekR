@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 from typing import Any, Optional
 
 from PySide6.QtCore import Qt
@@ -430,6 +431,72 @@ class QuickActionDialog(QDialog):
         self.accept()
 
 
+
+class WorkflowDialog(QDialog):
+    """Edit a structured workflow as readable JSON; arbitrary scripts are not accepted."""
+
+    def __init__(self, service, workflow: dict | None = None, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.service = service
+        self.workflow = workflow or {}
+        self.setWindowTitle("Edit workflow" if workflow else "New workflow")
+        self.resize(680, 620)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 18, 18, 12)
+        form = QFormLayout()
+        self.title_edit = QLineEdit(str(self.workflow.get("title", "")))
+        self.title_edit.setPlaceholderText("Prepare work session")
+        form.addRow("Title", self.title_edit)
+        self.description_edit = QLineEdit(str(self.workflow.get("description", "")))
+        self.description_edit.setPlaceholderText("Optional description")
+        form.addRow("Description", self.description_edit)
+        layout.addLayout(form)
+
+        layout.addWidget(QLabel("Steps (JSON)"))
+        self.steps_edit = QPlainTextEdit()
+        self.steps_edit.setPlaceholderText(
+            '[\n  {"type": "open_folder", "path": "C:/Projects"},\n'
+            '  {"type": "open_url", "url": "https://example.com"},\n'
+            '  {"type": "copy_text", "text": "Ready"}\n]'
+        )
+        steps = self.workflow.get("steps", [])
+        self.steps_edit.setPlainText(json.dumps(steps, ensure_ascii=False, indent=2) if steps else "")
+        layout.addWidget(self.steps_edit, 1)
+        hint = QLabel(
+            "Supported steps: open_folder, open_url, launch_app (executable + args list), "
+            "copy_text. Workflows are local structured actions; shell scripts and Python are not supported."
+        )
+        hint.setObjectName("Muted")
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self._save)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _save(self) -> None:
+        try:
+            steps = json.loads(self.steps_edit.toPlainText())
+        except (TypeError, ValueError) as exc:
+            show_error(self, "Invalid workflow JSON", str(exc))
+            return
+        data = {
+            "title": self.title_edit.text().strip(),
+            "description": self.description_edit.text().strip(),
+            "steps": steps,
+        }
+        if self.workflow.get("id"):
+            data["id"] = self.workflow["id"]
+        ok, message = self.service.save(data)
+        if not ok:
+            show_error(self, "Could not save workflow", message)
+            return
+        self.accept()
+
+
 class EngineDialog(QDialog):
     """Add or edit a custom web search engine."""
 
@@ -490,5 +557,6 @@ __all__ = [
     "CommandEditorDialog",
     "SSHProfileDialog",
     "QuickActionDialog",
+    "WorkflowDialog",
     "EngineDialog",
 ]
