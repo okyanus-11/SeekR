@@ -45,7 +45,12 @@ class FileContentProvider(SearchProvider):
             str(ext).lower() if str(ext).startswith(".") else "." + str(ext).lower()
             for ext in (self.config.get("files.content_search_extensions", DEFAULT_CONTENT_EXTENSIONS) or [])
         }
-        max_bytes = max(1, int(self.config.get("files.content_search_max_file_bytes", DEFAULT_MAX_FILE_BYTES) or DEFAULT_MAX_FILE_BYTES))
+        max_bytes = min(
+            10_000_000,
+            max(1, int(self.config.get("files.content_search_max_file_bytes", DEFAULT_MAX_FILE_BYTES) or DEFAULT_MAX_FILE_BYTES)),
+        )
+        if len(text) > 512:
+            return []
         candidates = self.db.recent_files(MAX_CANDIDATES, [str(root) for root in roots])
         needle = text.casefold()
         matches: list[tuple[int, dict[str, Any], str]] = []
@@ -62,7 +67,8 @@ class FileContentProvider(SearchProvider):
                 raw = resolved.read_bytes()
                 if len(raw) > max_bytes:
                     continue
-                content = raw.decode("utf-8-sig")
+                encoding = "utf-16" if raw.startswith((b"\xff\xfe", b"\xfe\xff")) else "utf-8-sig"
+                content = raw.decode(encoding)
             except (OSError, UnicodeError, RuntimeError, ValueError):
                 continue
             position = content.casefold().find(needle)
