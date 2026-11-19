@@ -40,7 +40,7 @@
 
 ### Validation
 
-- Linux, Windows 10/11 runner matrix tests pass.
+- Linux and Windows CI runner matrix tests pass.
 - Windows portable and onedir builds pass; packaged UI verification, installer
   build, install, launch, UI smoke test and uninstall pass.
 - CI publishes the portable executable, installer and SHA-256 manifest as
