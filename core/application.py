@@ -34,6 +34,7 @@ from features.process_manager import ProcessProvider
 from features.quick_actions import QuickActionService, QuickActionsProvider
 from features.quick_connect import QuickConnectService, SSHProvider
 from features.screenshots import ScreenshotProvider
+from features.snippets import SnippetProvider, SnippetService
 from features.system_info import SystemInfoProvider
 from features.web_search import (
     GitHubProvider,
@@ -113,6 +114,7 @@ class SeekRApplication(QObject, UIHooks):
         self.quick_connect_service = QuickConnectService(self.config, self.db)
         self.quick_action_service = QuickActionService(self.config, self.db, self)
         self.workflow_service = WorkflowService(self.config, self.db, self)
+        self.snippet_service = SnippetService(self.config, self.db, self)
 
     def _register_providers(self) -> None:
         providers = [
@@ -141,6 +143,7 @@ class SeekRApplication(QObject, UIHooks):
             SSHProvider(self.config, self.db, self, self.quick_connect_service),
             QuickActionsProvider(self.config, self.db, self, self.quick_action_service),
             WorkflowProvider(self.config, self.db, self, self.workflow_service),
+            SnippetProvider(self.config, self.db, self, self.snippet_service),
         ]
         for provider in providers:
             self.engine.register(provider)
