@@ -204,7 +204,7 @@ class LauncherWindow(QWidget):
         body_layout.setContentsMargins(12, 2, 12, 2)
         body_layout.setSpacing(12)
 
-        self.launcher_widgets = LauncherWidgets(self.config, self, controller.task_service, controller)
+        self.launcher_widgets = LauncherWidgets(self.config, self, self.controller.task_service, self.controller)
         body_layout.addWidget(self.launcher_widgets.left_column, 0)
 
         results_panel = QWidget()
