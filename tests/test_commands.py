@@ -179,3 +179,12 @@ def test_command_chain_separator_ignores_quoted_then_text():
         'taskmgr "then this is an argument"', "explorer"
     ]
 
+
+def test_command_chain_preview_resolves_every_step_without_execution(service):
+    valid, message, plan = service.preview_chain("taskmgr then empty trash")
+    assert valid, message
+    lines, resolved = plan
+    assert len(lines) == 2
+    assert "Task Manager" in lines[0] or "taskmgr" in lines[0].lower()
+    assert "confirmation required" in lines[1]
+    assert len(resolved) == 2
