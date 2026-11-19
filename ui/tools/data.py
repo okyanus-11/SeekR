@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import QApplication, QProgressDialog
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -26,6 +27,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.logging_setup import get_logger
+from core.workers import CancelToken
 from features import bookmarks as bookmarks_module
 from features import util
 from ui import dialogs
@@ -725,7 +727,28 @@ class WorkflowsTab(QWidget):
             "The following actions will run in order:\n\n" + "\n".join(lines),
         ):
             return
-        ok, message, completed = self.service.run(workflow)
+        token = CancelToken()
+        progress = QProgressDialog("Preparing workflow…", "Cancel", 0, len(workflow["steps"]), self)
+        progress.setWindowTitle("Running workflow")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setAutoClose(False)
+        progress.setAutoReset(False)
+
+        def update_progress(index: int, total: int, detail: str) -> None:
+            progress.setMaximum(total)
+            progress.setValue(index)
+            progress.setLabelText(f"Step {index}/{total}: {detail}")
+            QApplication.processEvents()
+            if progress.wasCanceled():
+                token.cancel()
+
+        try:
+            ok, message, completed = self.service.run(
+                workflow, token=token, on_progress=update_progress
+            )
+        finally:
+            progress.close()
         self.status.setText(f"{message} ({completed}/{len(workflow['steps'])})")
         if not ok:
             self.controller.show_error("Workflow", message)
