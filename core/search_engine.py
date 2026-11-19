@@ -242,6 +242,20 @@ class SearchEngine(QObject):
                     icon_glyph="⌨",
                 )
             )
+        center = self._providers.get("command_center")
+        if center is not None and center.is_enabled():
+            results.append(
+                SearchResult(
+                    title=">  Command Center",
+                    subtitle="Search settings, system tools, workflows, tasks, snippets and widgets",
+                    category="Command Center",
+                    provider=center.id,
+                    score=1.0,
+                    primary=lambda: self.hooks.fill_query("> "),
+                    copy_text=">",
+                    icon_glyph="⌘",
+                )
+            )
         return results
 
     def record_search(self, text: str) -> None:
