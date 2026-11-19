@@ -174,21 +174,28 @@ class CommandService:
 
     # --------------------------------------------------------------- execution
     def run(self, entry: CommandEntry, args_text: str = "") -> CommandOutcome:
+        return self.run_arguments(entry, util.split_args(args_text))
+
+    def run_arguments(self, entry: CommandEntry, arguments: list[str]) -> CommandOutcome:
+        """Run an existing command with already-tokenized arguments, without a shell."""
+        if len(arguments) > 64 or not all(
+            isinstance(arg, str) and len(arg) <= 2048 for arg in arguments
+        ):
+            return CommandOutcome(False, "Command arguments must be strings of at most 2048 characters (64 maximum)")
         if entry.builtin:
             handler = self._handlers.get(entry.key)
             if handler is None:
                 return CommandOutcome(False, f"Unknown command: {entry.title}")
             try:
-                outcome = handler(util.split_args(args_text))
+                outcome = handler(list(arguments))
             except Exception as exc:
                 log.exception("Built-in command %s failed", entry.key)
                 return CommandOutcome(False, f"{entry.title} failed: {exc}")
         else:
-            outcome = self._run_custom(entry, args_text)
+            outcome = self._run_custom_arguments(entry, arguments)
         if outcome.success:
             self.db.add_history("command", entry.title)
         return outcome
-
 
     def run_chain(self, expression: str) -> CommandOutcome:
         """Run a bounded chain of named commands; no shell syntax is interpreted."""
@@ -227,6 +234,9 @@ class CommandService:
 
 
     def _run_custom(self, entry: CommandEntry, args_text: str) -> CommandOutcome:
+        return self._run_custom_arguments(entry, util.split_args(args_text))
+
+    def _run_custom_arguments(self, entry: CommandEntry, extra: list[str]) -> CommandOutcome:
         command = str(entry.raw.get("command", "")).strip()
         if not command:
             return CommandOutcome(False, "The command has no executable")
@@ -235,7 +245,6 @@ class CommandService:
             return CommandOutcome(False, f"Executable not found: {command}")
         template = str(entry.raw.get("args", "") or "")
         arguments = util.split_args(template)
-        extra = util.split_args(args_text)
         if "{args}" in arguments:
             index = arguments.index("{args}")
             arguments = arguments[:index] + extra + arguments[index + 1 :]
