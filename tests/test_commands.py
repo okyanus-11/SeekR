@@ -171,3 +171,11 @@ def test_command_chain_resolves_multiword_alias_and_custom_title(service, hooks)
     assert outcome.success
     assert calls == [("empty", [])]
 
+
+def test_command_chain_separator_ignores_quoted_then_text():
+    from features.commands import split_command_chain
+
+    assert split_command_chain('taskmgr "then this is an argument" then explorer') == [
+        'taskmgr "then this is an argument"', "explorer"
+    ]
+
