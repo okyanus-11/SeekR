@@ -44,6 +44,7 @@ from features.web_search import (
     YouTubeProvider,
 )
 from features.window_search import WindowProvider
+from features.workflows import WorkflowProvider, WorkflowService
 from ui import dialogs, i18n
 from ui.icons import IconStore, app_icon
 from ui.launcher_window import LauncherWindow
@@ -111,6 +112,7 @@ class SeekRApplication(QObject, UIHooks):
         self.web_service = WebService(self.config, self, self.db)
         self.quick_connect_service = QuickConnectService(self.config, self.db)
         self.quick_action_service = QuickActionService(self.config, self.db, self)
+        self.workflow_service = WorkflowService(self.config, self.db, self)
 
     def _register_providers(self) -> None:
         providers = [
@@ -137,6 +139,7 @@ class SeekRApplication(QObject, UIHooks):
             BookmarksProvider(self.config, self.db, self),
             SSHProvider(self.config, self.db, self, self.quick_connect_service),
             QuickActionsProvider(self.config, self.db, self, self.quick_action_service),
+            WorkflowProvider(self.config, self.db, self, self.workflow_service),
         ]
         for provider in providers:
             self.engine.register(provider)
