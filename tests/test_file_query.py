@@ -22,7 +22,8 @@ def test_parse_smaller_than_and_yesterday():
     assert parsed.text == ""
     assert parsed.size_operator == "<"
     assert parsed.size_bytes == 2048
-    assert parsed.modified_after == 200_000 - 2 * 86400
+    assert parsed.modified_after == 86_400
+    assert parsed.modified_before == 172_800
 
 
 def test_unrecognised_query_is_unchanged():
