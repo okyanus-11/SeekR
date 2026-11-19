@@ -364,6 +364,19 @@ def test_clipboard_skips_private_keys(config, db):
     assert service.capture(pem) is None
 
 
+
+def test_clipboard_categories_support_assignment_and_search(config, db):
+    service = ClipboardService(config, db)
+    first = db.add_clipboard("release installer notes")
+    second = db.add_clipboard("school reminder")
+    service.set_category(first, "Work")
+    service.set_category(second, "School")
+
+    assert service.items("Work")[0]["id"] == first
+    assert service.items("School")[0]["id"] == second
+    assert service.items()[0]["category"] in {"Work", "School"}
+
+
 # ------------------------------------------------------------------------ notes
 def test_notes_service(config, db):
     service = NotesService(config, db)
