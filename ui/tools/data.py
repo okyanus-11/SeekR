@@ -825,6 +825,7 @@ class TasksTab(QWidget):
         self.controller = controller
         self.service = controller.task_service
         self._editing_id = None
+        self._editing_completed = False
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(10)
@@ -907,12 +908,14 @@ class TasksTab(QWidget):
             "title": self.title_edit.text(),
             "notes": self.notes_edit.text(),
             "due_date": self.due_edit.text().strip(),
+            "completed": self._editing_completed,
         }
         ok, message = self.service.save(data)
         if not ok:
             dialogs.show_error(self, "Could not save task", message)
             return
         self._editing_id = None
+        self._editing_completed = False
         self.title_edit.clear()
         self.notes_edit.clear()
         self.due_edit.clear()
@@ -924,6 +927,7 @@ class TasksTab(QWidget):
         if task is None:
             return
         self._editing_id = task["id"]
+        self._editing_completed = bool(task.get("completed"))
         self.title_edit.setText(task["title"])
         self.notes_edit.setText(task.get("notes", ""))
         self.due_edit.setText(task.get("due_date", ""))
@@ -943,6 +947,9 @@ class TasksTab(QWidget):
         if not dialogs.ask_confirm(self, "Delete task", f"Delete “{task['title']}”?"):
             return
         self.service.delete(task["id"])
+        self._editing_id = None
+        self._editing_completed = False
+        self.save_button.setText("Add task")
         self.reload()
 
     def on_show(self) -> None:
