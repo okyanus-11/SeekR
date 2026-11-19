@@ -793,3 +793,11 @@ def test_workflow_and_snippet_tools_pages_are_constructible(qapp, controller, tm
     assert snippet_tab.table.rowCount() >= 1
     window.close()
 
+
+def test_system_widget_includes_storage_battery_and_network(qapp, controller):
+    system = controller.launcher.launcher_widgets.system
+    system.refresh()
+    assert system.disk_label.text().startswith("Storage")
+    assert system.battery_label.text().startswith("Battery")
+    assert system.network_label.text().startswith("Network")
+    assert system.disk_bar.value() >= 0
