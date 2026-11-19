@@ -92,7 +92,7 @@ def test_extension_index_replaces_v1_index(tmp_path):
 
     assert "idx_files_ext_mtime" in indexes
     assert "idx_files_ext" not in indexes
-    assert upgraded.get_meta("schema_version") == "2"
+    assert upgraded.get_meta("schema_version") == "3"
     upgraded.close()
 
 
