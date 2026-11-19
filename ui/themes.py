@@ -104,7 +104,28 @@ THEMES: dict[str, dict[str, str]] = {
 
 
 def palette_for(theme_id: str) -> dict[str, str]:
-    return dict(THEMES.get(theme_id, THEMES["dark"]))
+    """Return the semantic palette shared by every themed component."""
+    palette = dict(THEMES.get(theme_id, THEMES["dark"]))
+    palette.update({
+        "focus": palette["accent"],
+        "disabled": palette["muted"],
+        "error": palette["danger"],
+        "selection": palette["surface_hover"],
+        "info": palette["accent"],
+    })
+    return palette
+
+
+DESIGN_TOKENS: dict[str, dict[str, int]] = {
+    "spacing": {"xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24, "xxl": 32},
+    "radius": {"sm": 6, "md": 8, "lg": 12, "xl": 16},
+    "animation": {"fast": 100, "normal": 160, "slow": 240},
+}
+
+
+def tokens_for(group: str) -> dict[str, int]:
+    """Return a copy of shared spacing, radius or animation design tokens."""
+    return dict(DESIGN_TOKENS.get(group, {}))
 
 
 def _rgba(hex_color: str, alpha: float) -> str:
@@ -265,6 +286,10 @@ QPushButton {{
 QPushButton:hover {{ background: {palette['surface_hover']}; }}
 QPushButton:pressed {{ background: {surface}; }}
 QPushButton:disabled {{ color: {muted}; }}
+QPushButton:focus, QToolButton:focus, QListWidget:focus,
+QTableWidget:focus, QTreeWidget:focus {{
+    border: 2px solid {palette['focus']};
+}}
 QPushButton#Primary {{
     background: {accent_hex};
     color: {accent_text};
