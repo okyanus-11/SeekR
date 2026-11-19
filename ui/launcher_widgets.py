@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import time
 import logging
 import urllib.parse
 import urllib.request
@@ -143,27 +145,47 @@ class SystemWidget(WidgetCard):
         super().__init__("System", parent)
         self.cpu_label = QLabel("CPU  ·  —")
         self.ram_label = QLabel("Memory  ·  —")
-        for title, obj in (("CPU", self.cpu_label), ("Memory", self.ram_label)):
-            obj.setObjectName("WidgetSecondary")
-            self.content.addWidget(obj)
-            bar = QProgressBar()
-            bar.setObjectName("WidgetProgress")
-            bar.setRange(0, 100)
-            bar.setTextVisible(False)
-            bar.setFixedHeight(5)
-            self.content.addWidget(bar)
-            if title == "CPU":
-                self.cpu_bar = bar
-            else:
-                self.ram_bar = bar
+        self.disk_label = QLabel("Storage  ·  —")
+        self.battery_label = QLabel("Battery  ·  —")
+        self.network_label = QLabel("Network  ·  —")
+        self.cpu_bar = self._add_meter(self.cpu_label)
+        self.ram_bar = self._add_meter(self.ram_label)
+        self.disk_bar = self._add_meter(self.disk_label)
+        self.content.addWidget(self.battery_label)
+        self.content.addWidget(self.network_label)
+        self.battery_label.setObjectName("WidgetSecondary")
+        self.network_label.setObjectName("WidgetSecondary")
         try:
             psutil.cpu_percent(interval=None)
+            self._network_previous = psutil.net_io_counters()
         except Exception:
-            log.debug("Could not prime CPU usage sampling", exc_info=True)
+            self._network_previous = None
+        self._network_time = time.monotonic()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh)
         self.timer.start(2000)
         self.refresh()
+
+    def _add_meter(self, label_widget: QLabel) -> QProgressBar:
+        label_widget.setObjectName("WidgetSecondary")
+        self.content.addWidget(label_widget)
+        bar = QProgressBar()
+        bar.setObjectName("WidgetProgress")
+        bar.setRange(0, 100)
+        bar.setTextVisible(False)
+        bar.setFixedHeight(5)
+        self.content.addWidget(bar)
+        return bar
+
+    @staticmethod
+    def _rate(value: float) -> str:
+        units = ("B/s", "KB/s", "MB/s", "GB/s")
+        amount = max(0.0, float(value))
+        unit = 0
+        while amount >= 1024 and unit < len(units) - 1:
+            amount /= 1024
+            unit += 1
+        return f"{amount:.0f} {units[unit]}"
 
     def refresh(self):
         try:
@@ -175,7 +197,46 @@ class SystemWidget(WidgetCard):
             self.cpu_bar.setValue(cpu)
             self.ram_bar.setValue(ram)
         except Exception:
-            log.debug("System widget refresh failed", exc_info=True)
+            log.debug("System CPU/memory refresh failed", exc_info=True)
+
+        try:
+            root = Path.home().anchor or os.path.abspath(os.sep)
+            disk = psutil.disk_usage(root)
+            disk_percent = int(disk.percent)
+            self.disk_label.setText(f"Storage  ·  {disk_percent}% used")
+            self.disk_bar.setValue(disk_percent)
+        except Exception:
+            self.disk_label.setText("Storage  ·  unavailable")
+            log.debug("System storage refresh failed", exc_info=True)
+
+        try:
+            battery = psutil.sensors_battery()
+            if battery is None:
+                self.battery_label.setText("Battery  ·  unavailable")
+            else:
+                state = "plugged in" if battery.power_plugged else "on battery"
+                self.battery_label.setText(f"Battery  ·  {int(battery.percent)}% · {state}")
+        except Exception:
+            self.battery_label.setText("Battery  ·  unavailable")
+            log.debug("System battery refresh failed", exc_info=True)
+
+        try:
+            current = psutil.net_io_counters()
+            now = time.monotonic()
+            elapsed = max(0.1, now - self._network_time)
+            if self._network_previous is None:
+                sent_rate = received_rate = 0.0
+            else:
+                sent_rate = max(0, current.bytes_sent - self._network_previous.bytes_sent) / elapsed
+                received_rate = max(0, current.bytes_recv - self._network_previous.bytes_recv) / elapsed
+            self._network_previous = current
+            self._network_time = now
+            self.network_label.setText(
+                f"Network  ·  ↑ {self._rate(sent_rate)}  ↓ {self._rate(received_rate)}"
+            )
+        except Exception:
+            self.network_label.setText("Network  ·  unavailable")
+            log.debug("System network refresh failed", exc_info=True)
 
 
 class WeatherWidget(WidgetCard):
@@ -472,9 +533,9 @@ class LauncherWidgets(QObject):
         self._right_layout.addWidget(self.weather)
         self._right_layout.addWidget(self.meme)
         self._right_layout.addStretch(1)
-        for card in self._cards.values():
+        for key, card in self._cards.items():
             card.setMinimumHeight(132)
-            card.setMaximumHeight(168)
+            card.setMaximumHeight(212 if key == "system" else 168)
             card.setContentsMargins(0, 0, 0, 0)
         self._apply_card_theme()
         self._rebuild()
