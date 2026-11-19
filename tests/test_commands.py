@@ -138,7 +138,8 @@ def test_command_chain_stops_on_unknown_step(service):
     service._handlers["taskmgr"] = lambda args: (calls.append("taskmgr") or CommandOutcome(True, "ok"))
     outcome = service.run_chain("taskmgr then not-a-real-command")
     assert not outcome.success
-    assert calls == ["taskmgr"]
+    # The complete chain is validated before any step executes.
+    assert calls == []
     assert "unknown command" in outcome.message.lower()
 
 
