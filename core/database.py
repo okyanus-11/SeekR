@@ -106,6 +106,18 @@ CREATE TABLE IF NOT EXISTS quick_actions (
 );
 
 
+
+CREATE TABLE IF NOT EXISTS snippets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT '',
+    shortcut TEXT NOT NULL DEFAULT '',
+    content TEXT NOT NULL,
+    created REAL NOT NULL,
+    updated REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_snippets_title ON snippets(title COLLATE NOCASE);
+
 CREATE TABLE IF NOT EXISTS workflows (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -713,6 +725,36 @@ class Database:
     def delete_quick_action(self, action_id: int) -> None:
         self._write("DELETE FROM quick_actions WHERE id = ?", (action_id,))
 
+
+
+    # ---------------------------------------------------------------- snippets
+    def list_snippets(self) -> list[dict[str, Any]]:
+        return [dict(row) for row in self._query("SELECT * FROM snippets ORDER BY title COLLATE NOCASE")]
+
+    def get_snippet(self, snippet_id: int) -> dict[str, Any] | None:
+        row = self._query_one("SELECT * FROM snippets WHERE id = ?", (int(snippet_id),))
+        return dict(row) if row else None
+
+    def upsert_snippet(self, data: dict[str, Any]) -> int:
+        now = time.time()
+        snippet_id = data.get("id")
+        values = (
+            data["title"], data.get("category", ""), data.get("shortcut", ""),
+            data["content"], now,
+        )
+        if snippet_id:
+            self._write(
+                "UPDATE snippets SET title = ?, category = ?, shortcut = ?, content = ?, updated = ? WHERE id = ?",
+                (*values, int(snippet_id)),
+            )
+            return int(snippet_id)
+        return self._write(
+            "INSERT INTO snippets(title, category, shortcut, content, created, updated) VALUES (?, ?, ?, ?, ?, ?)",
+            (*values[:4], now, now),
+        )
+
+    def delete_snippet(self, snippet_id: int) -> None:
+        self._write("DELETE FROM snippets WHERE id = ?", (int(snippet_id),))
 
     # --------------------------------------------------------------- workflows
     def list_workflows(self) -> list[dict[str, Any]]:
