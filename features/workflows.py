@@ -218,7 +218,7 @@ class WorkflowService:
                         return False, f"Step {index}: unknown configured command '{step['command']}'", index - 1
                     if entry.confirmation and not self.hooks.confirm(
                         f"Confirm workflow command: {entry.title}",
-                        f"Run {entry.title}?\\n\\n{entry.description}\\n\\n"
+                        f"Run {entry.title}?\n\n{entry.description}\n\n"
                         "This step is part of a saved workflow.",
                     ):
                         return False, f"Workflow cancelled at command step {index}", index - 1
@@ -294,7 +294,7 @@ class WorkflowProvider(SearchProvider):
             return
         if not self.hooks.confirm(
             f"Run workflow: {workflow['title']}?",
-            "The following actions will run in order:\\n\\n" + "\\n".join(lines),
+            "The following actions will run in order:\n\n" + "\n".join(lines),
         ):
             return
         ok, message, completed = self.service.run(workflow)
