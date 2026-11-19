@@ -77,6 +77,21 @@ def test_cancelled_file_index_preserves_previous_rows(config, db, tmp_path):
                for row in db.recent_files(20, [str(root)]))
 
 
+
+def test_missing_configured_directory_does_not_prune_its_cached_rows(config, db, tmp_path):
+    root = tmp_path / "temporarily-unavailable"
+    root.mkdir()
+    (root / "cached.txt").write_text("cached", encoding="utf-8")
+    config.set("files.directories", [str(root)])
+    indexer = FileIndexer(config, db)
+    indexer.index()
+    root.rename(tmp_path / "offline-folder")
+
+    stats = indexer.index()
+    assert not stats["cancelled"]
+    assert db.file_candidates("cached", limit=10)
+
+
 def test_file_index_finds_documents(indexed_files, config):
     service, stats, root = indexed_files
     assert stats["indexed"] >= 3
