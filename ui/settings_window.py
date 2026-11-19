@@ -1138,7 +1138,7 @@ class PrivacyPage(SettingsPage):
         self.row(
             card,
             "Capture clipboard images",
-            "Separate opt-in. Images stay local as PNG files; maximum 4096 px per side, 16 megapixels and 5 MB per image.",
+            "Separate opt-in. Images stay as unencrypted local PNG files; maximum 4096 px per side, 16 megapixels and 5 MB per image.",
             bind_switch(self.config, "clipboard.capture_images"),
         )
         self.row(card, "Search history", "Allow executed queries to be stored.", bind_switch(self.config, "privacy.save_search_history"))
