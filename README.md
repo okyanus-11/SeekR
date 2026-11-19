@@ -86,6 +86,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 | Text snippets | Local reusable text with categories and aliases; searchable with `snip:` and copied only after explicit selection. |
 | Command chains | Explicit `chain:` sequences of existing named commands, with per-step confirmation for destructive actions and stop-on-failure behavior. |
 | Command Center | Press `>` for one searchable palette covering settings, system tools, network, workflows, snippets, clipboard, search shortcuts and widget toggles. |
+| Update checks | Manual `update:` checks and opt-in once-daily background checks against the official GitHub releases API; no installer is downloaded or run automatically. |
 | Quick Connect | SSH profiles with validation; detects OpenSSH on PATH and in the standard Windows installation folder. Passwords are never stored. |
 | Power | Lists and switches Windows power schemes where `powercfg` supports it. |
 | Quick Actions | Open folders, open websites, launch applications with arguments, copy predefined text. |
@@ -354,6 +355,7 @@ Keywords are matched case-insensitively at the start of the query (`web: python`
 | `define:` | `define: algorithm` | Dictionary lookup |
 | `sys:` | `sys:` | Live system information entries |
 | `wm:` | `wm: minimize all` | Minimizes visible application windows while protecting SeekR and Windows shell processes |
+| `update:` | `update: check` | Checks the official SeekR GitHub releases page for a newer version |
 
 Without a keyword SeekR still works: `25 * 48` produces a calculator result automatically, and `discord` ranks matching applications first.
 
