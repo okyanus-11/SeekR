@@ -228,6 +228,23 @@ def test_file_search_understands_natural_language_filters(config, db):
     assert {row["name"] for _, row in large} == {"invoice-large.pdf"}
 
 
+
+def test_application_index_upsert_skips_unchanged_rows(db):
+    entry = {
+        "name": "Editor", "path": "/apps/editor", "source": "start_menu",
+        "args": "", "icon_path": "/icons/editor",
+    }
+    assert db.upsert_apps([entry]) == 1
+    created = db.all_apps()[0]["created"]
+
+    assert db.upsert_apps([entry]) == 0
+    assert db.all_apps()[0]["created"] == created
+
+    changed = dict(entry, name="Updated Editor")
+    assert db.upsert_apps([changed]) == 1
+    assert db.all_apps()[0]["name"] == "Updated Editor"
+
+
 # ----------------------------------------------------------------- applications
 def test_scan_desktop_entries(config, db, tmp_path, monkeypatch):
     menu = tmp_path / "applications"
