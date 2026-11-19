@@ -719,4 +719,101 @@ class WorkflowsTab(QWidget):
         self.status.setText("Workflows exported")
 
 
-__all__ = ["ClipboardTab", "NotesTab", "BookmarksTab", "ConnectionsTab", "ActionsTab", "WorkflowsTab"]
+
+class SnippetsTab(QWidget):
+    """Manage reusable text; content is copied only on explicit action."""
+
+    def __init__(self, controller, window):
+        super().__init__()
+        self.controller = controller
+        self.service = controller.snippet_service
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(10)
+        layout.addWidget(label("Text snippets", "Heading"))
+        layout.addWidget(label(
+            "Store reusable text locally. Search with snip: and copy it only when you choose to.",
+            "Muted", wrap=True,
+        ))
+        self.search = QLineEdit()
+        self.search.setPlaceholderText("Filter snippets…")
+        self.search.textChanged.connect(self.reload)
+        layout.addWidget(self.search)
+        self.table = QTableWidget(0, 3)
+        self.table.setHorizontalHeaderLabels(["Title", "Category", "Shortcut / alias"])
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.doubleClicked.connect(lambda _index: self._copy())
+        layout.addWidget(self.table, 1)
+        buttons = QHBoxLayout()
+        buttons.addWidget(primary_button("Copy snippet", self._copy))
+        buttons.addWidget(secondary_button("New…", self._new))
+        buttons.addWidget(secondary_button("Edit…", self._edit))
+        buttons.addWidget(danger_button("Delete", self._delete))
+        buttons.addStretch(1)
+        self.status = label("", "Muted")
+        buttons.addWidget(self.status)
+        layout.addLayout(buttons)
+        self.reload()
+
+    def reload(self) -> None:
+        query = self.search.text().strip().casefold()
+        rows = [row for row in self.service.snippets()
+                if not query or query in " ".join((row["title"], row.get("category", ""),
+                                                    row.get("shortcut", ""))).casefold()]
+        self.table.setRowCount(0)
+        for snippet in rows:
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            for column, value in enumerate((snippet["title"], snippet.get("category", ""),
+                                            snippet.get("shortcut", ""))):
+                item = QTableWidgetItem(str(value))
+                if column == 0:
+                    item.setData(Qt.ItemDataRole.UserRole, snippet)
+                self.table.setItem(row, column, item)
+        self.status.setText(f"{len(rows)} snippets")
+
+    def _selected(self) -> Optional[dict]:
+        row = self.table.currentRow()
+        if row < 0:
+            return None
+        item = self.table.item(row, 0)
+        return item.data(Qt.ItemDataRole.UserRole) if item else None
+
+    def _copy(self) -> None:
+        snippet = self._selected()
+        if snippet is None:
+            self.status.setText("Select a snippet first")
+            return
+        if self.service.copy(snippet):
+            self.status.setText(f"Copied {snippet['title']}")
+        else:
+            self.status.setText("Could not copy snippet")
+
+    def _new(self) -> None:
+        if dialogs.SnippetDialog(self.service, parent=self).exec():
+            self.reload()
+
+    def _edit(self) -> None:
+        snippet = self._selected()
+        if snippet and dialogs.SnippetDialog(self.service, snippet, parent=self).exec():
+            self.reload()
+
+    def _delete(self) -> None:
+        snippet = self._selected()
+        if snippet is None:
+            return
+        if not dialogs.ask_confirm(self, "Delete snippet", f"Delete “{snippet['title']}”?"):
+            return
+        self.service.delete(snippet["id"])
+        self.reload()
+
+    def on_show(self) -> None:
+        self.reload()
+
+
+__all__ = ["ClipboardTab", "NotesTab", "BookmarksTab", "ConnectionsTab", "ActionsTab", "WorkflowsTab", "SnippetsTab"]
