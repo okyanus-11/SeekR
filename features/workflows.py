@@ -114,6 +114,26 @@ class WorkflowService:
         })
         return True, ""
 
+    def preview(self, workflow: dict[str, Any]) -> tuple[bool, str, list[str]]:
+        ok, message = validate_workflow(workflow)
+        if not ok:
+            return False, message, []
+        lines = []
+        for index, step in enumerate(workflow["steps"], 1):
+            kind = step["type"]
+            if kind == "open_folder":
+                detail = f"Open folder: {step['path']}"
+            elif kind == "open_url":
+                detail = f"Open website: {step['url']}"
+            elif kind == "launch_app":
+                detail = f"Launch app: {step['executable']} {' '.join(step.get('args', []))}".strip()
+            elif kind == "copy_text":
+                detail = f"Copy text ({len(step['text'])} characters)"
+            else:
+                detail = f"Run configured command: {step['command']} {' '.join(step.get('args', []))}".strip()
+            lines.append(f"{index}. {detail}")
+        return True, "", lines
+
     def delete(self, workflow_id: int) -> None:
         self.db.delete_workflow(workflow_id)
 
