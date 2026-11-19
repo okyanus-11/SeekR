@@ -234,17 +234,17 @@ class CommandService:
             if entry.confirmation:
                 if not self.hooks.confirm(
                     f"Confirm chain step: {entry.title}",
-                    f"Run this step?\\n\\n{entry.description}\\n\\n"
+                    f"Run this step?\n\n{entry.description}\n\n"
                     f"Step {index} of {len(resolved)}. The chain stops if a step fails.",
                 ):
                     return CommandOutcome(False, f"Chain cancelled at step {index}")
             outcome = self.run(entry, args_text)
             if not outcome.success:
                 return CommandOutcome(False, f"Step {index} ({entry.title}) failed: {outcome.message}",
-                                      "\\n".join(completed))
+                                      "\n".join(completed))
             completed.append(outcome.message or entry.title)
         return CommandOutcome(True, f"Completed {len(completed)} command-chain steps",
-                              "\\n".join(completed))
+                              "\n".join(completed))
 
 
     def _run_custom(self, entry: CommandEntry, args_text: str) -> CommandOutcome:
@@ -576,7 +576,7 @@ class CommandChainProvider(SearchProvider):
         if any(entry.confirmation for entry, _args in resolved):
             if not self.hooks.confirm(
                 "Review command chain",
-                "The following actions will run in order:\\n\\n" + "\\n".join(lines),
+                "The following actions will run in order:\n\n" + "\n".join(lines),
             ):
                 return
         outcome = self.service.run_chain(expression)
