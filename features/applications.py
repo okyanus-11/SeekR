@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import math
+import time
 import re
 import subprocess
 import sys
@@ -492,9 +494,23 @@ class ApplicationsProvider(SearchProvider):
 
         typo = True
         results = []
+        tracking_enabled = bool(
+            getattr(getattr(apps, "config", None), "get", lambda *_: False)("privacy.usage_tracking", False)
+        )
         for index, app in enumerate(apps):
             score = max(0.25, fuzzy_score(query, app["name"], typo_tolerance=typo))
-            results.append((min(1.0, score - index * 0.01), app))
+            # Personalization is bounded and additive: it can break close
+            # matches but cannot overwhelm a clearly better textual match.
+            usage_bonus = 0.0
+            if tracking_enabled:
+                count = max(0, int(app.get("use_count", 0) or 0))
+                if count:
+                    usage_bonus = min(0.08, 0.02 * math.log2(count + 1))
+                last_used = float(app.get("last_used", 0) or 0)
+                if last_used > 0:
+                    age_days = max(0.0, (time.time() - last_used) / 86400.0)
+                    usage_bonus += 0.04 * math.exp(-age_days / 7.0)
+            results.append((min(1.0, score + usage_bonus - index * 0.01), app))
         return results[:limit]
 
     def _result(self, app: dict, score: float) -> SearchResult:
