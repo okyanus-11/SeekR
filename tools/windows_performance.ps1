@@ -16,10 +16,10 @@ if (-not ("SeekR.NativeWindow" -as [type])) {
     Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
-public static class NativeWindow {
+namespace SeekR { public static class NativeWindow {
     [DllImport("user32.dll")]
     public static extern bool IsWindowVisible(IntPtr hWnd);
-}
+} }
 '@
 }
 
@@ -64,7 +64,7 @@ function Measure-HotkeyLatency {
         Start-Sleep -Seconds 2
         $shell = New-Object -ComObject WScript.Shell
         $watch = [Diagnostics.Stopwatch]::StartNew()
-        $shell.SendKeys("% ")
+        $shell.SendKeys("%{SPACE}")
         $latency = Wait-ForVisibleWindow -Process $process -Timeout 10
         return [pscustomobject]@{
             scenario = "Alt+Space hotkey-to-visible"
@@ -83,7 +83,7 @@ function Measure-HotkeyLatency {
 function Measure-HiddenIdle([int]$Seconds) {
     $process = Start-Process -FilePath $exe -ArgumentList @("--hidden") -PassThru
     try {
-        Start-Sleep -Seconds 2
+        Start-Sleep -Seconds 10
         $process.Refresh()
         $cpuStart = $process.CPU
         $sampleStart = Get-Date
