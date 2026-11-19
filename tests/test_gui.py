@@ -269,7 +269,7 @@ def test_launcher_widgets_survive_settings_and_theme_refresh(qapp, controller):
     original_theme = controller.config.get("appearance.theme", "dark")
     try:
         for cycle in range(3):
-            for key in ("clock", "weather", "system", "meme"):
+            for key in ("clock", "weather", "system", "meme", "tasks"):
                 controller.config.set(f"widgets.{key}_enabled", False)
             widgets.refresh_settings()
             qapp.processEvents()
@@ -310,6 +310,7 @@ def test_widget_polling_pauses_when_launcher_is_hidden(qapp, controller):
     assert widgets._active
     assert widgets.clock.timer.isActive()
     assert widgets.system.timer.isActive()
+    assert widgets.tasks.timer.isActive()
 
     launcher.hide_launcher()
     qapp.processEvents()
@@ -318,6 +319,7 @@ def test_widget_polling_pauses_when_launcher_is_hidden(qapp, controller):
     assert not widgets.system.timer.isActive()
     assert not widgets.weather.timer.isActive()
     assert not widgets.meme.day_timer.isActive()
+    assert not widgets.tasks.timer.isActive()
 
     launcher.show_launcher()
     qapp.processEvents()
@@ -335,6 +337,9 @@ def test_widget_refresh_intervals_are_configurable_and_bounded(qapp, controller)
     controller.config.set("widgets.system_refresh_ms", 5000)
     controller.config.set("widgets.weather_refresh_minutes", 45)
     controller.config.set("widgets.meme_refresh_minutes", 120)
+    controller.config.set("widgets.tasks_refresh_minutes", 10)
+    widgets.weather.refresh = lambda: None
+    widgets.meme._load_daily = lambda: None
     widgets.set_active(True)
     widgets.refresh_settings()
     qapp.processEvents()
@@ -343,15 +348,18 @@ def test_widget_refresh_intervals_are_configurable_and_bounded(qapp, controller)
     assert widgets.system.timer.interval() == 5000
     assert widgets.weather.timer.interval() == 45 * 60 * 1000
     assert widgets.meme.day_timer.interval() == 120 * 60 * 1000
+    assert widgets.tasks.timer.interval() == 10 * 60 * 1000
 
     controller.config.set("widgets.clock_refresh_ms", 1)
     controller.config.set("widgets.system_refresh_ms", 999999)
     controller.config.set("widgets.weather_refresh_minutes", 1)
     controller.config.set("widgets.meme_refresh_minutes", 9999)
+    controller.config.set("widgets.tasks_refresh_minutes", 9999)
     assert controller.config.get("widgets.clock_refresh_ms") == 250
     assert controller.config.get("widgets.system_refresh_ms") == 30000
     assert controller.config.get("widgets.weather_refresh_minutes") == 5
     assert controller.config.get("widgets.meme_refresh_minutes") == 360
+    assert controller.config.get("widgets.tasks_refresh_minutes") == 60
     widgets.set_active(False)
 
 
