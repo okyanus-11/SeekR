@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 import threading
 import time
 
@@ -273,3 +274,23 @@ def test_recent_files_directory_filter_respects_boundaries(db):
         "/tmp/alex/nested/b.txt",
     }
     assert db.recent_files(limit=10, directories=[""]) == []
+
+def test_database_migrates_clipboard_category_column(tmp_path):
+    path = tmp_path / "legacy.sqlite3"
+    connection = sqlite3.connect(path)
+    connection.execute("CREATE TABLE kv (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+    connection.execute(
+        "CREATE TABLE clipboard (id INTEGER PRIMARY KEY, text TEXT NOT NULL, hash TEXT NOT NULL, "
+        "pinned INTEGER NOT NULL DEFAULT 0, created REAL NOT NULL, source TEXT NOT NULL DEFAULT '')"
+    )
+    connection.execute("INSERT INTO kv(key, value) VALUES('schema_version', '4')")
+    connection.commit()
+    connection.close()
+
+    database = Database(str(path))
+    try:
+        columns = {row["name"] for row in database._query("PRAGMA table_info(clipboard)")}
+        assert "category" in columns
+        assert database.get_meta("schema_version") == "5"
+    finally:
+        database.close()
