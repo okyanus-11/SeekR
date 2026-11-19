@@ -167,7 +167,7 @@ The following 2.0.0 work has been added on the development branch. CI and platfo
 - Persistent widget lifecycle, visibility-aware polling, theme refresh and regression coverage.
 - Bounded app usage ranking and recent/frequent suggestions; tracking is off by default and disabling it suppresses personalization.
 - Clipboard age retention that never expires pinned entries.
-- Structured local workflows with validation, import/export, atomic import storage, bounded steps and no shell/script execution.
+- Structured local workflows with validation, import/export, atomic import storage, bounded steps and no shell/script execution; workflows can invoke existing configured commands with tokenized arguments and per-step confirmation.
 - Explicitly selected local text snippets, categories and aliases; no automatic text injection.
 - Opt-in on-demand text-content search over indexed files, restricted to configured roots, allowlisted extensions and a bounded file-size limit. Persistent content indexing remains open.
 - Explicit command chains over existing command entries, with per-step confirmation for destructive/custom-confirmed actions and stop-on-failure behavior.
