@@ -199,7 +199,7 @@ class CommandService:
 
     def run_chain(self, expression: str) -> CommandOutcome:
         """Run a bounded chain of named commands; no shell syntax is interpreted."""
-        segments = [part.strip() for part in re.split(r"\s+then\s+", expression, flags=re.IGNORECASE)]
+        segments = split_command_chain(expression)
         if not segments or len(segments) > 10 or any(not part for part in segments):
             return CommandOutcome(False, "A command chain needs 1–10 non-empty steps separated by 'then'")
         entries = self.entries()
@@ -543,7 +543,7 @@ class CommandChainProvider(SearchProvider):
                 primary=lambda: self.hooks.fill_query("chain: "),
                 icon_glyph="⇢",
             )]
-        step_count = len(re.split(r"\s+then\s+", expression, flags=re.IGNORECASE))
+        step_count = len(split_command_chain(expression))
         return [self.make_result(
             title=f"Run {step_count} command steps",
             subtitle=expression,
