@@ -31,3 +31,24 @@ def test_unrecognised_query_is_unchanged():
     assert not parsed.extension
     assert parsed.modified_after is None
     assert parsed.size_bytes is None
+
+
+
+def test_modified_yesterday_uses_local_calendar_boundaries():
+    from datetime import datetime
+
+    now = datetime(2026, 11, 19, 12, 0, 0).timestamp()
+    parsed = parse_file_query("invoices modified yesterday", now=now)
+    today_start = datetime(2026, 11, 19, 0, 0, 0).timestamp()
+    yesterday_start = datetime(2026, 11, 18, 0, 0, 0).timestamp()
+    assert parsed.modified_after == yesterday_start
+    assert parsed.modified_before == today_start
+
+
+def test_modified_today_starts_at_local_midnight():
+    from datetime import datetime
+
+    now = datetime(2026, 11, 19, 12, 0, 0).timestamp()
+    parsed = parse_file_query("modified today", now=now)
+    assert parsed.modified_after == datetime(2026, 11, 19, 0, 0, 0).timestamp()
+    assert parsed.modified_before is None
