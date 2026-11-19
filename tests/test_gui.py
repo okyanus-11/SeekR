@@ -456,7 +456,7 @@ def test_tools_window_pages(qapp, controller):
     qapp.processEvents()
     window = controller._tools_window
     assert window is not None
-    assert len(window.pages) == 14
+    assert len(window.pages) == len(window.PAGES)
     window.open_page("notes")
     assert window.stack.currentWidget() is window.pages["notes"]
     window.open_page("developer")
