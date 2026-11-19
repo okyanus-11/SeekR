@@ -57,6 +57,7 @@ class CommandCenterProvider(SearchProvider):
             CenterAction("Running processes", "Inspect and manage running processes", "System", tools("processes")),
             CenterAction("Network connections", "Open saved connections and quick connect", "Network", tools("connections")),
             CenterAction("Workflow manager", "Create, edit, import and run workflows", "Productivity", tools("workflows")),
+            CenterAction("Tasks", "Track local tasks and due dates", "Productivity", tools("tasks")),
             CenterAction("Text snippets", "Manage reusable local text snippets", "Productivity", tools("snippets")),
             CenterAction("Clipboard history", "Browse pinned and recent clipboard entries", "Productivity", tools("clipboard")),
             CenterAction("Quick actions", "Manage shortcuts and custom actions", "Productivity", tools("actions")),
