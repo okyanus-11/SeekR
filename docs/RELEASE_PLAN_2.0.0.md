@@ -164,7 +164,7 @@ The following 2.0.0 work has been added on the development branch. CI and platfo
 
 - Natural-language file metadata filters and plural-aware matching.
 - Safe file-index snapshot behavior during cancellation, inaccessible roots and complete scans.
-- Persistent widget lifecycle, visibility-aware polling, theme refresh and regression coverage.
+- Persistent widget lifecycle, visibility-aware polling, theme refresh and regression coverage; the system card now reports CPU, memory, storage, battery and network throughput.
 - Bounded app usage ranking and recent/frequent suggestions; tracking is off by default and disabling it suppresses personalization.
 - Clipboard age retention that never expires pinned entries.
 - Structured local workflows with validation, import/export, atomic import storage, bounded steps and no shell/script execution; workflows can invoke existing configured commands with tokenized arguments and per-step confirmation.
