@@ -38,6 +38,7 @@ from features.quick_connect import QuickConnectService, SSHProvider
 from features.screenshots import ScreenshotProvider
 from features.snippets import SnippetProvider, SnippetService
 from features.system_info import SystemInfoProvider
+from features.tasks import TaskProvider, TaskService
 from features.updates import UpdateProvider, UpdateService
 from features.web_search import (
     GitHubProvider,
@@ -120,6 +121,7 @@ class SeekRApplication(QObject, UIHooks):
         self.workflow_service = WorkflowService(self.config, self.db, self, self.command_service)
         self.snippet_service = SnippetService(self.config, self.db, self)
         self.update_service = UpdateService(self.config)
+        self.task_service = TaskService(self.config, self.db, self)
 
     def _register_providers(self) -> None:
         providers = [
@@ -144,6 +146,7 @@ class SeekRApplication(QObject, UIHooks):
             WindowProvider(self.config, self.db, self),
             WindowManagerProvider(self.config, self.db, self),
             UpdateProvider(self.config, self.db, self, self.update_service),
+            TaskProvider(self.config, self.db, self, self.task_service),
             EmojiProvider(self.config, self.db, self),
             ColorProvider(self.config, self.db, self),
             ScreenshotProvider(self.config, self.db, self),
