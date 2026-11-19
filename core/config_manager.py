@@ -124,7 +124,7 @@ def default_config() -> dict[str, Any]:
         "privacy": {
             "clipboard_history": False,
             "clipboard_history_consent": False,
-            "usage_tracking": True,
+            "usage_tracking": False,
             "save_search_history": True,
             "retention_days": 90,
         },
