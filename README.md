@@ -4,7 +4,7 @@
 
 SeekR is a native desktop application built with Python and PySide6. It searches your applications and files, evaluates expressions, opens websites, runs safe commands, previews documents, manages clipboard history and notes, and bundles a set of everyday developer utilities — all from one floating window.
 
-**Current version:** 1.1.1 · **License:** MIT
+**Current version:** 1.1.2 · **Next major release:** 2.0.0 (in development) · **License:** MIT
 
 
 <p align="center">
@@ -82,6 +82,9 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 | Processes | Search running processes with CPU/memory usage, details, and confirmation before termination. |
 | Bookmarks | Reads Chromium bookmarks with a last-good backup fallback and Firefox bookmarks from a consistent SQLite snapshot, including live WAL data. Unreadable profiles are skipped with a status message. |
 | QuickLook | Safe previews for images and text-like documents (never executes previewed files). |
+| Workflows | Local multi-step routines built from validated folder, website, application and copy actions; import/export as versioned JSON; searchable with `flow:`. |
+| Text snippets | Local reusable text with categories and aliases; searchable with `snip:` and copied only after explicit selection. |
+| Command chains | Explicit `chain:` sequences of existing named commands, with per-step confirmation for destructive actions and stop-on-failure behavior. |
 | Quick Connect | SSH profiles with validation; detects OpenSSH on PATH and in the standard Windows installation folder. Passwords are never stored. |
 | Power | Lists and switches Windows power schemes where `powercfg` supports it. |
 | Quick Actions | Open folders, open websites, launch applications with arguments, copy predefined text. |
@@ -333,6 +336,9 @@ Keywords are matched case-insensitively at the start of the query (`web: python`
 |---|---|---|
 | `web:` | `web: Raspberry Pi 5` | Opens the configured search engine |
 | `calc:` | `calc: sqrt(144) + 25 * 4` | `112` |
+| `flow:` | Search and run saved local workflows. |
+| `snip:` | Search and explicitly copy saved text snippets. |
+| `chain:` | Run a bounded chain of existing commands separated by `then`. |
 | `comm:` | `comm: ipconfig` | Runs the built-in command (with confirmation where required) |
 | `file:` | `file: invoice` | Searches the file index |
 | `app:` | `app: discord` | Searches installed applications |
