@@ -420,6 +420,44 @@ class Database:
         row = self._query_one("SELECT COUNT(*) AS n FROM files")
         return int(row["n"]) if row else 0
 
+    def prune_files_not_seen(self, directories: Sequence[str], seen_paths: Iterable[str]) -> int:
+        """Remove stale indexed paths after a complete scan, using a temp table."""
+        scopes = [str(Path(directory)) for directory in directories if directory]
+        if not scopes:
+            return 0
+        clauses = []
+        params: list[Any] = []
+        for directory in scopes:
+            prefix = directory.rstrip("/\\")
+            if not prefix:
+                continue
+            clauses.append(
+                "(dir IN (?, ?) OR (substr(dir, 1, ?) = ? AND "
+                "substr(dir, ?, 1) IN ('/', char(92))))"
+            )
+            params.extend((directory, prefix, len(prefix), prefix, len(prefix) + 1))
+        if not clauses:
+            return 0
+        try:
+            conn = self.connection()
+            with self._lock:
+                conn.execute("CREATE TEMP TABLE IF NOT EXISTS seen_file_paths (path TEXT PRIMARY KEY)")
+                conn.execute("DELETE FROM seen_file_paths")
+                conn.executemany(
+                    "INSERT OR IGNORE INTO seen_file_paths(path) VALUES (?)",
+                    ((str(path),) for path in seen_paths),
+                )
+                cursor = conn.execute(
+                    "DELETE FROM files WHERE (" + " OR ".join(clauses) + ") "
+                    "AND path NOT IN (SELECT path FROM seen_file_paths)",
+                    params,
+                )
+                conn.commit()
+                return cursor.rowcount
+        except sqlite3.Error as exc:
+            log.error("Could not prune stale file index rows: %s", exc)
+            return 0
+
     def prune_files_before(self, directories: Sequence[str], indexed_before: float) -> int:
         """Remove stale indexed rows under configured roots after a complete scan."""
         scopes = [str(Path(directory)) for directory in directories if directory]
