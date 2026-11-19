@@ -11,7 +11,7 @@ from typing import Any, Callable
 from urllib.parse import urlsplit
 
 from core.config_manager import ConfigManager
-from core.database import Database
+from core.database import Database, DatabaseError
 from core.logging_setup import get_logger
 from core.models import ResultAction, SearchResult
 from core.search_engine import SearchProvider
@@ -147,8 +147,13 @@ class WorkflowService:
         }, ensure_ascii=False, indent=2)
 
     def import_json(self, content: str) -> tuple[bool, str, int]:
-        if not isinstance(content, str) or len(content.encode("utf-8")) > MAX_IMPORT_BYTES:
-            return False, "Workflow export is too large", 0
+        if not isinstance(content, str):
+            return False, "Workflow export must be UTF-8 text", 0
+        try:
+            if len(content.encode("utf-8")) > MAX_IMPORT_BYTES:
+                return False, "Workflow export is too large", 0
+        except UnicodeEncodeError:
+            return False, "Workflow export contains invalid Unicode text", 0
         try:
             payload = json.loads(content)
         except (TypeError, ValueError):
@@ -171,7 +176,11 @@ class WorkflowService:
             }
             for row in rows
         ]
-        self.db.insert_workflows_atomic(prepared)
+        try:
+            self.db.insert_workflows_atomic(prepared)
+        except DatabaseError as exc:
+            log.exception("Workflow import failed")
+            return False, str(exc), 0
         return True, "Workflows imported", len(rows)
 
     def run(
