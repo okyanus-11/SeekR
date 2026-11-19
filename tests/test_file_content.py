@@ -93,3 +93,34 @@ def test_content_search_supports_utf16_bom_text(config, db, hooks, tmp_path):
     results = provider.search("searchable phrase", 5)
     assert len(results) == 1
     assert results[0].title == "unicode.txt"
+
+
+def test_content_search_enforces_total_read_budget(config, db, hooks, tmp_path):
+    from features.file_content import MAX_TOTAL_READ_BYTES
+
+    root = tmp_path / "budget"
+    root.mkdir()
+    paths = []
+    for index in range(3):
+        path = root / f"large-{index}.txt"
+        with path.open("wb") as handle:
+            handle.truncate(4_000_000)
+            if index == 2:
+                handle.seek(3_999_000)
+                handle.write(b"needle")
+        paths.append(path)
+
+    config.set("files.directories", [str(root)])
+    config.set("files.content_search_enabled", True)
+    config.set("files.content_search_extensions", [".txt"])
+    config.set("files.content_search_max_file_bytes", 10_000_000)
+    db.recent_files = lambda _limit, _roots: [
+        {"path": str(path), "name": path.name, "ext": ".txt", "is_dir": False}
+        for path in paths
+    ]
+
+    provider = FileContentProvider(config, db, hooks)
+    assert MAX_TOTAL_READ_BYTES == 8_000_000
+    assert provider.search("needle", 5) == []
+
+
