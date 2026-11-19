@@ -19,6 +19,7 @@ KEYWORDS = {
     "calc": "Calculate an expression",
     "comm": "Run a command",
     "file": "Search indexed files and folders",
+    "content": "Search inside configured indexed text files",
     "app": "Search installed applications",
     "wiki": "Search Wikipedia",
     "yt": "Search YouTube",
@@ -89,6 +90,7 @@ WEB_ENGINE_LABELS = {key: value["label"] for key, value in WEB_ENGINES.items()}
 CATEGORIES = (
     "Application",
     "File",
+    "File content",
     "Folder",
     "Calculator",
     "Web",
