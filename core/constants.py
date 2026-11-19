@@ -15,7 +15,6 @@ THEME_LABELS = {
 
 #: Keyword -> human readable description. Documented in the README as well.
 KEYWORDS = {
-    ">": "Open the unified command center",
     "web": "Search the web",
     "calc": "Calculate an expression",
     "comm": "Run a command",
