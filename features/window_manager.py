@@ -19,6 +19,11 @@ WM_CLOSE = 0x0010
 SWP_NOZORDER = 0x0004
 SWP_NOACTIVATE = 0x0010
 HWND_TOP = 0
+PROTECTED_PROCESS_NAMES = {
+    "explorer.exe", "dwm.exe", "winlogon.exe", "csrss.exe",
+    "sihost.exe", "startmenuexperiencehost.exe", "searchhost.exe",
+    "shellexperiencehost.exe", "applicationframehost.exe",
+}
 
 
 class RECT(ctypes.Structure):
@@ -37,6 +42,8 @@ def _user32():
     user32 = ctypes.WinDLL("user32", use_last_error=True)
     user32.IsWindow.argtypes = [wintypes.HWND]
     user32.IsWindow.restype = wintypes.BOOL
+    user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+    user32.GetWindowThreadProcessId.restype = wintypes.DWORD
     user32.GetForegroundWindow.restype = wintypes.HWND
     user32.MonitorFromWindow.argtypes = [wintypes.HWND, wintypes.DWORD]
     user32.MonitorFromWindow.restype = wintypes.HANDLE
@@ -101,6 +108,17 @@ def close_window(hwnd: int) -> tuple[bool, str]:
         target = int(hwnd or 0)
         if not target or not user32.IsWindow(target):
             return False, "That window is no longer available"
+        pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(target, ctypes.byref(pid))
+        if pid.value == os.getpid():
+            return False, "SeekR's own windows are protected"
+        try:
+            import psutil
+            process_name = psutil.Process(pid.value).name().lower()
+        except Exception:
+            return False, "Could not verify the target process; close request was blocked"
+        if process_name in PROTECTED_PROCESS_NAMES:
+            return False, "Windows shell and system windows are protected"
         if not user32.PostMessageW(target, WM_CLOSE, 0, 0):
             return False, "Windows rejected the close request"
         return True, "Close request sent; the application may ask you to save changes"
@@ -117,11 +135,7 @@ def minimize_all_windows() -> tuple[bool, str, int]:
         import psutil
 
         user32 = _user32()
-        protected = {
-            "explorer.exe", "dwm.exe", "winlogon.exe", "csrss.exe",
-            "sihost.exe", "startmenuexperiencehost.exe", "searchhost.exe",
-            "shellexperiencehost.exe", "applicationframehost.exe",
-        }
+        protected = PROTECTED_PROCESS_NAMES
         own_pid = os.getpid()
         count = 0
 
@@ -201,6 +215,6 @@ class WindowManagerProvider(SearchProvider):
 
 
 __all__ = [
-    "SUPPORTED", "tile_window", "close_window", "minimize_all_windows",
+    "SUPPORTED", "PROTECTED_PROCESS_NAMES", "tile_window", "close_window", "minimize_all_windows",
     "WindowManagerProvider",
 ]
