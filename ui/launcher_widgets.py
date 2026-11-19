@@ -478,10 +478,6 @@ class LauncherWidgets(QObject):
             card.setContentsMargins(0, 0, 0, 0)
         self._apply_card_theme()
         self._rebuild()
-        if self.config.get("widgets.weather_enabled", True):
-            self.weather.refresh()
-        if self.config.get("widgets.meme_enabled", True):
-            self.meme._load_daily()
 
     def _apply_card_theme(self):
         """Apply current semantic theme tokens to every persistent widget card."""
@@ -539,6 +535,12 @@ class LauncherWidgets(QObject):
             card.reveal(False)
 
         self._sync_timers()
+        self.left_column.setVisible(
+            any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("clock", "system"))
+        )
+        self.right_column.setVisible(
+            any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("weather", "meme"))
+        )
 
     def _sync_timers(self):
         """Poll live data only while its rail is enabled and the launcher is visible."""
@@ -566,6 +568,11 @@ class LauncherWidgets(QObject):
             return
         self._active = active
         self._sync_timers()
+        if active:
+            if self.config.get("widgets.weather_enabled", True):
+                self.weather.refresh()
+            if self.config.get("widgets.meme_enabled", True):
+                self.meme._load_daily()
 
         self.left_column.setVisible(
             any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("clock", "system"))
@@ -577,10 +584,10 @@ class LauncherWidgets(QObject):
     def refresh_settings(self, animate=False):
         self._apply_card_theme()
         self._rebuild()
-        if self.config.get("widgets.weather_enabled", True):
+        if self._active and self.config.get("widgets.weather_enabled", True):
             self.weather._last_location = ""
             self.weather.refresh()
-        if self.config.get("widgets.meme_enabled", True):
+        if self._active and self.config.get("widgets.meme_enabled", True):
             self.meme._load_daily()
         if animate:
             for card in self._cards.values():
