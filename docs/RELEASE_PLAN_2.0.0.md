@@ -174,6 +174,7 @@ The following 2.0.0 work has been added on the development branch. CI and platfo
 - Per-window left/right tiling using the selected window's nearest monitor work area, confirmed normal-close requests, and minimize-all with SeekR/shell-process exclusions.
 - Shared semantic theme roles, spacing/radius/animation tokens, and visible keyboard-focus styling.
 - Leading-> Command Center routing with searchable settings, system/process/network tools, workflows, snippets, clipboard, search shortcuts and widget toggles.
+- Manual and opt-in daily GitHub release checks with in-app notifications and official release-page navigation; installer download and execution remain explicit user actions.
 
 These entries are not a substitute for the release gates below. The remaining checklist items still apply.
 
