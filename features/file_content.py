@@ -12,7 +12,8 @@ from core.logging_setup import get_logger
 
 log = get_logger(__name__)
 DEFAULT_CONTENT_EXTENSIONS = [".txt", ".md", ".py", ".json", ".csv", ".html", ".xml"]
-MAX_CANDIDATES = 2500
+MAX_CANDIDATES = 500
+MAX_TOTAL_READ_BYTES = 8_000_000
 DEFAULT_MAX_FILE_BYTES = 1_000_000
 
 
@@ -54,7 +55,11 @@ class FileContentProvider(SearchProvider):
         candidates = self.db.recent_files(MAX_CANDIDATES, [str(root) for root in roots])
         needle = text.casefold()
         matches: list[tuple[int, dict[str, Any], str]] = []
+        bytes_read = 0
         for row in candidates:
+            remaining_budget = MAX_TOTAL_READ_BYTES - bytes_read
+            if remaining_budget <= 0:
+                break
             if row.get("is_dir") or str(row.get("ext", "")).lower() not in extensions:
                 continue
             path = Path(str(row.get("path", "")))
