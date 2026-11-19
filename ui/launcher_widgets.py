@@ -471,13 +471,21 @@ class LauncherWidgets(QObject):
         self._right_layout.addWidget(self.weather)
         self._right_layout.addWidget(self.meme)
         self._right_layout.addStretch(1)
-        # Use the same explicit theme tokens as the rest of the launcher. Qt's
-        # native palette(mid)/palette(window) values do not follow our QSS theme,
-        # which made these cards nearly unreadable on several Windows setups.
-        colors = palette_for(str(config.get("appearance.theme", "dark")))
         for card in self._cards.values():
             card.setMinimumHeight(132)
             card.setMaximumHeight(168)
+            card.setContentsMargins(0, 0, 0, 0)
+        self._apply_card_theme()
+        self._rebuild()
+        if self.config.get("widgets.weather_enabled", True):
+            self.weather.refresh()
+        if self.config.get("widgets.meme_enabled", True):
+            self.meme._load_daily()
+
+    def _apply_card_theme(self):
+        """Apply current semantic theme tokens to every persistent widget card."""
+        colors = palette_for(str(self.config.get("appearance.theme", "dark")))
+        for card in self._cards.values():
             card.setStyleSheet(
                 "QFrame#LauncherWidgetCard {"
                 f" background: {colors['surface']};"
@@ -517,12 +525,6 @@ class LauncherWidgets(QObject):
                 " border-radius: 3px;"
                 " }"
             )
-            card.setContentsMargins(0, 0, 0, 0)
-        self._rebuild()
-        if self.config.get("widgets.weather_enabled", True):
-            self.weather.refresh()
-        if self.config.get("widgets.meme_enabled", True):
-            self.meme._load_daily()
 
     def _rebuild(self):
         # Cards are inserted into their layouts exactly once in __init__.
@@ -554,6 +556,7 @@ class LauncherWidgets(QObject):
         )
 
     def refresh_settings(self, animate=False):
+        self._apply_card_theme()
         self._rebuild()
         if self.config.get("widgets.weather_enabled", True):
             self.weather._last_location = ""
