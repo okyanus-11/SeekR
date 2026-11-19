@@ -568,6 +568,17 @@ class CommandChainProvider(SearchProvider):
         )]
 
     def _run(self, expression: str) -> None:
+        valid, message, plan = self.service.preview_chain(expression)
+        if not valid:
+            self.hooks.show_error("Command chain", message)
+            return
+        lines, resolved = plan
+        if any(entry.confirmation for entry, _args in resolved):
+            if not self.hooks.confirm(
+                "Review command chain",
+                "The following actions will run in order:\\n\\n" + "\\n".join(lines),
+            ):
+                return
         outcome = self.service.run_chain(expression)
         if outcome.success:
             self.hooks.notify(outcome.message)
