@@ -301,6 +301,30 @@ def test_launcher_widgets_survive_settings_and_theme_refresh(qapp, controller):
         widgets.refresh_settings()
 
 
+
+def test_widget_polling_pauses_when_launcher_is_hidden(qapp, controller):
+    launcher = controller.launcher
+    widgets = launcher.launcher_widgets
+    launcher.show_launcher()
+    qapp.processEvents()
+    assert widgets._active
+    assert widgets.clock.timer.isActive()
+    assert widgets.system.timer.isActive()
+
+    launcher.hide_launcher()
+    qapp.processEvents()
+    assert not widgets._active
+    assert not widgets.clock.timer.isActive()
+    assert not widgets.system.timer.isActive()
+    assert not widgets.weather.timer.isActive()
+    assert not widgets.meme.day_timer.isActive()
+
+    launcher.show_launcher()
+    qapp.processEvents()
+    assert widgets._active
+    assert widgets.clock.timer.isActive()
+    assert widgets.system.timer.isActive()
+
 def test_launcher_execution_copies_and_hides(qapp, controller):
     launcher = controller.launcher
     launcher.show_launcher()
