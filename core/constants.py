@@ -113,6 +113,13 @@ CATEGORIES = (
     "Snippet",
     "Window management",
     "Command chain",
+    "Command Center",
+    "Settings",
+    "Network",
+    "Productivity",
+    "Widgets",
+    "Search",
+    "Windows",
     "Keyword",
 )
 
