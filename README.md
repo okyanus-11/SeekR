@@ -75,7 +75,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 | Notes | Lightweight notes with autosave, pinning, search and timestamps. |
 | System info | Real CPU, memory, disks, GPU, battery, network, IP, uptime and OS data via `psutil` and platform APIs. No invented values. |
 | Date & time | Current time, time-zone lookup and conversion, date differences, countdown timer, configurable formats. |
-| Windows | Lists open windows and switches to the selected one (Windows API; unavailable elsewhere). |
+| Windows | Lists open windows, switches to the selected one, tiles it left/right on its own monitor, and offers a confirmed normal close request. wm: minimize all minimizes app windows while protecting SeekR and shell processes. |
 | Emoji | Searchable emoji table; copies the selected emoji. |
 | Color | HEX/RGB/HSL/HSV conversion, color picking, copyable values. |
 | Screenshots | Full-screen and built-in region capture save PNGs directly to the configured folder (Settings → Files), including multi-monitor desktops. The Windows Snipping Tool remains an optional external alternative. |
@@ -365,6 +365,7 @@ Custom aliases are configured on Settings → Search (`{"w": "web"}` makes `w:` 
 - **Validation:** on load, every value is coerced and clamped against defaults. A corrupt file is backed up as `config.corrupt.json` and defaults are used, so a bad edit cannot prevent startup.
 - **Writes:** atomic (temporary file + replace), so an interrupted save cannot truncate the configuration.
 - **Live updates:** configuration listeners repaint themes, re-register hotkeys and refresh pages without a restart.
+- **Privacy:** application usage tracking is off by default. Turning it on enables recent/frequent application ranking; turning it off disables that personalization, and Privacy settings can clear stored usage data.
 
 ---
 
