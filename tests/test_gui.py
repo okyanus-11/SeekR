@@ -749,3 +749,45 @@ def test_disabled_daily_meme_does_not_restart_retry_timer(qapp):
     assert not widget.retry_timer.isActive()
     widget.deleteLater()
     qapp.processEvents()
+
+def test_20_new_search_providers_are_registered(controller, tmp_path):
+    for query, expected in (
+        ("flow: ", "workflows"),
+        ("snip: ", "snippets"),
+        ("content: ", "file_content"),
+        ("chain: ", "command_chains"),
+        ("wm: ", "window_manager"),
+    ):
+        resolved = controller.engine.resolve(query)
+        assert resolved is not None
+        assert resolved[0].id == expected
+
+
+def test_workflow_and_snippet_tools_pages_are_constructible(qapp, controller, tmp_path):
+    from ui.tools_window import ToolsWindow
+
+    window = ToolsWindow(controller)
+    assert "workflows" in window.pages
+    assert "snippets" in window.pages
+
+    folder = tmp_path / "workspace"
+    folder.mkdir()
+    ok, message = controller.workflow_service.save({
+        "title": "Open workspace",
+        "description": "Test workflow",
+        "steps": [{"type": "open_folder", "path": str(folder)}],
+    })
+    assert ok, message
+    ok, message = controller.snippet_service.save({
+        "title": "Greeting", "category": "General", "shortcut": "hi", "content": "Hello",
+    })
+    assert ok, message
+
+    workflow_tab = window.pages["workflows"]
+    snippet_tab = window.pages["snippets"]
+    workflow_tab.reload()
+    snippet_tab.reload()
+    assert workflow_tab.table.rowCount() >= 1
+    assert snippet_tab.table.rowCount() >= 1
+    window.close()
+
