@@ -48,7 +48,8 @@ function Start-VisibleMeasurement([string]$Label, [string[]]$Arguments) {
         $process = Start-Process -FilePath $exe -PassThru
     }
     try {
-        $visibleMs = Wait-ForVisibleWindow -Process $process -Timeout $TimeoutSeconds
+        $null = Wait-ForVisibleWindow -Process $process -Timeout $TimeoutSeconds
+        $visibleMs = [math]::Round($watch.Elapsed.TotalMilliseconds, 1)
         return [pscustomobject]@{
             scenario = $Label
             process_start_to_visible_ms = $visibleMs
@@ -70,7 +71,8 @@ function Measure-HotkeyLatency {
         $shell = New-Object -ComObject WScript.Shell
         $watch = [Diagnostics.Stopwatch]::StartNew()
         $shell.SendKeys("%{SPACE}")
-        $latency = Wait-ForVisibleWindow -Process $process -Timeout 10
+        $null = Wait-ForVisibleWindow -Process $process -Timeout 10
+        $latency = [math]::Round($watch.Elapsed.TotalMilliseconds, 1)
         return [pscustomobject]@{
             scenario = "Alt+Space hotkey-to-visible"
             hotkey_to_visible_ms = $latency
