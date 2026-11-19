@@ -95,6 +95,7 @@ class FileIndexer:
         inserted = 0
         batch: list[dict] = []
         cancelled = False
+        scan_complete = True
         limit_reached = False
         visited_dirs = 0
 
@@ -109,6 +110,7 @@ class FileIndexer:
             root_path = Path(root)
             if not root_path.is_dir():
                 log.info("Skipping missing index directory %s", root)
+                scan_complete = False
                 continue
             stack: list[tuple[str, int]] = [(str(root_path), 0)]
             while stack:
@@ -123,6 +125,7 @@ class FileIndexer:
                 try:
                     iterator = os.scandir(directory)
                 except OSError:
+                    scan_complete = False
                     continue
                 with iterator:
                     for entry in iterator:
@@ -176,6 +179,7 @@ class FileIndexer:
                                     }
                                 )
                         except OSError:
+                            scan_complete = False
                             continue
 
                         if len(batch) >= _BATCH_SIZE:
@@ -198,7 +202,7 @@ class FileIndexer:
         # Keep the previous index intact during scanning. Only remove stale
         # rows after a complete scan; cancellation and index-limit exits must
         # never turn a usable index into a partial snapshot.
-        if not cancelled and not limit_reached and not clear:
+        if scan_complete and not cancelled and not limit_reached and not clear:
             self.db.prune_files_before(directories, started)
         elapsed = time.perf_counter() - started
         self.db.set_meta("files_last_index", time.time())
