@@ -336,9 +336,9 @@ Keywords are matched case-insensitively at the start of the query (`web: python`
 |---|---|---|
 | `web:` | `web: Raspberry Pi 5` | Opens the configured search engine |
 | `calc:` | `calc: sqrt(144) + 25 * 4` | `112` |
-| `flow:` | Search and run saved local workflows. |
-| `snip:` | Search and explicitly copy saved text snippets. |
-| `chain:` | Run a bounded chain of existing commands separated by `then`. |
+| `flow:` | `flow: prepare work` | Search and run saved local workflows. |
+| `snip:` | `snip: signature` | Search and explicitly copy saved text snippets. |
+| `chain:` | `chain: taskmgr then explorer` | Run a bounded chain of existing commands separated by `then`. |
 | `comm:` | `comm: ipconfig` | Runs the built-in command (with confirmation where required) |
 | `file:` | `file: invoice` | Searches the file index |
 | `app:` | `app: discord` | Searches installed applications |
@@ -350,6 +350,7 @@ Keywords are matched case-insensitively at the start of the query (`web: python`
 | `time:` | `time: Tokyo` | Current time in Tokyo |
 | `define:` | `define: algorithm` | Dictionary lookup |
 | `sys:` | `sys:` | Live system information entries |
+| `wm:` | `wm: minimize all` | Minimizes visible application windows while protecting SeekR and Windows shell processes |
 
 Without a keyword SeekR still works: `25 * 48` produces a calculator result automatically, and `discord` ranks matching applications first.
 
@@ -371,7 +372,7 @@ Custom aliases are configured on Settings → Search (`{"w": "web"}` makes `w:` 
 
 SQLite at `%APPDATA%\SeekR\seekr.db` (WAL mode, busy timeout, per-thread connections).
 
-Tables: `apps`, `files`, `clipboard`, `notes`, `history`, `custom_commands`, `ssh_profiles`, `quick_actions`, `meta`.
+Tables: `apps`, `files`, `clipboard`, `notes`, `history`, `custom_commands`, `ssh_profiles`, `quick_actions`, `workflows`, `snippets`, `meta`.
 
 - Clipboard history is off by default. When explicitly enabled, copied text is
   stored unencrypted in the local database; entries are deduplicated by hash
