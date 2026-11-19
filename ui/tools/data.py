@@ -6,7 +6,8 @@ import datetime as dt
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QSize
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import QApplication, QProgressDialog
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -56,6 +57,7 @@ class ClipboardTab(QWidget):
         layout.addWidget(
             label(
                 "Clipboard text is stored unencrypted in SeekR’s local SQLite database. "
+                "Images are saved as local PNG files only when image capture is separately enabled. "
                 "Capture is off until you opt in. Pin entries to keep them when the limit is reached.",
                 "Muted", wrap=True,
             )
@@ -80,6 +82,7 @@ class ClipboardTab(QWidget):
         self.list = QListWidget()
         self.list.setObjectName("PlainList")
         self.list.setWordWrap(True)
+        self.list.setIconSize(QSize(64, 64))
         self.list.itemDoubleClicked.connect(lambda _item: self._copy())
         self.list.currentItemChanged.connect(self._selection_changed)
         layout.addWidget(self.list, 1)
@@ -129,11 +132,20 @@ class ClipboardTab(QWidget):
         self.list.clear()
         for entry in items:
             text = entry.get("text", "")
+            is_image = entry.get("kind") == "image"
             preview = " ".join(text.split())
-            title = preview[:140] + ("…" if len(preview) > 140 else "")
+            title = (f"Image · {int(entry.get('width') or 0)}×{int(entry.get('height') or 0)}"
+                     if is_image else preview[:140] + ("…" if len(preview) > 140 else ""))
             stamp = dt.datetime.fromtimestamp(entry.get("created", 0)).strftime("%Y-%m-%d %H:%M")
             prefix = "📌 " if entry.get("pinned") else ""
             item = QListWidgetItem(f"{prefix}{title}\n{stamp}")
+            if is_image:
+                pixmap = QPixmap(str(entry.get("image_path") or ""))
+                if not pixmap.isNull():
+                    item.setIcon(QIcon(pixmap.scaled(
+                        64, 64, Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )))
             item.setData(Qt.ItemDataRole.UserRole, entry)
             self.list.addItem(item)
         self.status.setText(f"{len(items)} entries")
@@ -166,8 +178,10 @@ class ClipboardTab(QWidget):
         if entry is None:
             self.status.setText("Select an entry first")
             return
-        self.controller.copy_text(entry["text"])
-        self.status.setText("Copied to clipboard")
+        if self.service.copy(entry):
+            self.status.setText("Copied image to clipboard" if entry.get("kind") == "image" else "Copied to clipboard")
+        else:
+            self.status.setText("Could not copy this entry")
 
     def _toggle_pin(self) -> None:
         entry = self._selected()
