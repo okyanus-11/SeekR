@@ -256,6 +256,10 @@ class FileService:
         else:
             term = text
             candidates = self.db.file_candidates(term[:40], limit=800, ext=extension or None)
+            # A lightweight English plural fallback keeps "invoices" useful
+            # for files named "invoice.pdf" without broadening to a full scan.
+            if not candidates and len(term) >= 4 and " " not in term and term.lower().endswith("s"):
+                candidates = self.db.file_candidates(term[:-1][:40], limit=800, ext=extension or None)
         if len(candidates) < limit and len(term) >= 3 and len(term.split()) > 1:
             # Widen using the longest word to allow typo-tolerant ranking.
             longest = max(re.split(r"\s+", term), key=len)
