@@ -239,6 +239,7 @@ def test_scan_desktop_entries(config, db, tmp_path, monkeypatch):
 
 
 def test_application_launch_records_history(config, db, tmp_path, monkeypatch):
+    config.set("privacy.usage_tracking", True)
     menu = tmp_path / "applications"
     menu.mkdir()
     if os.name == "nt":
