@@ -482,8 +482,8 @@ QStatusBar {{ background: {palette['window_alt']}; color: {muted}; }}
 
 
 def apply_theme(app: QApplication, config: ConfigManager) -> None:
+    """Apply the theme stylesheet, palette and global motion preference."""
     app.setProperty("seekrAnimationsEnabled", bool(config.get("appearance.animations", True)))
-    """Apply the theme stylesheet and palette to the whole application."""
     stylesheet = build_stylesheet(config)
     app.setStyleSheet(stylesheet)
     palette = palette_for(config.get("appearance.theme", "dark"))
