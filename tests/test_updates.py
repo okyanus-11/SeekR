@@ -22,7 +22,7 @@ class FakeResponse:
 
 def test_version_key_compares_numeric_components():
     assert version_key("v2.1.0") > version_key("1.99.99")
-    assert version_key("2.0.0") == version_key("v2.1.0")
+    assert version_key("2.0.0") == version_key("v2.0.0")
     assert version_key("2.0.1") > version_key("2.0.0")
 
 
@@ -37,7 +37,7 @@ def test_update_check_detects_new_release_and_records_timestamp(config, monkeypa
     service = UpdateService(config)
     info = service.check_latest()
     assert info["update_available"]
-    assert info["latest_version"] == "2.0.0"
+    assert info["latest_version"] == "2.1.0"
     assert info["assets"][0]["name"] == "SeekR-Setup-2.1.0.exe"
     assert config.get("updates.last_check") > 0
     assert service.last_info == info
