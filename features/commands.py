@@ -60,7 +60,8 @@ def split_command_chain(expression: str) -> list[str]:
             escaped = False
             index += 1
             continue
-        if quote == '"' and char == "\\":
+        if (quote == '"' and char == "\\" and index + 1 < len(expression)
+                and expression[index + 1] in {'"', "\\"}):
             escaped = True
             index += 1
             continue
