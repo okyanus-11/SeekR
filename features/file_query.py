@@ -37,6 +37,7 @@ def parse_file_query(query: str, now: float | None = None) -> FileQuery:
     text = (query or "").strip()
     extension = ""
     modified_after = None
+    modified_before = None
     size_operator = None
     size_bytes = None
     match = _EXTENSION.search(text)
