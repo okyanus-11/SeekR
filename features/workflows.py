@@ -22,7 +22,7 @@ from . import util
 log = get_logger(__name__)
 
 WORKFLOW_SCHEMA_VERSION = 1
-STEP_TYPES = {"open_folder", "open_url", "launch_app", "copy_text"}
+STEP_TYPES = {"open_folder", "open_url", "launch_app", "copy_text", "run_command"}
 MAX_STEPS = 30
 MAX_TEXT = 20_000
 MAX_IMPORT_BYTES = 1_000_000
@@ -56,6 +56,15 @@ def validate_step(step: Any) -> tuple[bool, str]:
         value = step.get("text")
         if not isinstance(value, str) or len(value) > MAX_TEXT:
             return False, f"Copied text must be a string under {MAX_TEXT} characters"
+    elif kind == "run_command":
+        command = step.get("command")
+        args = step.get("args", [])
+        if not isinstance(command, str) or not command.strip() or len(command) > 120:
+            return False, "Command steps need an existing command key or title"
+        if not isinstance(args, list) or len(args) > 64:
+            return False, "Command steps accept at most 64 arguments"
+        if not all(isinstance(arg, str) and len(arg) <= 2048 for arg in args):
+            return False, "Command arguments must be strings of at most 2048 characters"
     return True, ""
 
 
@@ -80,10 +89,11 @@ def validate_workflow(data: Any) -> tuple[bool, str]:
 class WorkflowService:
     """CRUD, import/export and sequential execution for structured workflows."""
 
-    def __init__(self, config: ConfigManager, db: Database, hooks):
+    def __init__(self, config: ConfigManager, db: Database, hooks, command_service=None):
         self.config = config
         self.db = db
         self.hooks = hooks
+        self.command_service = command_service
 
     def workflows(self) -> list[dict[str, Any]]:
         rows = self.db.list_workflows()
@@ -171,9 +181,31 @@ class WorkflowService:
                     if not Path(executable).exists():
                         executable = util.which(executable) or executable
                     success, detail = util.run_detached([executable, *step.get("args", [])])
-                else:
+                elif kind == "copy_text":
                     success = bool(self.hooks.copy_text(step["text"]))
                     detail = "Copied text" if success else "Could not copy text"
+                else:
+                    if self.command_service is None:
+                        return False, f"Step {index}: command execution is unavailable", index - 1
+                    requested = str(step["command"]).casefold()
+                    entry = next(
+                        (candidate for candidate in self.command_service.entries()
+                         if requested in {candidate.key.casefold(), candidate.title.casefold(),
+                                          *(alias.casefold() for alias in candidate.aliases)}),
+                        None,
+                    )
+                    if entry is None:
+                        return False, f"Step {index}: unknown configured command '{step['command']}'", index - 1
+                    if entry.confirmation and not self.hooks.confirm(
+                        f"Confirm workflow command: {entry.title}",
+                        f"Run {entry.title}?\\n\\n{entry.description}\\n\\n"
+                        "This step is part of a saved workflow.",
+                    ):
+                        return False, f"Workflow cancelled at command step {index}", index - 1
+                    outcome = self.command_service.run_arguments(entry, list(step.get("args", [])))
+                    success, detail = outcome.success, outcome.message
+                    if success and outcome.output:
+                        self.hooks.show_info(entry.title, outcome.output)
             except Exception as exc:
                 log.exception("Workflow step %s failed", index)
                 return False, f"Step {index} failed: {exc}", index - 1
