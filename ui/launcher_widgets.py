@@ -758,7 +758,7 @@ class LauncherWidgets(QObject):
                 self.meme._load_daily()
 
         self.left_column.setVisible(
-            any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("clock", "system"))
+            any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("clock", "system", "tasks"))
         )
         self.right_column.setVisible(
             any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("weather", "meme"))
