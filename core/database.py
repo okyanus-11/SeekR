@@ -15,7 +15,7 @@ from .logging_setup import get_logger
 
 log = get_logger(__name__)
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS apps (
@@ -104,6 +104,17 @@ CREATE TABLE IF NOT EXISTS quick_actions (
     description TEXT NOT NULL DEFAULT '',
     created REAL NOT NULL
 );
+
+
+CREATE TABLE IF NOT EXISTS workflows (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    steps_json TEXT NOT NULL,
+    created REAL NOT NULL,
+    updated REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_workflows_title ON workflows(title COLLATE NOCASE);
 
 CREATE TABLE IF NOT EXISTS kv (
     key TEXT PRIMARY KEY,
@@ -701,6 +712,32 @@ class Database:
 
     def delete_quick_action(self, action_id: int) -> None:
         self._write("DELETE FROM quick_actions WHERE id = ?", (action_id,))
+
+
+    # --------------------------------------------------------------- workflows
+    def list_workflows(self) -> list[dict[str, Any]]:
+        return [dict(row) for row in self._query("SELECT * FROM workflows ORDER BY title COLLATE NOCASE")]
+
+    def get_workflow(self, workflow_id: int) -> dict[str, Any] | None:
+        row = self._query_one("SELECT * FROM workflows WHERE id = ?", (int(workflow_id),))
+        return dict(row) if row else None
+
+    def upsert_workflow(self, data: dict[str, Any]) -> int:
+        now = time.time()
+        workflow_id = data.get("id")
+        if workflow_id:
+            self._write(
+                "UPDATE workflows SET title = ?, description = ?, steps_json = ?, updated = ? WHERE id = ?",
+                (data["title"], data.get("description", ""), data["steps_json"], now, int(workflow_id)),
+            )
+            return int(workflow_id)
+        return self._write(
+            "INSERT INTO workflows(title, description, steps_json, created, updated) VALUES (?, ?, ?, ?, ?)",
+            (data["title"], data.get("description", ""), data["steps_json"], now, now),
+        )
+
+    def delete_workflow(self, workflow_id: int) -> None:
+        self._write("DELETE FROM workflows WHERE id = ?", (int(workflow_id),))
 
     def vacuum(self) -> None:
         """Compact the database file."""
