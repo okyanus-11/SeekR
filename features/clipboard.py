@@ -109,6 +109,8 @@ class ClipboardService:
         if not directory.is_dir():
             return
         referenced = self.db.clipboard_image_paths()
+        if referenced is None:
+            return
         for candidate in directory.glob("*.png"):
             try:
                 if str(candidate) not in referenced:
