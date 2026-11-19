@@ -78,3 +78,18 @@ def test_content_search_requires_files_to_be_under_configured_roots(config, db, 
 
     provider = FileContentProvider(config, db, hooks)
     assert provider.search("needle", 5) == []
+
+def test_content_search_supports_utf16_bom_text(config, db, hooks, tmp_path):
+    root = tmp_path / "docs"
+    root.mkdir()
+    path = root / "unicode.txt"
+    path.write_text("café and searchable phrase", encoding="utf-16")
+    config.set("files.directories", [str(root)])
+    config.set("files.content_search_enabled", True)
+    config.set("files.content_search_extensions", [".txt"])
+    _index(db, path)
+
+    provider = FileContentProvider(config, db, hooks)
+    results = provider.search("searchable phrase", 5)
+    assert len(results) == 1
+    assert results[0].title == "unicode.txt"
