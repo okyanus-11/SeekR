@@ -18,6 +18,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QDesktopServices, QPixmap
 from PySide6.QtCore import QUrl
 from core.version import APP_VERSION
+from ui.themes import palette_for
 from PySide6.QtWidgets import (
     QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QProgressBar,
     QVBoxLayout, QWidget,
@@ -473,20 +474,53 @@ class LauncherWidgets(QObject):
         self.weather = WeatherWidget(config, self.pool, self.right_column)
         self.meme = MemeWidget(self.pool, self.right_column)
         self._cards = {"clock": self.clock, "weather": self.weather, "system": self.system, "meme": self.meme}
+        # Use the same explicit theme tokens as the rest of the launcher. Qt's
+        # native palette(mid)/palette(window) values do not follow our QSS theme,
+        # which made these cards nearly unreadable on several Windows setups.
+        colors = palette_for(str(config.get("appearance.theme", "dark")))
         for card in self._cards.values():
-            card.setMinimumHeight(126)
-            card.setMaximumHeight(164)
+            card.setMinimumHeight(132)
+            card.setMaximumHeight(168)
             card.setStyleSheet(
-                "QFrame#LauncherWidgetCard { background: palette(window); border: 1px solid palette(mid); border-radius: 13px; } "
-                "QFrame#LauncherWidgetCard:hover { border: 1px solid palette(highlight); } "
-                "QLabel#WidgetEyebrow { color: palette(mid); font-size: 9px; font-weight: 700; letter-spacing: 1px; } "
-                "QLabel#WidgetClock { font-size: 25px; font-weight: 650; color: palette(windowText); } "
-                "QLabel#WidgetValue { font-size: 19px; font-weight: 650; color: palette(windowText); } "
-                "QLabel#WidgetSecondary { color: palette(mid); font-size: 10px; } "
-                "QLabel#WidgetAttribution { color: palette(highlight); font-size: 9px; } "
-                "QProgressBar#WidgetProgress { background: palette(base); border: 0; border-radius: 2px; } "
-                "QProgressBar#WidgetProgress::chunk { background: palette(highlight); border-radius: 2px; }"
+                "QFrame#LauncherWidgetCard {"
+                f" background: {colors['surface']};"
+                f" border: 1px solid {colors['border']};"
+                " border-radius: 14px;"
+                " }"
+                "QFrame#LauncherWidgetCard:hover {"
+                f" background: {colors['surface_alt']};"
+                f" border: 1px solid {colors['accent']};"
+                " }"
+                "QLabel#WidgetEyebrow {"
+                f" color: {colors['accent']};"
+                " font-size: 9pt; font-weight: 700; letter-spacing: 1px;"
+                " }"
+                "QLabel#WidgetClock {"
+                f" color: {colors['text']};"
+                " font-size: 23pt; font-weight: 700;"
+                " }"
+                "QLabel#WidgetValue {"
+                f" color: {colors['text']};"
+                " font-size: 13pt; font-weight: 650;"
+                " }"
+                "QLabel#WidgetSecondary {"
+                f" color: {colors['muted']};"
+                " font-size: 9pt; font-weight: 500;"
+                " }"
+                "QLabel#WidgetAttribution {"
+                f" color: {colors['accent']};"
+                " font-size: 8pt;"
+                " }"
+                "QProgressBar#WidgetProgress {"
+                f" background: {colors['surface_alt']};"
+                " border: 0; border-radius: 3px;"
+                " }"
+                "QProgressBar#WidgetProgress::chunk {"
+                f" background: {colors['accent']};"
+                " border-radius: 3px;"
+                " }"
             )
+            card.setContentsMargins(0, 0, 0, 0)
         self._rebuild()
         if self.config.get("widgets.weather_enabled", True):
             self.weather.refresh()
