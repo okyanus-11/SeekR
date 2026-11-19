@@ -158,7 +158,8 @@ def test_search_history_recording(engine):
 def test_keyword_reference(engine):
     reference = engine.keyword_reference()
     assert reference
-    assert all(result.category == "Keyword" for result in reference)
+    assert all(result.category in {"Keyword", "Command Center"} for result in reference)
+    assert any(result.title.startswith(">") for result in reference)
 
 
 
