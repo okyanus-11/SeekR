@@ -777,8 +777,12 @@ class WorkflowsTab(QWidget):
         if not path:
             return
         try:
+            from features.workflows import MAX_IMPORT_BYTES
+            if Path(path).stat().st_size > MAX_IMPORT_BYTES:
+                dialogs.show_error(self, "Workflow import failed", "Workflow export is too large")
+                return
             content = Path(path).read_text(encoding="utf-8")
-        except OSError as exc:
+        except (OSError, UnicodeError) as exc:
             dialogs.show_error(self, "Could not read workflow file", str(exc))
             return
         ok, message, count = self.service.import_json(content)
@@ -902,6 +906,10 @@ class SnippetsTab(QWidget):
         if not path:
             return
         try:
+            from features.snippets import MAX_SNIPPET_IMPORT_BYTES
+            if Path(path).stat().st_size > MAX_SNIPPET_IMPORT_BYTES:
+                dialogs.show_error(self, "Snippet import failed", "Snippet export is too large")
+                return
             content = Path(path).read_text(encoding="utf-8")
             ok, message, count = self.service.import_json(content)
         except (OSError, UnicodeError, ValueError) as exc:
