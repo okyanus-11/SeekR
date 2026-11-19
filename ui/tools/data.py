@@ -816,4 +816,137 @@ class SnippetsTab(QWidget):
         self.reload()
 
 
-__all__ = ["ClipboardTab", "NotesTab", "BookmarksTab", "ConnectionsTab", "ActionsTab", "WorkflowsTab", "SnippetsTab"]
+
+class TasksTab(QWidget):
+    """Local task list with optional ISO due dates and completion tracking."""
+
+    def __init__(self, controller, window):
+        super().__init__()
+        self.controller = controller
+        self.service = controller.task_service
+        self._editing_id = None
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(10)
+        layout.addWidget(label("Tasks", "Heading"))
+        layout.addWidget(label(
+            "A local task list with optional due dates. Search tasks from the launcher with task:.",
+            "Muted", wrap=True,
+        ))
+        self.title_edit = QLineEdit()
+        self.title_edit.setPlaceholderText("Task title")
+        self.notes_edit = QLineEdit()
+        self.notes_edit.setPlaceholderText("Notes (optional)")
+        self.due_edit = QLineEdit()
+        self.due_edit.setPlaceholderText("Due date YYYY-MM-DD (optional)")
+        fields = QHBoxLayout()
+        fields.addWidget(self.title_edit, 2)
+        fields.addWidget(self.due_edit, 1)
+        fields.addWidget(self.notes_edit, 2)
+        layout.addLayout(fields)
+        self.save_button = primary_button("Add task", self._save)
+        layout.addWidget(self.save_button, 0, Qt.AlignmentFlag.AlignLeft)
+
+        self.search = QLineEdit()
+        self.search.setPlaceholderText("Filter tasks…")
+        self.search.textChanged.connect(self.reload)
+        layout.addWidget(self.search)
+        self.table = QTableWidget(0, 4)
+        self.table.setHorizontalHeaderLabels(["Task", "Due date", "Status", "Notes"])
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.doubleClicked.connect(lambda _index: self._edit())
+        layout.addWidget(self.table, 1)
+        buttons = QHBoxLayout()
+        buttons.addWidget(secondary_button("Edit…", self._edit))
+        buttons.addWidget(secondary_button("Complete / reopen", self._toggle))
+        buttons.addWidget(danger_button("Delete", self._delete))
+        buttons.addStretch(1)
+        self.status = label("", "Muted")
+        buttons.addWidget(self.status)
+        layout.addLayout(buttons)
+        self.reload()
+
+    def reload(self) -> None:
+        query = self.search.text().strip().casefold()
+        rows = [task for task in self.service.tasks()
+                if not query or query in " ".join((task["title"], task.get("notes", ""),
+                                                    task.get("due_date", ""))).casefold()]
+        self.table.setRowCount(0)
+        for task in rows:
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            values = [
+                task["title"],
+                task.get("due_date") or "—",
+                "Completed" if task.get("completed") else "Open",
+                task.get("notes", ""),
+            ]
+            for column, value in enumerate(values):
+                item = QTableWidgetItem(str(value))
+                if column == 0:
+                    item.setData(Qt.ItemDataRole.UserRole, task)
+                self.table.setItem(row, column, item)
+        self.status.setText(f"{len(rows)} tasks")
+
+    def _selected(self) -> Optional[dict]:
+        row = self.table.currentRow()
+        if row < 0:
+            return None
+        item = self.table.item(row, 0)
+        return item.data(Qt.ItemDataRole.UserRole) if item else None
+
+    def _save(self) -> None:
+        data = {
+            "id": self._editing_id,
+            "title": self.title_edit.text(),
+            "notes": self.notes_edit.text(),
+            "due_date": self.due_edit.text().strip(),
+        }
+        ok, message = self.service.save(data)
+        if not ok:
+            dialogs.show_error(self, "Could not save task", message)
+            return
+        self._editing_id = None
+        self.title_edit.clear()
+        self.notes_edit.clear()
+        self.due_edit.clear()
+        self.save_button.setText("Add task")
+        self.reload()
+
+    def _edit(self) -> None:
+        task = self._selected()
+        if task is None:
+            return
+        self._editing_id = task["id"]
+        self.title_edit.setText(task["title"])
+        self.notes_edit.setText(task.get("notes", ""))
+        self.due_edit.setText(task.get("due_date", ""))
+        self.save_button.setText("Save changes")
+
+    def _toggle(self) -> None:
+        task = self._selected()
+        if task is None:
+            return
+        self.service.complete(task["id"], not bool(task.get("completed")))
+        self.reload()
+
+    def _delete(self) -> None:
+        task = self._selected()
+        if task is None:
+            return
+        if not dialogs.ask_confirm(self, "Delete task", f"Delete “{task['title']}”?"):
+            return
+        self.service.delete(task["id"])
+        self.reload()
+
+    def on_show(self) -> None:
+        self.reload()
+
+
+__all__ = ["ClipboardTab", "NotesTab", "BookmarksTab", "ConnectionsTab", "ActionsTab", "WorkflowsTab", "SnippetsTab", "TasksTab"]
