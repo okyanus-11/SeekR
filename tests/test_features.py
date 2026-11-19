@@ -132,6 +132,27 @@ def test_files_provider_results(indexed_files, config, db, hooks, monkeypatch):
     assert db.history("file")
 
 
+def test_file_search_understands_natural_language_filters(config, db):
+    now = time.time()
+    db.upsert_files([
+        {"path": "/tmp/invoice-old.pdf", "name": "invoice-old.pdf", "ext": ".pdf",
+         "size": 1200, "mtime": now - 20 * 86400},
+        {"path": "/tmp/invoice-new.pdf", "name": "invoice-new.pdf", "ext": ".pdf",
+         "size": 1200, "mtime": now - 2 * 86400},
+        {"path": "/tmp/invoice-new.txt", "name": "invoice-new.txt", "ext": ".txt",
+         "size": 1200, "mtime": now - 2 * 86400},
+        {"path": "/tmp/invoice-large.pdf", "name": "invoice-large.pdf", "ext": ".pdf",
+         "size": 5_000_000, "mtime": now - 2 * 86400},
+    ])
+    service = FileService(config, db)
+
+    recent_pdfs = service.search("invoices type:pdf modified last week")
+    assert {row["name"] for _, row in recent_pdfs} == {"invoice-new.pdf", "invoice-large.pdf"}
+
+    large = service.search("invoice larger than 1 MB")
+    assert {row["name"] for _, row in large} == {"invoice-large.pdf"}
+
+
 # ----------------------------------------------------------------- applications
 def test_scan_desktop_entries(config, db, tmp_path, monkeypatch):
     menu = tmp_path / "applications"
