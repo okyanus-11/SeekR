@@ -9,7 +9,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 
 ## 1. Performance and responsiveness
 
-- [ ] Measure packaged cold start and warm start separately (installer and portable builds).
+- [ ] Measure packaged cold start and warm start separately (installer and portable builds). A repeatable Windows runner now records sequential process-to-visible startup, Alt+Space-to-visible latency, idle CPU, memory and thread counts; its results still need to be collected on supported Windows hardware.
 - [ ] Measure hotkey-to-visible latency, first paint, and time-to-interactive on real Windows hardware.
 - [ ] Record idle CPU, working set/private bytes, thread count, and memory growth over short and long runs.
 - [ ] Profile startup imports and defer nonessential modules without delaying first-use interactions.
@@ -160,16 +160,18 @@ A 2.0.0 release candidate must not be tagged until all of the following are true
 
 ## Verified implementation log (not a release checklist)
 
-The following 2.0.0 work has been added on the development branch and is awaiting full CI and platform validation:
+The following 2.0.0 work has been added on the development branch. CI and platform validation remain release gates:
 
 - Natural-language file metadata filters and plural-aware matching.
 - Safe file-index snapshot behavior during cancellation, inaccessible roots and complete scans.
 - Persistent widget lifecycle, visibility-aware polling, theme refresh and regression coverage.
-- Bounded app usage ranking controlled by the existing privacy setting.
+- Bounded app usage ranking and recent/frequent suggestions; tracking is off by default and disabling it suppresses personalization.
 - Clipboard age retention that never expires pinned entries.
 - Structured local workflows with validation, import/export, atomic import storage, bounded steps and no shell/script execution.
 - Explicitly selected local text snippets, categories and aliases; no automatic text injection.
 - Explicit command chains over existing command entries, with per-step confirmation for destructive/custom-confirmed actions and stop-on-failure behavior.
+- Per-window left/right tiling using the selected window's nearest monitor work area, confirmed normal-close requests, and minimize-all with SeekR/shell-process exclusions.
+- Shared semantic theme roles, spacing/radius/animation tokens, and visible keyboard-focus styling.
 
 These entries are not a substitute for the release gates below. The remaining checklist items still apply.
 
