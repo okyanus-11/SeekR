@@ -65,7 +65,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 | Area | What it does |
 |---|---|
 | Applications | Discovers Start Menu shortcuts (`.lnk`), configured Program Files locations and additional user folders, extracts icons, supports aliases, exclusions, launch history and background re-indexing. Executables are launched directly — no shell. |
-| Files & folders | Indexes configured directories in background threads (WAL SQLite index), respects excluded folders/extensions and hidden files, filters by extension (`ext:pdf`), opens files/folders, copies paths, shows metadata. |
+| Files & folders | Indexes configured directories in background threads (WAL SQLite index), respects excluded folders/extensions and hidden files, filters by extension (`ext:pdf`), supports opt-in on-demand text-content search (`content:`) for configured folders/extensions and file-size limits, opens files/folders, copies paths, and shows metadata. |
 | Calculator | SymPy-backed parser (no `eval`): arithmetic, powers, roots, trigonometry (degrees or radians), logarithms, factorials, constants (`pi`, `e`, `tau`, `phi`), percentages, scientific notation, unit conversion, configurable precision, calculation history. |
 | Web search | Google, Bing, DuckDuckGo, YouTube, Wikipedia, GitHub, plus custom engines defined by URL templates. Configurable default engine and browser handling. |
 | Translation | `translate: Hello to Turkish` builds a Google Translate URL; supports 20+ language names. |
@@ -341,6 +341,7 @@ Keywords are matched case-insensitively at the start of the query (`web: python`
 | `chain:` | `chain: taskmgr then explorer` | Run a bounded chain of existing commands separated by `then`. |
 | `comm:` | `comm: ipconfig` | Runs the built-in command (with confirmation where required) |
 | `file:` | `file: invoice` | Searches the file index |
+| `content:` | `content: installation guide` | Searches inside explicitly configured indexed text files (off by default) |
 | `app:` | `app: discord` | Searches installed applications |
 | `wiki:` | `wiki: ESP32` | Wikipedia search |
 | `yt:` | `yt: DOOM soundtrack` | YouTube search |
@@ -365,7 +366,7 @@ Custom aliases are configured on Settings → Search (`{"w": "web"}` makes `w:` 
 - **Validation:** on load, every value is coerced and clamped against defaults. A corrupt file is backed up as `config.corrupt.json` and defaults are used, so a bad edit cannot prevent startup.
 - **Writes:** atomic (temporary file + replace), so an interrupted save cannot truncate the configuration.
 - **Live updates:** configuration listeners repaint themes, re-register hotkeys and refresh pages without a restart.
-- **Privacy:** application usage tracking is off by default. Turning it on enables recent/frequent application ranking; turning it off disables that personalization, and Privacy settings can clear stored usage data.
+- **Privacy:** application usage tracking and file-content search are off by default. Content search reads only explicitly configured indexed folders/extensions and respects a per-file size limit. Application usage tracking is off by default. Turning it on enables recent/frequent application ranking; turning it off disables that personalization, and Privacy settings can clear stored usage data.
 
 ---
 
