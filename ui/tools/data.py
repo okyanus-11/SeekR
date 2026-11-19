@@ -675,7 +675,7 @@ class WorkflowsTab(QWidget):
         if not dialogs.ask_confirm(
             self,
             f"Run workflow: {workflow['title']}?",
-            "The following actions will run in order:\\n\\n" + "\\n".join(lines),
+            "The following actions will run in order:\n\n" + "\n".join(lines),
         ):
             return
         ok, message, completed = self.service.run(workflow)
