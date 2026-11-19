@@ -169,6 +169,7 @@ The following 2.0.0 work has been added on the development branch. CI and platfo
 - Clipboard age retention that never expires pinned entries.
 - Structured local workflows with validation, import/export, atomic import storage, bounded steps and no shell/script execution.
 - Explicitly selected local text snippets, categories and aliases; no automatic text injection.
+- Opt-in on-demand text-content search over indexed files, restricted to configured roots, allowlisted extensions and a bounded file-size limit. Persistent content indexing remains open.
 - Explicit command chains over existing command entries, with per-step confirmation for destructive/custom-confirmed actions and stop-on-failure behavior.
 - Per-window left/right tiling using the selected window's nearest monitor work area, confirmed normal-close requests, and minimize-all with SeekR/shell-process exclusions.
 - Shared semantic theme roles, spacing/radius/animation tokens, and visible keyboard-focus styling.
