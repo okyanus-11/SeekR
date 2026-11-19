@@ -325,6 +325,33 @@ def test_widget_polling_pauses_when_launcher_is_hidden(qapp, controller):
     assert widgets.clock.timer.isActive()
     assert widgets.system.timer.isActive()
 
+
+def test_widget_refresh_intervals_are_configurable_and_bounded(qapp, controller):
+    widgets = controller.launcher.launcher_widgets
+    controller.config.set("widgets.clock_refresh_ms", 1500)
+    controller.config.set("widgets.system_refresh_ms", 5000)
+    controller.config.set("widgets.weather_refresh_minutes", 45)
+    controller.config.set("widgets.meme_refresh_minutes", 120)
+    widgets.set_active(True)
+    widgets.refresh_settings()
+    qapp.processEvents()
+
+    assert widgets.clock.timer.interval() == 1500
+    assert widgets.system.timer.interval() == 5000
+    assert widgets.weather.timer.interval() == 45 * 60 * 1000
+    assert widgets.meme.day_timer.interval() == 120 * 60 * 1000
+
+    controller.config.set("widgets.clock_refresh_ms", 1)
+    controller.config.set("widgets.system_refresh_ms", 999999)
+    controller.config.set("widgets.weather_refresh_minutes", 1)
+    controller.config.set("widgets.meme_refresh_minutes", 9999)
+    assert controller.config.get("widgets.clock_refresh_ms") == 250
+    assert controller.config.get("widgets.system_refresh_ms") == 30000
+    assert controller.config.get("widgets.weather_refresh_minutes") == 5
+    assert controller.config.get("widgets.meme_refresh_minutes") == 360
+    widgets.set_active(False)
+
+
 def test_launcher_execution_copies_and_hides(qapp, controller):
     launcher = controller.launcher
     launcher.show_launcher()
