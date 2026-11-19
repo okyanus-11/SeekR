@@ -8,6 +8,7 @@ from PySide6.QtCore import QEasingCurve, QRectF, Qt, QVariantAnimation, Signal
 from PySide6.QtGui import QColor, QFontMetrics, QKeySequence, QPainter, QPen
 from PySide6.QtWidgets import (
     QAbstractButton,
+    QApplication,
     QColorDialog,
     QFrame,
     QHBoxLayout,
@@ -93,8 +94,15 @@ class Switch(QAbstractButton):
 
     def _animate(self, checked: bool) -> None:
         self._animation.stop()
+        app = QApplication.instance()
+        animations_enabled = app is None or app.property("seekrAnimationsEnabled") is not False
+        target = 1.0 if checked else 0.0
+        if not animations_enabled:
+            self._position = target
+            self.update()
+            return
         self._animation.setStartValue(self._position)
-        self._animation.setEndValue(1.0 if checked else 0.0)
+        self._animation.setEndValue(target)
         self._animation.start()
 
     def setChecked(self, checked: bool) -> None:  # noqa: N802 (Qt API)
