@@ -16,7 +16,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [ ] Keep expensive initialization and I/O off the GUI thread.
 - [ ] Review Qt startup, first paint, animation, and repaint costs with profiling evidence.
 - [ ] Make application indexing incremental and avoid unnecessary full rescans.
-- [x] Preserve the existing file index during a scan, prune stale records only after a complete scan, and retain cached records when configured folders are unavailable or indexing is cancelled. (Incremental change detection and scan-cost optimization remain open.)
+- [x] Incremental file-index change detection: unchanged metadata rows are skipped, forced reindex is supported, and stale paths are pruned only after a complete scan; cancellation and inaccessible roots preserve the last complete snapshot.
 - [ ] Review icon extraction/cache bounds and ensure cache eviction is deterministic.
 - [x] Pause widget polling while the launcher is hidden and defer weather/meme requests until activation. (Configurable refresh intervals and per-widget stale/offline states remain open.)
 - [ ] Reduce unnecessary widget updates and Qt repaints.
