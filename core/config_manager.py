@@ -131,7 +131,11 @@ def default_config() -> dict[str, Any]:
             "save_search_history": True,
             "retention_days": 90,
         },
-        "advanced": {
+        "updates": {
+        "check_automatically": False,
+        "last_check": 0.0,
+    },
+    "advanced": {
             "debug": False,
             "logging": True,
             "log_level": "INFO",
