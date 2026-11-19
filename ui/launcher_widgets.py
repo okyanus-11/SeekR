@@ -12,15 +12,14 @@ from pathlib import Path
 
 import psutil
 from PySide6.QtCore import (
-    QEasingCurve, QObject, QPropertyAnimation, QRunnable, QThreadPool,
-    QTimer, Qt, Signal, Slot,
+    QObject, QRunnable, QThreadPool, QTimer, Qt, Signal, Slot,
 )
 from PySide6.QtGui import QDesktopServices, QPixmap
 from PySide6.QtCore import QUrl
 from core.version import APP_VERSION
 from ui.themes import palette_for
 from PySide6.QtWidgets import (
-    QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel, QProgressBar,
+    QFrame, QHBoxLayout, QLabel, QProgressBar,
     QVBoxLayout, QWidget,
 )
 
@@ -97,13 +96,6 @@ class WidgetCard(QFrame):
         self.setMinimumHeight(124)
         self.setMaximumHeight(160)
         self.setSizePolicy(self.sizePolicy().horizontalPolicy(), self.sizePolicy().verticalPolicy())
-        self._opacity = QGraphicsOpacityEffect(self)
-        self._opacity.setOpacity(0.0)
-        self.setGraphicsEffect(self._opacity)
-        self._fade = QPropertyAnimation(self._opacity, b"opacity", self)
-        self._fade.setDuration(260)
-        self._fade.setEasingCurve(QEasingCurve.Type.OutCubic)
-
         layout = QVBoxLayout(self)
         layout.setContentsMargins(13, 11, 13, 12)
         layout.setSpacing(5)
@@ -118,13 +110,12 @@ class WidgetCard(QFrame):
         layout.addLayout(self.content, 1)
 
     def reveal(self, animate: bool = True) -> None:
-        self._fade.stop()
-        if animate:
-            self._fade.setStartValue(0.0)
-            self._fade.setEndValue(1.0)
-            self._fade.start()
-        else:
-            self._opacity.setOpacity(1.0)
+        # Keep cards fully opaque. Opacity effects on nested Qt widgets can
+        # interact badly with native Windows window composition and cause
+        # cards to appear to vanish after the launcher is first painted.
+        del animate
+        self.setGraphicsEffect(None)
+        self.setWindowOpacity(1.0)
 
 
 class ClockWidget(WidgetCard):
@@ -474,6 +465,12 @@ class LauncherWidgets(QObject):
         self.weather = WeatherWidget(config, self.pool, self.right_column)
         self.meme = MemeWidget(self.pool, self.right_column)
         self._cards = {"clock": self.clock, "weather": self.weather, "system": self.system, "meme": self.meme}
+        self._left_layout.addWidget(self.clock)
+        self._left_layout.addWidget(self.system)
+        self._left_layout.addStretch(1)
+        self._right_layout.addWidget(self.weather)
+        self._right_layout.addWidget(self.meme)
+        self._right_layout.addStretch(1)
         # Use the same explicit theme tokens as the rest of the launcher. Qt's
         # native palette(mid)/palette(window) values do not follow our QSS theme,
         # which made these cards nearly unreadable on several Windows setups.
@@ -528,49 +525,33 @@ class LauncherWidgets(QObject):
             self.meme._load_daily()
 
     def _rebuild(self):
-        # Remove layout items, never reparent the cards. QWidget.setParent()
-        # hides a widget as a side effect; keeping stable rail ownership avoids
-        # cards disappearing during settings refreshes or launcher activation.
-        for layout in (self._left_layout, self._right_layout):
-            while layout.count():
-                item = layout.takeAt(0)
-                widget = item.widget()
-                if widget is not None:
-                    widget.hide()
-
-        for key in ("clock", "system"):
+        # Cards are inserted into their layouts exactly once in __init__.
+        # Settings refreshes only toggle visibility; they never remove, hide,
+        # reparent, or recreate a card. This makes widget lifetime independent
+        # of search refreshes, animation state, and asynchronous data replies.
+        for key in ("clock", "system", "weather", "meme"):
             card = self._cards[key]
             enabled = bool(self.config.get(f"widgets.{key}_enabled", True))
-            timer = getattr(card, "timer", None)
-            if timer is not None:
-                timer.start(1000 if key == "clock" else 2000) if enabled else timer.stop()
-            if enabled:
-                self._left_layout.addWidget(card)
-                card.show()
-                card.reveal(False)
-            else:
-                card.hide()
-        self._left_layout.addStretch(1)
+            card.setVisible(enabled)
+            card.reveal(False)
 
-        for key in ("weather", "meme"):
-            card = self._cards[key]
-            enabled = bool(self.config.get(f"widgets.{key}_enabled", True))
-            timer = getattr(card, "timer", None) if key == "weather" else getattr(card, "day_timer", None)
-            if timer is not None:
-                timer.start(30 * 60 * 1000 if key == "weather" else 60_000) if enabled else timer.stop()
-            if key == "meme" and not enabled:
-                card.retry_timer.stop()
-            if enabled:
-                self._right_layout.addWidget(card)
-                card.show()
-                card.reveal(False)
+            if key == "clock":
+                card.timer.start(1000) if enabled else card.timer.stop()
+            elif key == "system":
+                card.timer.start(2000) if enabled else card.timer.stop()
+            elif key == "weather":
+                card.timer.start(30 * 60 * 1000) if enabled else card.timer.stop()
             else:
-                card.hide()
-        self._right_layout.addStretch(1)
+                card.day_timer.start(60_000) if enabled else card.day_timer.stop()
+                if not enabled:
+                    card.retry_timer.stop()
 
-        # Empty rails should collapse rather than reserving blank space.
-        self.left_column.setVisible(any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("clock", "system")))
-        self.right_column.setVisible(any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("weather", "meme")))
+        self.left_column.setVisible(
+            any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("clock", "system"))
+        )
+        self.right_column.setVisible(
+            any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("weather", "meme"))
+        )
 
     def refresh_settings(self, animate=False):
         self._rebuild()
