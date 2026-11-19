@@ -283,7 +283,11 @@ class Database:
                  name = excluded.name,
                  source = excluded.source,
                  args = excluded.args,
-                 icon_path = excluded.icon_path""",
+                 icon_path = excluded.icon_path
+               WHERE apps.name IS NOT excluded.name
+                  OR apps.source IS NOT excluded.source
+                  OR apps.args IS NOT excluded.args
+                  OR apps.icon_path IS NOT excluded.icon_path""",
             rows,
         )
         if prune_missing:
