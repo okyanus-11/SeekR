@@ -1135,6 +1135,12 @@ class PrivacyPage(SettingsPage):
             "Opt in to storing copied text unencrypted in SeekR’s local SQLite database.",
             bind_switch(self.config, "privacy.clipboard_history"),
         )
+        self.row(
+            card,
+            "Capture clipboard images",
+            "Separate opt-in. Images stay local as PNG files; maximum 4096 px per side, 16 megapixels and 5 MB per image.",
+            bind_switch(self.config, "clipboard.capture_images"),
+        )
         self.row(card, "Search history", "Allow executed queries to be stored.", bind_switch(self.config, "privacy.save_search_history"))
         self.row(card, "Usage tracking", "Count application launches to rank frequent apps.",
                 bind_switch(self.config, "privacy.usage_tracking"))
@@ -1186,7 +1192,7 @@ class PrivacyPage(SettingsPage):
         ):
             return
         self.db.clear_history()
-        self.db.clear_clipboard(keep_pinned=False)
+        self.controller.clipboard_service.clear(keep_pinned=False)
         self.db._write("UPDATE apps SET use_count = 0, last_used = 0")
         self.saved("All stored history deleted")
 
