@@ -55,6 +55,7 @@ class ClipboardService:
             int(self.config.get("clipboard.limit", 200) or 200),
             retention_days=int(self.config.get("privacy.retention_days", 90) or 90),
         )
+        self._cleanup_orphan_images()
         return {"id": inserted, "text": text}
 
     def capture_image(self, image: QImage, source: str = "") -> dict | None:
