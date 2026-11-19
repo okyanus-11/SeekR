@@ -801,3 +801,21 @@ def test_system_widget_includes_storage_battery_and_network(qapp, controller):
     assert system.battery_label.text().startswith("Battery")
     assert system.network_label.text().startswith("Network")
     assert system.disk_bar.value() >= 0
+
+def test_clock_widget_focus_timer_starts_pauses_and_resets(controller):
+    clock = controller.launcher.launcher_widgets.clock
+    original = controller.config.get("widgets.focus_duration_minutes", 25)
+    try:
+        controller.config.set("widgets.focus_duration_minutes", 5)
+        clock._reset_focus()
+        assert clock.focus_remaining == 300
+        clock._toggle_focus()
+        assert clock.focus_deadline is not None
+        clock._toggle_focus()
+        assert clock.focus_deadline is None
+        assert 0 <= clock.focus_remaining <= 300
+        clock._reset_focus()
+        assert clock.focus_remaining == 300
+    finally:
+        controller.config.set("widgets.focus_duration_minutes", original)
+        clock._reset_focus()
