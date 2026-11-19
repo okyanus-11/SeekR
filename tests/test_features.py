@@ -98,6 +98,8 @@ def test_file_index_skips_unchanged_records_and_force_reindexes(config, db, tmp_
     root.mkdir()
     file = root / "stable.txt"
     file.write_text("unchanged", encoding="utf-8")
+    subfolder = root / "folder"
+    subfolder.mkdir()
     config.set("files.directories", [str(root)])
     indexer = FileIndexer(config, db)
 
@@ -105,11 +107,11 @@ def test_file_index_skips_unchanged_records_and_force_reindexes(config, db, tmp_
     assert first["indexed"] >= 1
     second = indexer.index()
     assert second["scanned"] >= 1
-    assert second["unchanged"] >= 1
+    assert second["unchanged"] >= 2
     assert second["indexed"] == 0
 
     forced = indexer.index(clear=True)
-    assert forced["indexed"] >= 1
+    assert forced["indexed"] >= 2
     assert forced["unchanged"] == 0
 
 
