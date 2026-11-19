@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-from features.window_manager import WindowManagerProvider, close_window, tile_window
+from features.window_manager import PROTECTED_PROCESS_NAMES, WindowManagerProvider, close_window, tile_window
 from features.window_search import WindowProvider
 
 
@@ -37,3 +37,8 @@ def test_window_search_offers_per_window_management_actions(config, db, hooks):
     close_action = next(action for action in result.actions if action.label == "Close window…")
     close_action.callback()
     assert any(name == "confirm" for name, _args in hooks.calls)
+
+def test_window_manager_protects_shell_process_names():
+    assert "explorer.exe" in PROTECTED_PROCESS_NAMES
+    assert "dwm.exe" in PROTECTED_PROCESS_NAMES
+    assert "winlogon.exe" in PROTECTED_PROCESS_NAMES
