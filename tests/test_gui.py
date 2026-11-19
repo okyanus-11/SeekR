@@ -757,6 +757,7 @@ def test_20_new_search_providers_are_registered(controller, tmp_path):
         ("content: ", "file_content"),
         ("chain: ", "command_chains"),
         ("wm: ", "window_manager"),
+        ("> system", "command_center"),
     ):
         resolved = controller.engine.resolve(query)
         assert resolved is not None
