@@ -660,6 +660,16 @@ class FilesPage(SettingsPage):
         self.row(card, "Index automatically at startup", "Rebuild the index when it is older than a day.", bind_switch(self.config, "files.auto_index"))
         self.row(card, "Include hidden files", "Index dotfiles and hidden entries.", bind_switch(self.config, "files.include_hidden"))
         self.row(card, "Include folders", "Folders appear in file search results.", bind_switch(self.config, "files.include_folders"))
+
+        content = self.section("Document content search", "Optional on-demand local search. Disabled by default; only configured folders, extensions and size limits are read.")
+        self.row(content, "Enable content search", "Search inside supported text files with content:. File contents are not uploaded.", bind_switch(self.config, "files.content_search_enabled"))
+        self.row(content, "Maximum file size", "Larger files are skipped to keep searches responsive.", bind_spin(self.config, "files.content_search_max_file_bytes", 100000, 10000000, " bytes"))
+        content.add_widget(
+            ListEditor(
+                self.config.get("files.content_search_extensions", [".txt", ".md", ".py", ".json", ".csv", ".html", ".xml"]),
+                lambda values: self.config.set("files.content_search_extensions", values),
+            )
+        )
         self.row(card, "Maximum depth", "How deep SeekR walks each folder.", bind_spin(self.config, "files.max_depth", 1, 30))
         self.row(card, "Maximum entries", "Hard limit that keeps the index memory-friendly.", bind_spin(self.config, "files.max_files", 1000, 3000000))
 
