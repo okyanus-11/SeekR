@@ -467,7 +467,7 @@ class ApplicationsProvider(SearchProvider):
             self._request_index()
             return [self._indexing_result()]
         apps = self.service.search(query, limit)
-        return [self._result(app, score) for score, app in self._scored(query, apps, limit, self.config)]
+        return [self._result(app, score) for score, app in self._scored(query, apps, limit)]
 
     def _request_index(self) -> None:
         now = time.monotonic()
@@ -490,7 +490,7 @@ class ApplicationsProvider(SearchProvider):
         )
 
     @staticmethod
-    def _scored(query: str, apps: Iterable[dict], limit: int, config=None):
+    def _scored(query: str, apps: Iterable[dict], limit: int):
         from core.fuzzy import fuzzy_score
 
         results = []
