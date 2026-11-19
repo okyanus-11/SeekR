@@ -9,6 +9,7 @@ from typing import Optional
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QComboBox,
     QHBoxLayout,
     QFileDialog,
     QHeaderView,
@@ -62,6 +63,10 @@ class ClipboardTab(QWidget):
         self.search.setPlaceholderText("Search clipboard history…")
         self.search.textChanged.connect(self.reload)
         controls.addWidget(self.search, 1)
+        self.category_filter = QComboBox()
+        self.category_filter.addItem("All categories", "")
+        self.category_filter.currentIndexChanged.connect(self.reload)
+        controls.addWidget(self.category_filter)
         self.monitor_switch = Switch()
         self.monitor_switch.setChecked(controller.clipboard_service.enabled)
         self.monitor_switch.toggled.connect(self._toggle_monitor)
@@ -74,7 +79,17 @@ class ClipboardTab(QWidget):
         self.list.setObjectName("PlainList")
         self.list.setWordWrap(True)
         self.list.itemDoubleClicked.connect(lambda _item: self._copy())
+        self.list.currentItemChanged.connect(self._selection_changed)
         layout.addWidget(self.list, 1)
+
+        category_controls = QHBoxLayout()
+        self.category_edit = QComboBox()
+        self.category_edit.setEditable(True)
+        self.category_edit.addItems(["Uncategorized", "Work", "School", "Personal", "Code", "Other"])
+        category_controls.addWidget(label("Category", "Muted"))
+        category_controls.addWidget(self.category_edit, 1)
+        category_controls.addWidget(secondary_button("Set category", self._set_category))
+        layout.addLayout(category_controls)
 
         buttons = QHBoxLayout()
         buttons.addWidget(primary_button("Copy", self._copy))
@@ -92,8 +107,24 @@ class ClipboardTab(QWidget):
         self.status.setText("Clipboard monitoring enabled" if checked else "Clipboard monitoring disabled")
 
     def reload(self) -> None:
-        self.list.clear()
         items = self.service.items(self.search.text().strip(), 300)
+        selected_category = self.category_filter.currentData()
+        categories = sorted({str(entry.get("category", "")).strip()
+                             for entry in items if str(entry.get("category", "")).strip()})
+        self.category_filter.blockSignals(True)
+        self.category_filter.clear()
+        self.category_filter.addItem("All categories", "")
+        self.category_filter.addItem("Uncategorized", "__uncategorized__")
+        for category in categories:
+            self.category_filter.addItem(category, category)
+        index = self.category_filter.findData(selected_category)
+        self.category_filter.setCurrentIndex(max(0, index))
+        self.category_filter.blockSignals(False)
+        if selected_category == "__uncategorized__":
+            items = [entry for entry in items if not entry.get("category")]
+        elif selected_category:
+            items = [entry for entry in items if entry.get("category") == selected_category]
+        self.list.clear()
         for entry in items:
             text = entry.get("text", "")
             preview = " ".join(text.split())
@@ -107,6 +138,22 @@ class ClipboardTab(QWidget):
         self.monitor_switch.blockSignals(True)
         self.monitor_switch.setChecked(self.service.enabled)
         self.monitor_switch.blockSignals(False)
+
+    def _selection_changed(self, current, _previous) -> None:
+        entry = current.data(Qt.ItemDataRole.UserRole) if current is not None else None
+        category = (entry or {}).get("category", "") or "Uncategorized"
+        self.category_edit.setCurrentText(category)
+
+    def _set_category(self) -> None:
+        entry = self._selected()
+        if entry is None:
+            self.status.setText("Select an entry first")
+            return
+        category = self.category_edit.currentText().strip()
+        if category.lower() == "uncategorized":
+            category = ""
+        self.service.set_category(entry["id"], category)
+        self.reload()
 
     def _selected(self) -> Optional[dict]:
         item = self.list.currentItem()
