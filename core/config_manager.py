@@ -132,10 +132,10 @@ def default_config() -> dict[str, Any]:
             "retention_days": 90,
         },
         "updates": {
-        "check_automatically": False,
-        "last_check": 0.0,
-    },
-    "advanced": {
+            "check_automatically": False,
+            "last_check": 0.0,
+        },
+        "advanced": {
             "debug": False,
             "logging": True,
             "log_level": "INFO",
