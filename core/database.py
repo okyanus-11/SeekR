@@ -15,7 +15,7 @@ from .logging_setup import get_logger
 
 log = get_logger(__name__)
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS apps (
@@ -52,7 +52,8 @@ CREATE TABLE IF NOT EXISTS clipboard (
     hash TEXT NOT NULL,
     pinned INTEGER NOT NULL DEFAULT 0,
     created REAL NOT NULL,
-    source TEXT NOT NULL DEFAULT ''
+    source TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_clipboard_hash ON clipboard(hash);
 CREATE INDEX IF NOT EXISTS idx_clipboard_created ON clipboard(created DESC);
@@ -202,6 +203,9 @@ class Database:
         with self._lock:
             conn = self.connection()
             conn.executescript(_SCHEMA)
+            clipboard_columns = {row["name"] for row in conn.execute("PRAGMA table_info(clipboard)")}
+            if "category" not in clipboard_columns:
+                conn.execute("ALTER TABLE clipboard ADD COLUMN category TEXT NOT NULL DEFAULT ''")
             conn.execute("DROP INDEX IF EXISTS idx_files_ext")
             conn.execute(
                 "INSERT OR REPLACE INTO kv(key, value) VALUES('schema_version', ?)",
@@ -493,6 +497,12 @@ class Database:
                 "SELECT * FROM clipboard ORDER BY pinned DESC, created DESC LIMIT ?", (limit,)
             )
         return [dict(row) for row in rows]
+
+    def set_clipboard_category(self, item_id: int, category: str) -> None:
+        self._write(
+            "UPDATE clipboard SET category = ? WHERE id = ?",
+            (str(category).strip()[:40], int(item_id)),
+        )
 
     def set_clipboard_pinned(self, item_id: int, pinned: bool) -> None:
         self._write("UPDATE clipboard SET pinned = ? WHERE id = ?", (1 if pinned else 0, item_id))
