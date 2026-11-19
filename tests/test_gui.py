@@ -21,6 +21,7 @@ from core.config_manager import ConfigManager
 from core.database import Database
 from core.models import ResultAction, SearchResult
 from core.search_engine import SearchProvider
+from ui.themes import palette_for
 
 
 class DummyProvider(SearchProvider):
@@ -256,6 +257,48 @@ def test_icon_store_evicts_least_recently_used_paths(qapp, tmp_path):
     assert len(store._cache) == 512
     assert provider.calls[paths[0].name] == 1
     assert provider.calls[paths[1].name] == 2
+
+
+
+def test_launcher_widgets_survive_settings_and_theme_refresh(qapp, controller):
+    launcher = controller.launcher
+    widgets = launcher.launcher_widgets
+    launcher.show_launcher()
+    qapp.processEvents()
+
+    original_theme = controller.config.get("appearance.theme", "dark")
+    try:
+        for cycle in range(3):
+            for key in ("clock", "weather", "system", "meme"):
+                controller.config.set(f"widgets.{key}_enabled", False)
+            widgets.refresh_settings()
+            qapp.processEvents()
+            assert not widgets.left_column.isVisible()
+            assert not widgets.right_column.isVisible()
+
+            for key in ("clock", "weather", "system", "meme"):
+                controller.config.set(f"widgets.{key}_enabled", True)
+            widgets.refresh_settings()
+            qapp.processEvents()
+            assert widgets.left_column.isVisible()
+            assert widgets.right_column.isVisible()
+            assert all(card.isVisible() for card in widgets._cards.values())
+            assert all(card.parentWidget() in (widgets.left_column, widgets.right_column)
+                       for card in widgets._cards.values())
+
+            theme = "light" if cycle % 2 == 0 else "dark"
+            controller.config.set("appearance.theme", theme)
+            widgets.refresh_settings()
+            qapp.processEvents()
+            expected = palette_for(theme)["surface"]
+            assert expected in widgets.clock.styleSheet()
+            assert all(card.isVisible() for card in widgets._cards.values())
+    finally:
+        controller.config.set("appearance.theme", original_theme)
+        widgets.refresh_settings()
+        for key in ("clock", "weather", "system", "meme"):
+            controller.config.set(f"widgets.{key}_enabled", True)
+        widgets.refresh_settings()
 
 
 def test_launcher_execution_copies_and_hides(qapp, controller):
