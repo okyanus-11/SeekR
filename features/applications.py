@@ -351,7 +351,7 @@ class AppService:
         # short LIKE query finds few matches makes every typo/partial keystroke
         # scan and fuzzy-rank the entire installed-app database.
         typo = bool(self.config.get("search.typo_tolerance", True))
-        prioritize = bool(self.config.get("search.prioritize_recent", True))
+        prioritize = (bool(self.config.get("search.prioritize_recent", True)) and bool(self.config.get("privacy.usage_tracking", False)))
         now = time.time()
         scored: list[tuple[float, dict]] = []
         for app in candidates:
@@ -376,6 +376,8 @@ class AppService:
 
     def suggestions(self, limit: int = 4) -> list[dict]:
         if not self.config.get("smart_suggestions.enabled", True):
+            return []
+        if not self.config.get("privacy.usage_tracking", False):
             return []
         recent = self.db.recent_apps(limit)
         frequent = self.db.frequent_apps(limit)
@@ -419,7 +421,7 @@ class AppService:
             args = util.split_args(app.get("args") or "") or []
             ok, message = util.run_detached([path, *args])
 
-        if ok and self.config.get("privacy.usage_tracking", True):
+        if ok and self.config.get("privacy.usage_tracking", False):
             self.db.record_app_launch(path)
             self.db.add_history("app", app.get("name") or path)
         return ok, message
@@ -491,23 +493,10 @@ class ApplicationsProvider(SearchProvider):
     def _scored(query: str, apps: Iterable[dict], limit: int, config=None):
         from core.fuzzy import fuzzy_score
 
-        typo = True
         results = []
-        tracking_enabled = bool(config.get("privacy.usage_tracking", False)) if config is not None else False
         for index, app in enumerate(apps):
-            score = max(0.25, fuzzy_score(query, app["name"], typo_tolerance=typo))
-            # Personalization is bounded and additive: it can break close
-            # matches but cannot overwhelm a clearly better textual match.
-            usage_bonus = 0.0
-            if tracking_enabled:
-                count = max(0, int(app.get("use_count", 0) or 0))
-                if count:
-                    usage_bonus = min(0.08, 0.02 * math.log2(count + 1))
-                last_used = float(app.get("last_used", 0) or 0)
-                if last_used > 0:
-                    age_days = max(0.0, (time.time() - last_used) / 86400.0)
-                    usage_bonus += 0.04 * math.exp(-age_days / 7.0)
-            results.append((min(1.0, score + usage_bonus - index * 0.01), app))
+            score = max(0.25, fuzzy_score(query, app["name"], typo_tolerance=True))
+            results.append((min(1.0, score - index * 0.01), app))
         return results[:limit]
 
     def _result(self, app: dict, score: float) -> SearchResult:
