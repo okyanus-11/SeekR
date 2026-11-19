@@ -181,3 +181,21 @@ def test_workflow_command_step_validation_bounds_arguments():
     ]}
     assert not validate_workflow(invalid)[0]
 
+
+def test_workflow_preview_describes_each_action_without_running(config, db, hooks, tmp_path):
+    folder = tmp_path / "preview"
+    folder.mkdir()
+    service = WorkflowService(config, db, hooks)
+    workflow = {
+        "title": "Preview",
+        "steps": [
+            {"type": "open_folder", "path": str(folder)},
+            {"type": "copy_text", "text": "private content"},
+        ],
+    }
+    ok, message, lines = service.preview(workflow)
+    assert ok, message
+    assert len(lines) == 2
+    assert "Open folder" in lines[0]
+    assert "Copy text (15 characters)" in lines[1]
+    assert hooks.calls == []
