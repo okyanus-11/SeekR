@@ -199,3 +199,31 @@ def test_workflow_preview_describes_each_action_without_running(config, db, hook
     assert "Open folder" in lines[0]
     assert "Copy text (15 characters)" in lines[1]
     assert hooks.calls == []
+
+def test_workflow_can_be_cancelled_between_steps(config, db, hooks):
+    service = WorkflowService(config, db, hooks)
+    token = CancelToken()
+    progress = []
+
+    def cancel_after_first(index, total, detail):
+        progress.append((index, total, detail))
+        if index == 1:
+            token.cancel()
+
+    workflow = {
+        "title": "Three copies",
+        "steps": [
+            {"type": "copy_text", "text": "one"},
+            {"type": "copy_text", "text": "two"},
+            {"type": "copy_text", "text": "three"},
+        ],
+    }
+    ok, message, completed = service.run(workflow, token=token, on_progress=cancel_after_first)
+    assert not ok
+    assert message == "Workflow cancelled"
+    assert completed == 1
+    assert len(progress) == 1
+    assert hooks.calls.count(("copy_text", ("one",))) == 1
+    assert not any(args == ("two",) or args == ("three",)
+                   for name, args in hooks.calls if name == "copy_text")
+
