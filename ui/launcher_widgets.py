@@ -21,7 +21,7 @@ from PySide6.QtCore import QUrl
 from core.version import APP_VERSION
 from ui.themes import palette_for
 from PySide6.QtWidgets import (
-    QFrame, QHBoxLayout, QLabel, QProgressBar,
+    QFrame, QHBoxLayout, QLabel, QProgressBar, QPushButton,
     QVBoxLayout, QWidget,
 )
 
@@ -121,23 +121,78 @@ class WidgetCard(QFrame):
 
 
 class ClockWidget(WidgetCard):
-    def __init__(self, parent=None):
+    def __init__(self, config, parent=None):
         super().__init__("Local time", parent)
+        self.config = config
         self.time_label = QLabel()
         self.time_label.setObjectName("WidgetClock")
         self.date_label = QLabel()
         self.date_label.setObjectName("WidgetSecondary")
         self.content.addWidget(self.time_label)
         self.content.addWidget(self.date_label)
+
+        self.focus_remaining = self._duration_seconds()
+        self.focus_deadline: float | None = None
+        self.focus_label = QLabel()
+        self.focus_label.setObjectName("WidgetSecondary")
+        self.content.addWidget(self.focus_label)
+        controls = QHBoxLayout()
+        self.focus_button = QPushButton("Start focus")
+        self.focus_button.setFixedHeight(24)
+        self.focus_button.clicked.connect(self._toggle_focus)
+        self.focus_reset = QPushButton("Reset")
+        self.focus_reset.setFixedHeight(24)
+        self.focus_reset.clicked.connect(self._reset_focus)
+        controls.addWidget(self.focus_button)
+        controls.addWidget(self.focus_reset)
+        self.content.addLayout(controls)
+
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh)
         self.timer.start(1000)
         self.refresh()
 
+    def _duration_seconds(self) -> int:
+        minutes = int(self.config.get("widgets.focus_duration_minutes", 25) or 25)
+        return max(5, min(180, minutes)) * 60
+
+    def _toggle_focus(self) -> None:
+        if self.focus_deadline is not None:
+            self.focus_remaining = max(0, int(self.focus_deadline - time.monotonic() + 0.999))
+            self.focus_deadline = None
+        else:
+            if self.focus_remaining <= 0:
+                self.focus_remaining = self._duration_seconds()
+            self.focus_deadline = time.monotonic() + self.focus_remaining
+        self._refresh_focus()
+
+    def _reset_focus(self) -> None:
+        self.focus_deadline = None
+        self.focus_remaining = self._duration_seconds()
+        self._refresh_focus()
+
+    def _refresh_focus(self) -> None:
+        if self.focus_deadline is not None:
+            self.focus_remaining = max(0, int(self.focus_deadline - time.monotonic() + 0.999))
+            if self.focus_remaining <= 0:
+                self.focus_deadline = None
+                self.focus_label.setText("Focus session complete")
+                self.focus_button.setText("Start again")
+                return
+            self.focus_label.setText(f"Focus · {self.focus_remaining // 60:02d}:{self.focus_remaining % 60:02d} remaining")
+            self.focus_button.setText("Pause")
+        elif self.focus_remaining == self._duration_seconds():
+            self.focus_label.setText(f"Focus · {self.focus_remaining // 60:02d}:00 session")
+            self.focus_button.setText("Start focus")
+        else:
+            self.focus_label.setText(f"Paused · {self.focus_remaining // 60:02d}:{self.focus_remaining % 60:02d}")
+            self.focus_button.setText("Resume")
+
     def refresh(self):
         now = datetime.now()
         self.time_label.setText(now.strftime("%H:%M:%S"))
         self.date_label.setText(now.strftime("%A, %d %B"))
+        self._refresh_focus()
 
 
 class SystemWidget(WidgetCard):
@@ -522,7 +577,7 @@ class LauncherWidgets(QObject):
             layout.setContentsMargins(0, 8, 0, 8)
             layout.setSpacing(9)
 
-        self.clock = ClockWidget(self.left_column)
+        self.clock = ClockWidget(config, self.left_column)
         self.system = SystemWidget(self.left_column)
         self.weather = WeatherWidget(config, self.pool, self.right_column)
         self.meme = MemeWidget(self.pool, self.right_column)
@@ -535,7 +590,7 @@ class LauncherWidgets(QObject):
         self._right_layout.addStretch(1)
         for key, card in self._cards.items():
             card.setMinimumHeight(132)
-            card.setMaximumHeight(212 if key == "system" else 168)
+            card.setMaximumHeight(212 if key == "system" else 196 if key == "clock" else 168)
             card.setContentsMargins(0, 0, 0, 0)
         self._apply_card_theme()
         self._rebuild()
