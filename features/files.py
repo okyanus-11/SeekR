@@ -73,7 +73,7 @@ class FileIndexer:
         self,
         progress: Callable[[int, str], None] | None = None,
         token: CancelToken | None = None,
-        clear: bool = True,
+        clear: bool = False,
     ) -> dict:
         """Index every configured directory. Safe to run on a worker thread."""
         if not self.config.get("files.enabled", True):
@@ -101,7 +101,7 @@ class FileIndexer:
         def flush() -> None:
             nonlocal inserted
             if batch:
-                self.db.upsert_files(batch)
+                self.db.upsert_files(batch, indexed_at=started)
                 inserted += len(batch)
                 batch.clear()
 
@@ -195,6 +195,11 @@ class FileIndexer:
                 break
 
         flush()
+        # Keep the previous index intact during scanning. Only remove stale
+        # rows after a complete scan; cancellation and index-limit exits must
+        # never turn a usable index into a partial snapshot.
+        if not cancelled and not limit_reached and not clear:
+            self.db.prune_files_before(directories, started)
         elapsed = time.perf_counter() - started
         self.db.set_meta("files_last_index", time.time())
         self.db.set_meta("files_index_cancelled", "1" if cancelled else "0")
