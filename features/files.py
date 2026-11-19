@@ -92,7 +92,7 @@ class FileIndexer:
         self.db.set_meta("files_index_started", started)
         existing = {}
         if not clear:
-            for row in self.db.recent_files(max_files + 1, directories):
+            for row in self.db.file_index_snapshot(max_files + 1, directories):
                 existing[row["path"]] = (
                     int(row.get("size", 0) or 0),
                     float(row.get("mtime", 0) or 0),
