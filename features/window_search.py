@@ -14,6 +14,7 @@ from core.models import ResultAction, SearchResult
 from core.search_engine import SearchProvider
 
 from . import util
+from .window_manager import close_window, tile_window
 
 log = get_logger(__name__)
 
@@ -184,6 +185,9 @@ class WindowProvider(SearchProvider):
             score=score,
             primary=lambda: self._switch(window),
             actions=[
+                ResultAction("Tile left", lambda: self._tile(window, "left")),
+                ResultAction("Tile right", lambda: self._tile(window, "right")),
+                ResultAction("Close window…", lambda: self._close(window)),
                 ResultAction("Copy window title", lambda: self.hooks.copy_text(window.get("title", ""))),
                 ResultAction("Open process manager", lambda: self.hooks.open_tools("processes")),
             ],
@@ -191,6 +195,21 @@ class WindowProvider(SearchProvider):
             icon_glyph="▭",
             meta={"window": window},
         )
+
+
+    def _tile(self, window: dict, side: str) -> None:
+        ok, message = tile_window(int(window.get("hwnd", 0)), side)
+        self.hooks.notify(message, "info" if ok else "error")
+
+    def _close(self, window: dict) -> None:
+        title = str(window.get("title", "this window"))
+        if not self.hooks.confirm(
+            f"Close {title}?",
+            "SeekR sends a normal close request. The application may ask you to save changes.",
+        ):
+            return
+        ok, message = close_window(int(window.get("hwnd", 0)))
+        self.hooks.notify(message, "info" if ok else "error")
 
     def _switch(self, window: dict) -> None:
         ok, message = switch_to_window(int(window.get("hwnd", 0)))
