@@ -15,7 +15,7 @@ from .logging_setup import get_logger
 
 log = get_logger(__name__)
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS apps (
@@ -53,7 +53,11 @@ CREATE TABLE IF NOT EXISTS clipboard (
     pinned INTEGER NOT NULL DEFAULT 0,
     created REAL NOT NULL,
     source TEXT NOT NULL DEFAULT '',
-    category TEXT NOT NULL DEFAULT ''
+    category TEXT NOT NULL DEFAULT '',
+    kind TEXT NOT NULL DEFAULT 'text',
+    image_path TEXT NOT NULL DEFAULT '',
+    width INTEGER NOT NULL DEFAULT 0,
+    height INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_clipboard_hash ON clipboard(hash);
 CREATE INDEX IF NOT EXISTS idx_clipboard_created ON clipboard(created DESC);
@@ -206,6 +210,14 @@ class Database:
             clipboard_columns = {row["name"] for row in conn.execute("PRAGMA table_info(clipboard)")}
             if "category" not in clipboard_columns:
                 conn.execute("ALTER TABLE clipboard ADD COLUMN category TEXT NOT NULL DEFAULT ''")
+            if "kind" not in clipboard_columns:
+                conn.execute("ALTER TABLE clipboard ADD COLUMN kind TEXT NOT NULL DEFAULT 'text'")
+            if "image_path" not in clipboard_columns:
+                conn.execute("ALTER TABLE clipboard ADD COLUMN image_path TEXT NOT NULL DEFAULT ''")
+            if "width" not in clipboard_columns:
+                conn.execute("ALTER TABLE clipboard ADD COLUMN width INTEGER NOT NULL DEFAULT 0")
+            if "height" not in clipboard_columns:
+                conn.execute("ALTER TABLE clipboard ADD COLUMN height INTEGER NOT NULL DEFAULT 0")
             conn.execute("DROP INDEX IF EXISTS idx_files_ext")
             conn.execute(
                 "INSERT OR REPLACE INTO kv(key, value) VALUES('schema_version', ?)",
@@ -538,14 +550,35 @@ class Database:
             return None
         digest = self._hash_text(text)
         if dedupe:
-            row = self._query_one("SELECT id, text FROM clipboard ORDER BY created DESC LIMIT 1")
-            if row is not None and row["text"] == text:
+            row = self._query_one("SELECT id, text, kind FROM clipboard ORDER BY created DESC LIMIT 1")
+            if row is not None and row["kind"] == "text" and row["text"] == text:
                 return None
         note_id = self._write(
             "INSERT INTO clipboard(text, hash, pinned, created, source) VALUES (?, ?, 0, ?, ?)",
             (text, digest, time.time(), source),
         )
         return note_id if note_id and note_id > 0 else None
+
+    def add_clipboard_image(
+        self, image_path: str, digest: str, width: int, height: int, source: str = ""
+    ) -> int | None:
+        if not image_path or not digest:
+            return None
+        row = self._query_one("SELECT id, hash, kind FROM clipboard ORDER BY created DESC LIMIT 1")
+        if row is not None and row["kind"] == "image" and row["hash"] == digest:
+            return None
+        item_id = self._write(
+            "INSERT INTO clipboard(text, hash, pinned, created, source, kind, image_path, width, height) "
+            "VALUES (?, ?, 0, ?, ?, 'image', ?, ?, ?)",
+            ("[Image]", digest, time.time(), source, image_path, int(width), int(height)),
+        )
+        return item_id if item_id and item_id > 0 else None
+
+    def clipboard_image_paths(self) -> set[str]:
+        return {
+            str(row["image_path"])
+            for row in self._query("SELECT image_path FROM clipboard WHERE kind = 'image' AND image_path != ''")
+        }
 
     @staticmethod
     def _hash_text(text: str) -> str:
