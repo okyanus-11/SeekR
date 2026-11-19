@@ -465,7 +465,8 @@ class WorkflowDialog(QDialog):
         layout.addWidget(self.steps_edit, 1)
         hint = QLabel(
             "Supported steps: open_folder, open_url, launch_app (executable + args list), "
-            "copy_text. Workflows are local structured actions; shell scripts and Python are not supported."
+            "copy_text, run_command (existing command key/title + args list). "
+            "Destructive commands require confirmation; shell scripts and Python are not supported."
         )
         hint.setObjectName("Muted")
         hint.setWordWrap(True)
