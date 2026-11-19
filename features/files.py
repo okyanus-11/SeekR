@@ -233,8 +233,11 @@ class FileService:
         return FileIndexer(self.config, self.db).index(progress=progress, token=token)
 
     def search(self, query: str, limit: int = 6) -> list[tuple[float, dict]]:
-        text = (query or "").strip()
-        extension = ""
+        from .file_query import parse_file_query
+
+        parsed = parse_file_query(query)
+        text = parsed.text
+        extension = parsed.extension
         match = _EXT_TOKEN.search(text)
         if match:
             extension = match.group(1).lower()
