@@ -68,6 +68,9 @@ class ClipboardService:
     def pin(self, item_id: int, pinned: bool) -> None:
         self.db.set_clipboard_pinned(item_id, pinned)
 
+    def set_category(self, item_id: int, category: str) -> None:
+        self.db.set_clipboard_category(item_id, category)
+
     def delete(self, item_id: int) -> None:
         self.db.delete_clipboard(item_id)
 
