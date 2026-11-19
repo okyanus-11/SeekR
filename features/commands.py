@@ -46,6 +46,45 @@ class CommandEntry:
         return bool(self.raw.get("confirm", 1))
 
 
+
+def split_command_chain(expression: str) -> list[str]:
+    """Split on the word 'then' only outside quoted command arguments."""
+    parts: list[str] = []
+    start = 0
+    quote: str | None = None
+    escaped = False
+    index = 0
+    while index < len(expression):
+        char = expression[index]
+        if escaped:
+            escaped = False
+            index += 1
+            continue
+        if quote == '"' and char == "\\\\":
+            escaped = True
+            index += 1
+            continue
+        if quote:
+            if char == quote:
+                quote = None
+            index += 1
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            index += 1
+            continue
+        if char.isspace():
+            match = re.match(r"\\s+then\\s+", expression[index:], flags=re.IGNORECASE)
+            if match:
+                parts.append(expression[start:index].strip())
+                index += match.end()
+                start = index
+                continue
+        index += 1
+    parts.append(expression[start:].strip())
+    return parts
+
+
 class CommandService:
     """Executes system commands without ever invoking a shell."""
 
@@ -514,4 +553,4 @@ class CommandChainProvider(SearchProvider):
             self.hooks.show_error("Command chain", outcome.message)
 
 
-__all__ = ["CommandService", "CommandEntry", "CommandOutcome", "CommandsProvider", "CommandChainProvider"]
+__all__ = ["CommandService", "CommandEntry", "CommandOutcome", "CommandsProvider", "CommandChainProvider", "split_command_chain"]
