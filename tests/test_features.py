@@ -703,7 +703,7 @@ def test_file_search_modified_yesterday_excludes_today_files(config, db, tmp_pat
     config.set("files.directories", [str(root)])
 
     results = FileService(config, db).search("invoice modified yesterday", 10)
-    names = {row["name"] for row in results}
+    names = {row["name"] for _score, row in results}
     assert names == {"invoice-yesterday-morning.pdf", "invoice-yesterday-evening.pdf"}
 
 
