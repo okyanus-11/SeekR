@@ -876,6 +876,26 @@ class Database:
             (*values[:4], now, now),
         )
 
+    def insert_snippets_atomic(self, rows: Sequence[dict[str, Any]]) -> int:
+        """Insert a fully validated snippet import in one SQLite transaction."""
+        now = time.time()
+        try:
+            conn = self.connection()
+            with self._lock:
+                with conn:
+                    conn.executemany(
+                        "INSERT INTO snippets(title, category, shortcut, content, created, updated) "
+                        "VALUES (?, ?, ?, ?, ?, ?)",
+                        [
+                            (row["title"], row.get("category", ""), row.get("shortcut", ""),
+                             row["content"], now, now)
+                            for row in rows
+                        ],
+                    )
+            return len(rows)
+        except sqlite3.Error as exc:
+            raise DatabaseError(f"Could not import snippets: {exc}") from exc
+
     def delete_snippet(self, snippet_id: int) -> None:
         self._write("DELETE FROM snippets WHERE id = ?", (int(snippet_id),))
 
