@@ -263,20 +263,25 @@ def test_application_launch_records_history(config, db, tmp_path, monkeypatch):
 
 
 
-def test_application_ranking_uses_bounded_usage_only_when_enabled(config):
-    now = time.time()
-    apps = [
-        {"name": "Editor", "path": "a.exe", "use_count": 0, "last_used": 0},
-        {"name": "Editor", "path": "b.exe", "use_count": 80, "last_used": now},
-    ]
-    config.set("privacy.usage_tracking", True)
-    personalized = ApplicationsProvider._scored("Editor", apps, 5, config)
-    assert personalized[0][1]["path"] == "b.exe"
-    assert personalized[0][0] <= 1.0
+def test_application_usage_ranking_respects_privacy_opt_in(config, db):
+    service = AppService(config, db)
+    db.upsert_apps([
+        {"name": "Editor", "path": "a.exe"},
+        {"name": "Editor", "path": "b.exe"},
+    ])
+    db._write("UPDATE apps SET use_count = 100, last_used = ? WHERE path = ?",
+              (time.time(), "b.exe"))
+    config.set("search.prioritize_recent", True)
 
     config.set("privacy.usage_tracking", False)
-    neutral = ApplicationsProvider._scored("Editor", apps, 5, config)
-    assert neutral[0][1]["path"] == "a.exe"
+    neutral = service.search("Editor", 5)
+    assert neutral[0]["path"] == "a.exe"
+    assert service.suggestions(5) == []
+
+    config.set("privacy.usage_tracking", True)
+    personalized = service.search("Editor", 5)
+    assert personalized[0]["path"] == "b.exe"
+    assert service.suggestions(5)[0]["path"] == "b.exe"
 
 
 # -------------------------------------------------------------------- clipboard
