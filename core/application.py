@@ -115,7 +115,7 @@ class SeekRApplication(QObject, UIHooks):
         self.web_service = WebService(self.config, self, self.db)
         self.quick_connect_service = QuickConnectService(self.config, self.db)
         self.quick_action_service = QuickActionService(self.config, self.db, self)
-        self.workflow_service = WorkflowService(self.config, self.db, self)
+        self.workflow_service = WorkflowService(self.config, self.db, self, self.command_service)
         self.snippet_service = SnippetService(self.config, self.db, self)
 
     def _register_providers(self) -> None:
