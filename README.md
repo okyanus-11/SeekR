@@ -71,7 +71,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 | Translation | `translate: Hello to Turkish` builds a Google Translate URL; supports 20+ language names. |
 | Dictionary | `define: algorithm` opens an in-app definition lookup. Successful lookups are cached locally and can be reopened offline. |
 | Commands | Built-in safe system commands and user-defined commands with confirmation for destructive actions, argument-safe execution, aliases and history. |
-| Clipboard | Opt-in text clipboard history, off by default; copied text is stored unencrypted in the local database with hash-based deduplication, pinning, categories, search, deletion and age/count retention for unpinned entries. |
+| Clipboard | Opt-in text clipboard history, off by default; copied text is stored unencrypted in the local database with hash-based deduplication, pinning, categories, search, deletion and age/count retention for unpinned entries. A separate opt-in stores bounded PNG image captures locally (maximum 5 MB, 4096 px per side and 16 megapixels); image previews and copy-back are supported. |
 | Notes | Lightweight notes with autosave, pinning, search and timestamps. |
 | System info | Real CPU, memory, disks, GPU, battery, network, IP, uptime and OS data via `psutil` and platform APIs. No invented values. |
 | Date & time | Current time, time-zone lookup and conversion, date differences, countdown timer, configurable formats. |
