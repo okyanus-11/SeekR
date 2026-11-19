@@ -664,17 +664,19 @@ class LauncherWidgets(QObject):
             enabled = bool(self.config.get(f"widgets.{key}_enabled", True))
             running = self._active and enabled
             if key == "clock":
-                card.timer.start(1000) if running else card.timer.stop()
+                card.timer.start(int(self.config.get("widgets.clock_refresh_ms", 1000))) if running else card.timer.stop()
                 if running:
                     card.refresh()
             elif key == "system":
-                card.timer.start(2000) if running else card.timer.stop()
+                card.timer.start(int(self.config.get("widgets.system_refresh_ms", 2000))) if running else card.timer.stop()
                 if running:
                     card.refresh()
             elif key == "weather":
-                card.timer.start(30 * 60 * 1000) if running else card.timer.stop()
+                interval = int(self.config.get("widgets.weather_refresh_minutes", 30)) * 60 * 1000
+                card.timer.start(interval) if running else card.timer.stop()
             else:
-                card.day_timer.start(60_000) if running else card.day_timer.stop()
+                interval = int(self.config.get("widgets.meme_refresh_minutes", 60)) * 60 * 1000
+                card.day_timer.start(interval) if running else card.day_timer.stop()
                 if not running:
                     card.retry_timer.stop()
 
