@@ -39,6 +39,10 @@ KEYWORDS = {
     "bm": "Search browser bookmarks",
     "ssh": "Open a saved SSH profile",
     "act": "Run a quick action",
+    "flow": "Search and run saved workflows",
+    "snip": "Search and copy text snippets",
+    "chain": "Run a sequence of existing commands",
+    "wm": "Manage open application windows",
 }
 
 #: Keywords providers claim at runtime; kept here so settings can list them.
@@ -102,6 +106,10 @@ CATEGORIES = (
     "Bookmark",
     "Connection",
     "Action",
+    "Workflow",
+    "Snippet",
+    "Window management",
+    "Command chain",
     "Keyword",
 )
 
