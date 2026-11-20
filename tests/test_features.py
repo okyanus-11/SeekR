@@ -807,3 +807,13 @@ def test_clipboard_sensitive_filter_keeps_ordinary_text():
     assert not ClipboardService._looks_sensitive(
         "Please review the API documentation and send the report tomorrow."
     )
+
+
+def test_clipboard_copy_handles_missing_image_payload(config, db, tmp_path):
+    service = ClipboardService(config, db)
+    missing_image = tmp_path / "missing-preview.png"
+    assert service.copy({
+        "kind": "image",
+        "image_path": str(missing_image),
+        "text": "[Image]",
+    }) is False
