@@ -86,6 +86,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 | Workflows | Local multi-step routines built from validated folder, website, application and copy actions; import/export as versioned JSON; searchable with `flow:`. |
 | Text snippets | Local reusable text with categories and aliases; searchable with `snip:` and copied only after explicit selection. |
 | Tasks | Local tasks with optional due dates, notes, completion tracking and explicit `task:` search. |
+| Database backups | Create and restore integrity-checked local SQLite backups from Tools → Database & backups. Restore validates the backup and rolls back if restoration fails. |
 | Command chains | Explicit `chain:` sequences of existing named commands, with per-step confirmation for destructive actions and stop-on-failure behavior. |
 | Command Center | Press `>` for one searchable palette covering settings, system tools, network, workflows, snippets, clipboard, search shortcuts and widget toggles. |
 | Update checks | Manual `update:` checks and opt-in once-daily background checks against the official GitHub releases API; no installer is downloaded or run automatically. |
