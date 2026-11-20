@@ -1,18 +1,24 @@
 #ifndef MyAppVersion
-  #define MyAppVersion "2.0.0"
+  #define MyAppVersion "2.0.2"
 #endif
 
 #define MyAppName "SeekR"
 #define MyAppPublisher "Okyanus Bora Sevik"
 #define MyAppExeName "SeekR.exe"
+#define MyAppURL "https://github.com/okyanus-11/SeekR"
 
 [Setup]
 AppId={{A4632DBB-3C2E-46F2-8792-C88C4B50A91A}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppURL}
+AppSupportURL={#MyAppURL}/issues
+AppUpdatesURL={#MyAppURL}/releases
 DefaultDirName={localappdata}\Programs\{#MyAppName}
 DefaultGroupName={#MyAppName}
+UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
 SetupIconFile=..\assets\icons\seekr.ico
 LicenseFile=..\LICENSE
@@ -24,7 +30,10 @@ WizardStyle=modern
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+UsePreviousAppDir=yes
+UsePreviousGroup=yes
 CloseApplications=yes
+CloseApplicationsFilter=SeekR.exe
 RestartApplications=no
 
 [Tasks]
