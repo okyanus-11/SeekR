@@ -135,6 +135,26 @@ jobs:
             Get-ChildItem -LiteralPath $env:RUNNER_TEMP -Force -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "SeekR*" } | Select-Object -ExpandProperty FullName
             throw "Installed SeekR.exe is missing"
           }
+          # Verify Windows registered the expected product version and install path.
+          $uninstallEntry = Get-ChildItem "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall" |
+            ForEach-Object { Get-ItemProperty -LiteralPath $_.PSPath } |
+            Where-Object { $_.DisplayName -eq "SeekR" } |
+            Select-Object -First 1
+          if (-not $uninstallEntry) { throw "SeekR is missing from Windows Installed apps registration" }
+          if ($uninstallEntry.DisplayVersion -ne $version) {
+            throw "Wrong installed version: expected $version, got $($uninstallEntry.DisplayVersion)"
+          }
+          if ([IO.Path]::GetFullPath($uninstallEntry.InstallLocation).TrimEnd('\\') -ne [IO.Path]::GetFullPath($installDir).TrimEnd('\\')) {
+            throw "Windows uninstall registration points to the wrong install directory: $($uninstallEntry.InstallLocation)"
+          }
+          # Verify the Start Menu shortcut resolves to the installed executable.
+          $shortcutPath = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\SeekR\SeekR.lnk"
+          if (-not (Test-Path -LiteralPath $shortcutPath)) { throw "SeekR Start Menu shortcut is missing: $shortcutPath" }
+          $shell = New-Object -ComObject WScript.Shell
+          $shortcut = $shell.CreateShortcut($shortcutPath)
+          if ([IO.Path]::GetFullPath($shortcut.TargetPath) -ne [IO.Path]::GetFullPath($installedExe)) {
+            throw "SeekR Start Menu shortcut targets the wrong executable: $($shortcut.TargetPath)"
+          }
           # Exercise the installed app itself, not only the installer payload.
           $appProcess = Start-Process -FilePath $installedExe -ArgumentList @("--hidden", "--no-hotkey") -PassThru
           Start-Sleep -Seconds 8
