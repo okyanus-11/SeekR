@@ -155,7 +155,7 @@ def test_widget_layout_settings_are_bounded_and_normalized(config):
     config.set("widgets.left_order", ["tasks", "clock", "tasks", "unknown"])
     assert config.get("widgets.left_order") == ["tasks", "clock", "system"]
     config.set("widgets.right_order", ["meme", "meme", "invalid"])
-    assert config.get("widgets.right_order") == ["meme", "weather"]
+    assert config.get("widgets.right_order") == ["meme", "weather", "media"]
 
 
 def test_widget_layout_settings_survive_config_reload(tmp_path):
