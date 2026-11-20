@@ -1263,3 +1263,47 @@ def test_widget_fetch_task_emits_failure_for_network_errors(monkeypatch):
     task.run()
 
     assert failures == [("weather", "simulated offline network")]
+
+
+
+def test_launcher_survives_repeated_hide_show_cycles(qapp, controller):
+    """Repeated dropdown use must keep the surface visible, renderable and searchable."""
+    launcher = controller.launcher
+    config = controller.config
+    old_animations = config.get("appearance.animations", False)
+    old_duration = config.get("appearance.animation_duration", 150)
+    config.set("appearance.animations", True)
+    config.set("appearance.animation_duration", 90)
+
+    def pump_until(predicate, timeout=2.0):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            qapp.processEvents()
+            if predicate():
+                return True
+            time.sleep(0.005)
+        return bool(predicate())
+
+    try:
+        for cycle in range(10):
+            launcher.show_launcher()
+            launcher.set_query("calc: 2 + 3")
+            wait_for_search(qapp, launcher)
+
+            assert pump_until(lambda: launcher.isVisible())
+            assert launcher._results, f"cycle {cycle}: search returned no results"
+            frame = launcher.grab()
+            assert not frame.isNull(), f"cycle {cycle}: launcher produced an empty render"
+            assert frame.width() == launcher.width()
+            assert frame.height() == launcher.height()
+
+            launcher.hide_launcher()
+            assert pump_until(lambda: not launcher.isVisible()), (
+                f"cycle {cycle}: launcher did not finish hiding"
+            )
+    finally:
+        launcher._stop_window_animation()
+        launcher._hiding = False
+        launcher.hide()
+        config.set("appearance.animations", old_animations)
+        config.set("appearance.animation_duration", old_duration)

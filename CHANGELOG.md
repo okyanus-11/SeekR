@@ -1,5 +1,11 @@
 # Changelog
 
+## Main-branch maintenance after v2.0.2 (not included in the published v2.0.2 assets)
+
+- Keep the current main-branch launcher surface opaque and use position-only dropdown animation to avoid stale repaints associated with layered Qt windows on Windows.
+- Add a repeated hide/show/search/render regression test for launcher stability.
+- Bound dictionary-service response reads and identify requests with the current application version.
+
 ## [2.0.2] - 2026-11-20
 
 ### Fixed
