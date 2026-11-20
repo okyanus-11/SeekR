@@ -122,7 +122,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [x] Audit installer, portable build, and onedir packaging from clean Windows environments.
 - [ ] Verify cold launch, warm launch, upgrade from the previous public version, reinstall, rollback, and uninstall.
 - [ ] Preserve user settings/database on normal upgrades and document data removal on uninstall.
-- [ ] Add a secure update-checking flow that verifies release metadata and downloaded artifact hashes.
+- [x] Add a secure update-checking flow that validates official release metadata and asset URLs, exposes GitHub-published SHA-256 values, and verifies a user-selected downloaded file against both its expected size and SHA-256 before reporting success. SeekR does not silently download or execute installers.
 - [ ] Provide clear in-app update availability, release notes, defer, and restart behavior.
 - [ ] Never silently replace a running executable or install an unverified artifact.
 - [ ] Add code-signing support when a valid signing certificate is available; do not claim signed builds otherwise.
