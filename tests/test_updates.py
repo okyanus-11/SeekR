@@ -166,3 +166,21 @@ def test_update_asset_verification_rejects_mismatch_and_untrusted_metadata(tmp_p
     valid, message = UpdateService.verify_asset_file(asset, file_path)
     assert not valid
     assert "trusted" in message.lower()
+
+
+def test_update_asset_verification_rejects_spoofed_official_host_and_size(tmp_path):
+    file_path = tmp_path / "installer.exe"
+    file_path.write_bytes(b"release bytes")
+    asset = {
+        "name": "installer.exe",
+        "url": "https://github.com/okyanus-11/SeekR/releases/download/v2.1.0/installer.exe",
+        "sha256": "a" * 64,
+        "size": file_path.stat().st_size + 1,
+    }
+    valid, message = UpdateService.verify_asset_file(asset, file_path)
+    assert not valid
+    assert "size mismatch" in message.lower()
+    asset["url"] = "https://github.com.attacker.example/okyanus-11/SeekR/releases/download/v2.1.0/installer.exe"
+    valid, message = UpdateService.verify_asset_file(asset, file_path)
+    assert not valid
+    assert "trusted" in message.lower()
