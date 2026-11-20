@@ -1308,13 +1308,13 @@ class AdvancedPage(SettingsPage):
 # ------------------------------------------------------------------------ Plugins
 class PluginsPage(SettingsPage):
     title = "Plugins"
-    subtitle = "The plugin marketplace is not part of version 1.0.0."
+    subtitle = "The plugin marketplace is planned for version 3.0.0, not 2.0.0."
 
     def build(self) -> None:
         banner = InfoBanner(
             "PLUGIN MARKETPLACE",
             "Extend SeekR with community-developed plugins, custom integrations and powerful new capabilities. "
-            "Plugin support is coming in a future release.",
+            "Plugin support is planned for version 3.0.0.",
             badge_text="COMING SOON…",
         )
         self.layout.addWidget(banner)
@@ -1323,7 +1323,7 @@ class PluginsPage(SettingsPage):
         for text in (
             "Plugins will register new search providers and keywords without changing SeekR itself.",
             "The current provider architecture already isolates every capability behind a stable interface.",
-            "There are no install buttons yet: plugin loading is intentionally not part of this release.",
+            "There are no install buttons: plugin loading is intentionally not part of version 2.0.0.",
             "SeekR will never run third-party code without your explicit action.",
         ):
             item = label("•  " + text, "Muted", wrap=True)
@@ -1331,7 +1331,7 @@ class PluginsPage(SettingsPage):
 
         status = self.section("Status")
         status.add_widget(label("Plugin loading: not available (by design)", "Muted"))
-        status.add_widget(label("Marketplace: planned for a future release", "Muted"))
+        status.add_widget(label("Marketplace: planned for version 3.0.0", "Muted"))
         status.add_widget(label("No plugins are installed", "Muted"))
 
 
