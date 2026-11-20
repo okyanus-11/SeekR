@@ -246,11 +246,11 @@ The v2.0.2 GitHub Actions release pipeline completed successfully:
 - Ubuntu, Windows Latest, and Windows Server 2022 test suites passed.
 - Portable and onedir Windows builds completed.
 - Packaged launcher UI verification passed.
-- Inno Setup installer compiled successfully.
-- Fresh installation, installed-app launch, UI verification, and uninstallation passed.
+- Inno Setup installer compiled successfully with corrected 2.0.2 product metadata and upgrade-directory handling.
+- Fresh installation, Windows Installed apps version/path registration, Start Menu shortcut target, installed-app launch, UI verification, and uninstallation passed.
 - SHA-256 checksums were generated and release assets published.
 
-Automated checks do **not** replace physical Windows testing. Mixed-DPI and multi-monitor behavior, sleep/resume, a real upgrade from 1.x with user-data preservation, long-duration stability, and accessibility review still need hands-on verification. Windows executables are unsigned and may trigger a SmartScreen warning.
+The installer smoke test now checks more than whether setup exits successfully: it verifies the registered version, install location, and shortcut target. Automated checks do **not** replace physical Windows testing. Mixed-DPI and multi-monitor behavior, sleep/resume, a real upgrade from 1.x with user-data preservation, long-duration stability, and accessibility review still need hands-on verification. Windows executables are unsigned and may trigger a SmartScreen warning.
 
 See the [Windows audit](docs/WINDOWS_AUDIT.md) and [manual test checklist](docs/WINDOWS_MANUAL_TEST.md) for evidence and remaining checks.
 
