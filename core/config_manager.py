@@ -61,20 +61,20 @@ def default_config() -> dict[str, Any]:
             "clock_enabled": True,
             "weather_enabled": True,
             "system_enabled": True,
-            "meme_enabled": True,
+            "cat_enabled": True,
             "media_enabled": False,
             "media_refresh_seconds": 10,
             "weather_location": "",
             "clock_refresh_ms": 1000,
             "system_refresh_ms": 2000,
             "weather_refresh_minutes": 30,
-            "meme_refresh_minutes": 60,
+            "cat_refresh_minutes": 60,
             "tasks_enabled": True,
             "tasks_refresh_minutes": 5,
             "rail_width": 196,
             "card_height": 140,
             "left_order": ["clock", "system", "tasks"],
-            "right_order": ["weather", "meme", "media"],
+            "right_order": ["weather", "cat", "media"],
         },
         "search": {
             "max_results": 12,
@@ -305,12 +305,12 @@ _VALIDATORS: dict[str, Callable[[Any], Any]] = {
     "widgets.clock_refresh_ms": _clamp_int(250, 5000),
     "widgets.system_refresh_ms": _clamp_int(1000, 30000),
     "widgets.weather_refresh_minutes": _clamp_int(5, 180),
-    "widgets.meme_refresh_minutes": _clamp_int(15, 360),
+    "widgets.cat_refresh_minutes": _clamp_int(15, 360),
     "widgets.tasks_refresh_minutes": _clamp_int(1, 60),
     "widgets.rail_width": _clamp_int(160, 280),
     "widgets.card_height": _clamp_int(124, 240),
     "widgets.left_order": lambda value: _validate_widget_order(value, ("clock", "system", "tasks")),
-    "widgets.right_order": lambda value: _validate_widget_order(value, ("weather", "meme", "media")),
+    "widgets.right_order": lambda value: _validate_widget_order(value, ("weather", "cat", "media")),
     "clipboard.limit": _clamp_int(10, 2000),
     "clipboard.poll_interval_ms": _clamp_int(200, 5000),
     "privacy.retention_days": _clamp_int(1, 3650),
@@ -431,6 +431,21 @@ class ConfigManager:
                 self._backup_corrupt_file()
                 self._data = copy.deepcopy(self._defaults)
                 return self._data
+            # Migrate the former daily-meme setting to the daily-cat widget.
+            # Preserve each existing user's enabled state, refresh interval and order.
+            if isinstance(parsed, dict):
+                widgets = parsed.get("widgets")
+                if isinstance(widgets, dict):
+                    if "cat_enabled" not in widgets and isinstance(widgets.get("meme_enabled"), bool):
+                        widgets["cat_enabled"] = widgets["meme_enabled"]
+                    if "cat_refresh_minutes" not in widgets and "meme_refresh_minutes" in widgets:
+                        widgets["cat_refresh_minutes"] = widgets["meme_refresh_minutes"]
+                    widgets.pop("meme_enabled", None)
+                    widgets.pop("meme_refresh_minutes", None)
+                    for rail in ("left_order", "right_order"):
+                        order = widgets.get(rail)
+                        if isinstance(order, list):
+                            widgets[rail] = ["cat" if key == "meme" else key for key in order]
             self._data = sanitize(parsed, self._defaults)
             # Version 2 widens only the untouched 1.0.x default geometry so the
             # new side rails fit; explicitly customised dimensions are kept.
