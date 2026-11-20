@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import sqlite3
+import subprocess
+import sys
 import threading
 import time
 
@@ -294,3 +296,36 @@ def test_database_migrates_clipboard_category_column(tmp_path):
         assert database.get_meta("schema_version") == "6"
     finally:
         database.close()
+
+
+def test_sqlite_recovers_cleanly_from_process_exit_during_uncommitted_write(tmp_path):
+    database_path = tmp_path / "interrupted.db"
+    initial = Database(database_path)
+    initial.close()
+
+    script = """
+import os
+import sqlite3
+import sys
+import time
+connection = sqlite3.connect(sys.argv[1], timeout=5)
+connection.execute("BEGIN IMMEDIATE")
+connection.execute(
+    "INSERT INTO notes(title, body, created, updated) VALUES(?, ?, ?, ?)",
+    ("uncommitted", "must roll back", time.time(), time.time()),
+)
+os._exit(0)
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", script, str(database_path)],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+
+    recovered = Database(database_path)
+    assert recovered.note_count() == 0
+    assert recovered.connection().execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    recovered.close()
