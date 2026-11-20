@@ -56,7 +56,6 @@ _STRINGS: dict[str, dict[str, str]] = {
         "tools.page.actions": "Quick actions",
         "tools.page.workflows": "Workflows",
         "tools.page.snippets": "Text snippets",
-        "tools.page.database": "Database & backups",
         "tools.page.tasks": "Tasks",
         "tools.page.database": "Database & backups",
     },
