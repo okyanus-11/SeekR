@@ -62,7 +62,19 @@ def default_config() -> dict[str, Any]:
             "weather_enabled": True,
             "system_enabled": True,
             "meme_enabled": True,
+            "media_enabled": False,
+            "media_refresh_seconds": 10,
             "weather_location": "",
+            "clock_refresh_ms": 1000,
+            "system_refresh_ms": 2000,
+            "weather_refresh_minutes": 30,
+            "meme_refresh_minutes": 60,
+            "tasks_enabled": True,
+            "tasks_refresh_minutes": 5,
+            "rail_width": 196,
+            "card_height": 140,
+            "left_order": ["clock", "system", "tasks"],
+            "right_order": ["weather", "meme", "media"],
         },
         "search": {
             "max_results": 12,
@@ -96,6 +108,9 @@ def default_config() -> dict[str, Any]:
             "max_depth": 10,
             "max_files": 200000,
             "include_folders": True,
+            "content_search_enabled": False,
+            "content_search_extensions": [".txt", ".md", ".py", ".json", ".csv", ".html", ".xml"],
+            "content_search_max_file_bytes": 1000000,
         },
         "web": {
             "engine": "duckduckgo",
@@ -124,9 +139,14 @@ def default_config() -> dict[str, Any]:
         "privacy": {
             "clipboard_history": False,
             "clipboard_history_consent": False,
-            "usage_tracking": True,
+            "usage_tracking": False,
             "save_search_history": True,
             "retention_days": 90,
+        },
+        "updates": {
+            "check_automatically": False,
+            "last_check": 0.0,
+            "dismissed_version": "",
         },
         "advanced": {
             "debug": False,
@@ -246,6 +266,16 @@ def _validate_str_list(value: Any) -> list[str]:
     return [str(item) for item in value if str(item).strip()]
 
 
+def _validate_widget_order(value: Any, allowed: tuple[str, ...]) -> list[str]:
+    supplied = value if isinstance(value, (list, tuple)) else []
+    order = []
+    for item in supplied:
+        key = str(item).strip().lower()
+        if key in allowed and key not in order:
+            order.append(key)
+    return order + [key for key in allowed if key not in order]
+
+
 #: Dotted-path validators applied after generic coercion.
 _VALIDATORS: dict[str, Callable[[Any], Any]] = {
     "general.hotkey": _validate_hotkey,
@@ -272,6 +302,15 @@ _VALIDATORS: dict[str, Callable[[Any], Any]] = {
     "web.engine": _validate_engine,
     "calculator.precision": _clamp_int(1, 30),
     "calculator.history_limit": _clamp_int(0, 500),
+    "widgets.clock_refresh_ms": _clamp_int(250, 5000),
+    "widgets.system_refresh_ms": _clamp_int(1000, 30000),
+    "widgets.weather_refresh_minutes": _clamp_int(5, 180),
+    "widgets.meme_refresh_minutes": _clamp_int(15, 360),
+    "widgets.tasks_refresh_minutes": _clamp_int(1, 60),
+    "widgets.rail_width": _clamp_int(160, 280),
+    "widgets.card_height": _clamp_int(124, 240),
+    "widgets.left_order": lambda value: _validate_widget_order(value, ("clock", "system", "tasks")),
+    "widgets.right_order": lambda value: _validate_widget_order(value, ("weather", "meme", "media")),
     "clipboard.limit": _clamp_int(10, 2000),
     "clipboard.poll_interval_ms": _clamp_int(200, 5000),
     "privacy.retention_days": _clamp_int(1, 3650),

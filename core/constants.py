@@ -19,6 +19,7 @@ KEYWORDS = {
     "calc": "Calculate an expression",
     "comm": "Run a command",
     "file": "Search indexed files and folders",
+    "content": "Search inside configured indexed text files",
     "app": "Search installed applications",
     "wiki": "Search Wikipedia",
     "yt": "Search YouTube",
@@ -39,6 +40,12 @@ KEYWORDS = {
     "bm": "Search browser bookmarks",
     "ssh": "Open a saved SSH profile",
     "act": "Run a quick action",
+    "flow": "Search and run saved workflows",
+    "snip": "Search and copy text snippets",
+    "chain": "Run a sequence of existing commands",
+    "wm": "Manage open application windows",
+    "update": "Check for official SeekR updates",
+    "task": "Search and manage local tasks",
 }
 
 #: Keywords providers claim at runtime; kept here so settings can list them.
@@ -85,6 +92,7 @@ WEB_ENGINE_LABELS = {key: value["label"] for key, value in WEB_ENGINES.items()}
 CATEGORIES = (
     "Application",
     "File",
+    "File content",
     "Folder",
     "Calculator",
     "Web",
@@ -102,6 +110,19 @@ CATEGORIES = (
     "Bookmark",
     "Connection",
     "Action",
+    "Workflow",
+    "Snippet",
+    "Window management",
+    "Command chain",
+    "Command Center",
+    "Settings",
+    "Network",
+    "Productivity",
+    "Widgets",
+    "Search",
+    "Windows",
+    "Updates",
+    "Task",
     "Keyword",
 )
 

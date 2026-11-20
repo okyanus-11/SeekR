@@ -1,5 +1,66 @@
 # Changelog
 
+## [2.0.0] - 2026-11-19
+
+### Added
+
+- Added an optional Windows media-session widget with current-track metadata and play/pause/previous/next controls, using the Windows Global System Media Transport Controls API when available. The card is opt-in and reports unsupported environments clearly.
+- Added a Diagnostics tools page for user-initiated local report export. Logs are excluded by default; optional log inclusion applies best-effort redaction and clearly warns users to review the file. Reports are never uploaded.
+- Update checks now show official release notes and include a per-version “Remind me later” action; update notifications stay quiet for a version the user has deferred.
+- Configurable launcher widget rail width, card height, and persistent left/right card ordering; settings changes reorder existing cards without recreating or reparenting them.
+- Local multi-step workflows with validated steps, preview, cancellation, progress,
+  per-step errors, and versioned JSON import/export.
+- A reusable snippets manager with categories, aliases, search, explicit copy,
+  and validated JSON backup/restore.
+- A local task manager with due dates, notes, completion state, launcher search,
+  and a compact launcher task-summary widget.
+- A unified Command Center, explicit command chains, and safer window-management
+  actions for switching, tiling and minimizing.
+- A database backup page with consistent SQLite backups, integrity-checked restores,
+  and automatic rollback to the live snapshot if restoration fails.
+- Natural-language file filters for extension, local calendar date and size,
+  plus opt-in local content search for configured roots and text extensions.
+- Configurable refresh intervals for launcher widgets and reduced-motion support
+  in shared animated controls.
+- Clipboard privacy controls for pausing monitoring, clearing all entries (including
+  pinned items), and best-effort filtering of common credential-shaped strings.
+- Explicit clipboard privacy disclosures and a plain-text-only policy for rich-text
+  clipboard content; optional PNG capture remains separate and unencrypted.
+- Update checks validate semantic release tags and official asset URLs, expose
+  GitHub-published SHA-256 digests, and lets users verify a manually downloaded
+  asset by expected size and SHA-256 without silently downloading or installing updates.
+
+### Changed
+
+- Weather is cached per configured location across restarts, and weather and daily meme widgets retain last-good data during network outages and clearly label cached/stale content instead of replacing useful information with an empty error state.
+- File-content search now has strict candidate and aggregate read budgets.
+- File indexing preserves the last complete snapshot on cancellation, inaccessible
+  folders and index-limit exits.
+- Hidden launcher widgets stop polling; network-backed widgets fetch outside the
+  UI thread and refresh only when active.
+- Clipboard history applies age-based retention to unpinned entries while
+  preserving pinned entries; separately opt-in PNG image capture is size-bounded,
+  stored as unencrypted local files, previewed in the manager and copied back on explicit selection.
+- Widget layout, visibility, theme application and refresh behavior are covered
+  by Qt regression tests.
+
+### Fixed
+
+- Widget cards no longer disappear or detach after settings refreshes, theme
+  changes, launcher hide/show cycles or asynchronous refreshes.
+- Calendar-day file searches now use local midnight boundaries, so “yesterday”
+  excludes files modified today.
+- Snippet and workflow restore validate complete imports before database writes
+  and report storage/encoding failures without crashing the Tools window.
+
+### Validation
+
+- Latest full CI run [44706861698](https://github.com/okyanus-11/SeekR/actions/runs/44706861698) passed: Ubuntu 328 passed / 2 skipped; Windows Latest 326 passed / 4 skipped; Windows Server 2022 326 passed / 4 skipped.
+- The Windows packaging job passed portable and onedir builds, packaged UI verification, Inno Setup compilation, fresh install, launch, installed UI verification, uninstall, SHA-256 manifest generation and artifact upload.
+- Physical Windows 10/11 desktop checks (mixed DPI, multi-monitor, sleep/resume, real 1.x upgrade, long-duration stability and accessibility review) have not been performed. The release is not described as manually Windows-verified. Builds are unsigned.
+
+## [Unreleased]
+
 ## [1.1.2] - 2026-11-19
 
 ### Fixed

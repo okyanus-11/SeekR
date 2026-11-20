@@ -195,3 +195,11 @@ def test_search_history_limit_prunes_all_older_rows(config, db, hooks):
     rows = db.history("search", 1000)
     assert len(rows) == 3
     assert [row["value"] for row in rows] == ["query 249", "query 248", "query 247"]
+
+def test_keyword_reference_includes_command_center_when_registered(config, db, hooks):
+    from features.command_center import CommandCenterProvider
+
+    engine = SearchEngine(config, db, hooks)
+    engine.register(CommandCenterProvider(config, db, hooks))
+    reference = engine.keyword_reference()
+    assert any(result.title.startswith(">") for result in reference)

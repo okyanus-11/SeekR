@@ -54,6 +54,10 @@ _STRINGS: dict[str, dict[str, str]] = {
         "tools.page.bookmarks": "Bookmarks",
         "tools.page.connections": "Quick Connect",
         "tools.page.actions": "Quick actions",
+        "tools.page.workflows": "Workflows",
+        "tools.page.snippets": "Text snippets",
+        "tools.page.tasks": "Tasks",
+        "tools.page.database": "Database & backups",
     },
     "tr": {
         "launcher.placeholder": "Uygulama, dosya veya komut arayın ya da bir ifade yazın…",
@@ -85,6 +89,10 @@ _STRINGS: dict[str, dict[str, str]] = {
         "tools.page.bookmarks": "Yer imleri",
         "tools.page.connections": "Hızlı bağlantı",
         "tools.page.actions": "Hızlı eylemler",
+        "tools.page.workflows": "İş akışları",
+        "tools.page.snippets": "Metin parçacıkları",
+        "tools.page.tasks": "Görevler",
+        "tools.page.database": "Veritabanı ve yedekler",
     },
     "es": {
         "launcher.placeholder": "Buscar aplicaciones, archivos, comandos o escribir una expresión…",
@@ -116,6 +124,10 @@ _STRINGS: dict[str, dict[str, str]] = {
         "tools.page.bookmarks": "Marcadores",
         "tools.page.connections": "Conexión rápida",
         "tools.page.actions": "Acciones rápidas",
+        "tools.page.workflows": "Flujos de trabajo",
+        "tools.page.snippets": "Fragmentos de texto",
+        "tools.page.tasks": "Tareas",
+        "tools.page.database": "Base de datos y copias de seguridad",
     },
     "fr": {
         "launcher.placeholder": "Rechercher des applications, fichiers, commandes ou saisir une expression…",
@@ -147,6 +159,10 @@ _STRINGS: dict[str, dict[str, str]] = {
         "tools.page.bookmarks": "Favoris",
         "tools.page.connections": "Connexion rapide",
         "tools.page.actions": "Actions rapides",
+        "tools.page.workflows": "Flux de travail",
+        "tools.page.snippets": "Extraits de texte",
+        "tools.page.tasks": "Tâches",
+        "tools.page.database": "Base de données et sauvegardes",
     },
     "de": {
         "launcher.placeholder": "Apps, Dateien, Befehle suchen oder einen Ausdruck eingeben…",
@@ -178,6 +194,10 @@ _STRINGS: dict[str, dict[str, str]] = {
         "tools.page.bookmarks": "Lesezeichen",
         "tools.page.connections": "Schnellverbindung",
         "tools.page.actions": "Schnellaktionen",
+        "tools.page.workflows": "Workflows",
+        "tools.page.snippets": "Textbausteine",
+        "tools.page.tasks": "Aufgaben",
+        "tools.page.database": "Datenbank & Sicherungen",
     },
     "it": {
         "launcher.placeholder": "Cerca applicazioni, file, comandi o inserisci un'espressione…",
@@ -209,6 +229,10 @@ _STRINGS: dict[str, dict[str, str]] = {
         "tools.page.bookmarks": "Segnalibri",
         "tools.page.connections": "Connessione rapida",
         "tools.page.actions": "Azioni rapide",
+        "tools.page.workflows": "Flussi di lavoro",
+        "tools.page.snippets": "Frammenti di testo",
+        "tools.page.tasks": "Attività",
+        "tools.page.database": "Database e backup",
     },
     "pt-BR": {
         "launcher.placeholder": "Pesquisar aplicativos, arquivos, comandos ou digitar uma expressão…",
@@ -240,6 +264,10 @@ _STRINGS: dict[str, dict[str, str]] = {
         "tools.page.bookmarks": "Favoritos",
         "tools.page.connections": "Conexão rápida",
         "tools.page.actions": "Ações rápidas",
+        "tools.page.workflows": "Fluxos de trabalho",
+        "tools.page.snippets": "Trechos de texto",
+        "tools.page.tasks": "Tarefas",
+        "tools.page.database": "Banco de dados e backups",
     },
     "ja": {
         "launcher.placeholder": "アプリ、ファイル、コマンドを検索、または式を入力…",
@@ -271,6 +299,10 @@ _STRINGS: dict[str, dict[str, str]] = {
         "tools.page.bookmarks": "ブックマーク",
         "tools.page.connections": "クイック接続",
         "tools.page.actions": "クイックアクション",
+        "tools.page.workflows": "ワークフロー",
+        "tools.page.snippets": "テキストスニペット",
+        "tools.page.tasks": "タスク",
+        "tools.page.database": "データベースとバックアップ",
     },
     "zh-CN": {
         "launcher.placeholder": "搜索应用、文件、命令，或输入表达式…",
@@ -302,6 +334,10 @@ _STRINGS: dict[str, dict[str, str]] = {
         "tools.page.bookmarks": "书签",
         "tools.page.connections": "快速连接",
         "tools.page.actions": "快捷操作",
+        "tools.page.workflows": "工作流",
+        "tools.page.snippets": "文本片段",
+        "tools.page.tasks": "任务",
+        "tools.page.database": "数据库与备份",
     },
 }
 

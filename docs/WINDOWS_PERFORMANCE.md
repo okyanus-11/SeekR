@@ -43,3 +43,21 @@ change Windows results.
 
 For exact benchmark values, caveats, and the ranked bottlenecks, see
 [PERFORMANCE.md](PERFORMANCE.md).
+
+## Repeatable packaged Windows measurements
+
+After building the portable executable or installing the onedir installer, run:
+
+    powershell -ExecutionPolicy Bypass -File .\tools\windows_performance.ps1 -ExecutablePath .\dist\SeekR.exe
+
+For an installed build, pass the installed SeekR.exe path. The runner records two sequential process-start-to-visible timings, Alt+Space-to-visible latency, and a hidden-idle sample containing average CPU, working set, private bytes and thread count. It writes JSON to seekr-windows-performance.json (customize with -OutputPath).
+
+The sequential second launch is a same-session warm run, not a reboot-cold run. Process-to-visible is not first-paint or time-to-interactive. Collect results separately on Windows 10 and Windows 11, with portable and installed builds, and record CPU, RAM, storage, display scaling, Defender state and monitor layout. Do not treat the runner's output as a release pass until those runs have been reviewed.
+
+## Long-duration stability sampling
+
+Run a hidden-mode resource/stability sample with:
+
+    powershell -ExecutionPolicy Bypass -File .\tools\windows_stability.ps1 -ExecutablePath .\dist\SeekR.exe -DurationHours 24
+
+The script records process lifetime, CPU time, working set, private bytes, thread count and handle count to CSV. A process exit before the requested duration is treated as failure. This is only a hidden-mode baseline; a release candidate still needs a separate interactive run with real search, widgets, network failures and multi-monitor use.

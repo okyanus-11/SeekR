@@ -4,7 +4,7 @@
 
 SeekR is a native desktop application built with Python and PySide6. It searches your applications and files, evaluates expressions, opens websites, runs safe commands, previews documents, manages clipboard history and notes, and bundles a set of everyday developer utilities — all from one floating window.
 
-**Current version:** 1.1.1 · **License:** MIT
+**Current version:** 2.0.0 · **Next major release:** 3.0.0 (plugins planned) · **License:** MIT
 
 
 <p align="center">
@@ -12,10 +12,10 @@ SeekR is a native desktop application built with Python and PySide6. It searches
   · <a href="https://github.com/okyanus-11/SeekR/releases/latest">All releases</a>
 </p>
 
-> **Windows 10/11:** Click the installer above to install the app. No Python setup or ZIP extraction required.
+> **2.0.0 validation note:** The 2.0.0 release passed the Ubuntu, Windows Latest and Windows Server 2022 CI matrix, plus Windows portable/onedir packaging, packaged UI checks, installer installation, launch, UI verification and uninstall. The release has not been manually validated on physical Windows 10/11 desktops; mixed-DPI, multi-monitor, sleep/resume, upgrade-from-1.x and long-duration stability checks remain outstanding. Builds are unsigned. See [the Windows manual checklist](docs/WINDOWS_MANUAL_TEST.md) and [performance notes](docs/WINDOWS_PERFORMANCE.md). The installer requires no Python setup or ZIP extraction.
 
 
-> Plugins are **not** part of 1.1.1. The Settings → Plugins page shows the planned marketplace as *Coming Soon*; no plugin code is loaded or executed.
+> Plugins are **not** part of 2.0.0 and are planned for 3.0.0. The Settings → Plugins page shows the planned marketplace as *Coming Soon*; no plugin code is loaded or executed.
 
 ---
 
@@ -32,6 +32,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 - [Keyword reference](#keyword-reference)
 - [Configuration](#configuration)
 - [Database](#database)
+- [Privacy and local data](#privacy-and-local-data)
 - [Themes](#themes)
 - [Project structure](#project-structure)
 - [Architecture](#architecture)
@@ -55,8 +56,8 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 - Recent and frequently used applications influence ranking.
 - Context menu for secondary actions, action cycling with `Tab`, and numbered actions with `Ctrl+1…9`.
 - Subtle open/close/selection animations that can be disabled in Settings.
-- Four optional live widgets around the results: clock and system usage on the left; weather and a daily wholesome meme on the right. All are enabled by default and individually configurable in Settings → Widgets.
-- Weather uses a city or town entered in Settings (no location permission); the current conditions refresh every 30 minutes. The daily meme is cached locally and refreshes on the next calendar day.
+- Six optional live widgets around the results: clock, system usage and local task summary on the left; weather, a daily wholesome meme and Windows media controls on the right. Each can be enabled independently. Refresh intervals, rail width, card height and left/right card order are configurable in Settings → Widgets.
+- Weather uses a city or town entered in Settings (no location permission); current conditions refresh periodically and the last successful result is cached locally for offline startup. The daily meme is cached locally and refreshes on the next calendar day. Both network widgets retain and label cached data when a refresh fails.
 - Optional "hide when focus is lost", tray icon, and start-with-Windows support.
 - Single-instance enforcement: launching SeekR again brings the existing window forward.
 
@@ -65,23 +66,30 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 | Area | What it does |
 |---|---|
 | Applications | Discovers Start Menu shortcuts (`.lnk`), configured Program Files locations and additional user folders, extracts icons, supports aliases, exclusions, launch history and background re-indexing. Executables are launched directly — no shell. |
-| Files & folders | Indexes configured directories in background threads (WAL SQLite index), respects excluded folders/extensions and hidden files, filters by extension (`ext:pdf`), opens files/folders, copies paths, shows metadata. |
+| Files & folders | Indexes configured directories in background threads (WAL SQLite index), respects excluded folders/extensions and hidden files, filters by extension (`ext:pdf`), supports opt-in on-demand text-content search (`content:`) for configured folders/extensions and file-size limits, opens files/folders, copies paths, and shows metadata. |
 | Calculator | SymPy-backed parser (no `eval`): arithmetic, powers, roots, trigonometry (degrees or radians), logarithms, factorials, constants (`pi`, `e`, `tau`, `phi`), percentages, scientific notation, unit conversion, configurable precision, calculation history. |
 | Web search | Google, Bing, DuckDuckGo, YouTube, Wikipedia, GitHub, plus custom engines defined by URL templates. Configurable default engine and browser handling. |
 | Translation | `translate: Hello to Turkish` builds a Google Translate URL; supports 20+ language names. |
 | Dictionary | `define: algorithm` opens an in-app definition lookup. Successful lookups are cached locally and can be reopened offline. |
 | Commands | Built-in safe system commands and user-defined commands with confirmation for destructive actions, argument-safe execution, aliases and history. |
-| Clipboard | Opt-in text clipboard history, off by default; copied text is stored unencrypted in the local database with hash-based deduplication, pinning, search, deletion and automatic pruning. |
+| Clipboard | Opt-in text clipboard history, off by default; copied text is stored unencrypted in the local database with hash-based deduplication, pinning, categories, search, deletion and age/count retention for unpinned entries. A separate opt-in stores bounded, unencrypted PNG image captures locally (maximum 5 MB, 4096 px per side and 16 megapixels); image previews and copy-back are supported. |
 | Notes | Lightweight notes with autosave, pinning, search and timestamps. |
 | System info | Real CPU, memory, disks, GPU, battery, network, IP, uptime and OS data via `psutil` and platform APIs. No invented values. |
 | Date & time | Current time, time-zone lookup and conversion, date differences, countdown timer, configurable formats. |
-| Windows | Lists open windows and switches to the selected one (Windows API; unavailable elsewhere). |
+| Windows | Lists open windows, switches to the selected one, tiles it left/right on its own monitor, and offers a confirmed normal close request. wm: minimize all minimizes app windows while protecting SeekR and shell processes. |
 | Emoji | Searchable emoji table; copies the selected emoji. |
 | Color | HEX/RGB/HSL/HSV conversion, color picking, copyable values. |
 | Screenshots | Full-screen and built-in region capture save PNGs directly to the configured folder (Settings → Files), including multi-monitor desktops. The Windows Snipping Tool remains an optional external alternative. |
 | Processes | Search running processes with CPU/memory usage, details, and confirmation before termination. |
 | Bookmarks | Reads Chromium bookmarks with a last-good backup fallback and Firefox bookmarks from a consistent SQLite snapshot, including live WAL data. Unreadable profiles are skipped with a status message. |
 | QuickLook | Safe previews for images and text-like documents (never executes previewed files). |
+| Workflows | Local multi-step routines built from validated folder, website, application and copy actions; import/export as versioned JSON; searchable with `flow:`. |
+| Text snippets | Local reusable text with categories and aliases; searchable with `snip:` and copied only after explicit selection. |
+| Tasks | Local tasks with optional due dates, notes, completion tracking and explicit `task:` search. |
+| Database backups | Create and restore integrity-checked local SQLite backups from Tools → Database & backups. Restore validates the backup and rolls back if restoration fails. |
+| Command chains | Explicit `chain:` sequences of existing named commands, with per-step confirmation for destructive actions and stop-on-failure behavior. |
+| Command Center | Press `>` for one searchable palette covering settings, system tools, network, workflows, snippets, clipboard, search shortcuts and widget toggles. |
+| Update checks | Manual `update:` checks and opt-in once-daily background checks against the official GitHub releases API; displays release notes, supports per-version reminder deferral, and lets users verify a manually downloaded asset against its published SHA-256 and expected size. Installation remains explicit; close SeekR before running the verified installer and relaunch it after installation. |
 | Quick Connect | SSH profiles with validation; detects OpenSSH on PATH and in the standard Windows installation folder. Passwords are never stored. |
 | Power | Lists and switches Windows power schemes where `powercfg` supports it. |
 | Quick Actions | Open folders, open websites, launch applications with arguments, copy predefined text. |
@@ -89,7 +97,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 
 ### Tools window
 
-A single window with 14 pages: **Calculator**, **Developer tools**, **Date & time**, **Color**, **Dictionary**, **Screenshots**, **System**, **Processes**, **Power**, **Clipboard**, **Quick notes**, **Bookmarks**, **Quick Connect**, **Quick actions**.
+A single window with 19 pages: **Calculator**, **Developer tools**, **Date & time**, **Color**, **Dictionary**, **Screenshots**, **System**, **Processes**, **Power**, **Clipboard**, **Quick notes**, **Bookmarks**, **Quick Connect**, **Quick actions**, **Workflows**, **Text snippets**, **Tasks**, **Database & backups**, and **Diagnostics**.
 
 The Developer tools page implements all 15 utilities:
 
@@ -113,7 +121,15 @@ The Developer tools page implements all 15 utilities:
 
 Fourteen pages — General, Appearance, Widgets, Search, Applications, Files, Web, Calculator, Commands, Clipboard, Privacy, Advanced, Plugins, About — all bound to the persisted JSON configuration. Every control writes through validation and takes effect immediately (theme changes repaint all windows). The launcher, shared controls, common headings and Tools navigation are available in nine languages: English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese and Simplified Chinese. Longer settings descriptions, tool content, dialogs and dynamic status messages remain English.
 
-### Themes
+## Privacy and local data
+
+SeekR is designed to keep its working data on the local PC. Clipboard history is disabled until the user opts in through the privacy and clipboard settings. When enabled, multiline clipboard text is retained as plain text; rich-text formatting is not preserved. Image capture is a separate opt-in and stores bounded PNG files locally. The clipboard page provides pause, per-entry deletion, clearing unpinned entries, and a separately confirmed clear-all action.
+
+**Storage is not encrypted.** Clipboard text is stored in the local SQLite database, and optional clipboard images are stored as PNG files in the SeekR data directory. Anyone with access to the same Windows account and its files may be able to read them. Do not enable clipboard capture on a shared or untrusted Windows account if that storage model is unsuitable. Disabling monitoring stops future capture; it does not automatically erase existing history. Use the clear controls to remove saved entries. Tools → Database & backups can create and restore integrity-checked SQLite backups. Backup files contain the same unencrypted local data and should be stored privately.
+
+The default sensitive-content filter skips several common credential-shaped strings, but it is only a heuristic and cannot identify every password, token, or secret. Do not treat it as a guarantee. Usage-based application ranking is separately opt-in and can be disabled with its stored usage data cleared in Settings.
+
+## Themes
 
 Graphite (default), Light, AMOLED, Catppuccin Mocha, Dracula and Nord, with a custom accent colour picker, transparency, font family/size, window width, result spacing and animation toggle. The launcher now defaults to a wider layout so its widget rails have room without squeezing search results. Keyword routing is cached and invalidated when aliases or providers change. The theme stylesheet is applied application-wide, not just to the launcher.
 
@@ -327,14 +343,19 @@ and `dist/SeekR/SeekR`, which are not Windows executables.
 
 ## Keyword reference
 
-Keywords are matched case-insensitively at the start of the query (`web: python`).
+Keywords are matched case-insensitively at the start of the query (`web: python`). Press `>` at the start of a query to open the Command Center.
 
 | Keyword | Example | Result |
 |---|---|---|
+| `>` | `> workflows` | Opens the unified Command Center. |
 | `web:` | `web: Raspberry Pi 5` | Opens the configured search engine |
 | `calc:` | `calc: sqrt(144) + 25 * 4` | `112` |
+| `flow:` | `flow: prepare work` | Search and run saved local workflows. |
+| `snip:` | `snip: signature` | Search and explicitly copy saved text snippets. |
+| `chain:` | `chain: taskmgr then explorer` | Run a bounded chain of existing commands separated by `then`. |
 | `comm:` | `comm: ipconfig` | Runs the built-in command (with confirmation where required) |
 | `file:` | `file: invoice` | Searches the file index |
+| `content:` | `content: installation guide` | Searches inside explicitly configured indexed text files (off by default) |
 | `app:` | `app: discord` | Searches installed applications |
 | `wiki:` | `wiki: ESP32` | Wikipedia search |
 | `yt:` | `yt: DOOM soundtrack` | YouTube search |
@@ -344,6 +365,9 @@ Keywords are matched case-insensitively at the start of the query (`web: python`
 | `time:` | `time: Tokyo` | Current time in Tokyo |
 | `define:` | `define: algorithm` | Dictionary lookup |
 | `sys:` | `sys:` | Live system information entries |
+| `wm:` | `wm: minimize all` | Minimizes visible application windows while protecting SeekR and Windows shell processes |
+| `update:` | `update: check` | Checks the official SeekR GitHub releases page for a newer version |
+| `task:` | `task: installer` | Searches local tasks and offers completion actions |
 
 Without a keyword SeekR still works: `25 * 48` produces a calculator result automatically, and `discord` ranks matching applications first.
 
@@ -358,6 +382,7 @@ Custom aliases are configured on Settings → Search (`{"w": "web"}` makes `w:` 
 - **Validation:** on load, every value is coerced and clamped against defaults. A corrupt file is backed up as `config.corrupt.json` and defaults are used, so a bad edit cannot prevent startup.
 - **Writes:** atomic (temporary file + replace), so an interrupted save cannot truncate the configuration.
 - **Live updates:** configuration listeners repaint themes, re-register hotkeys and refresh pages without a restart.
+- **Privacy:** application usage tracking and file-content search are off by default. Content search reads only explicitly configured indexed folders/extensions and respects a per-file size limit. Application usage tracking is off by default. Turning it on enables recent/frequent application ranking; turning it off disables that personalization, and Privacy settings can clear stored usage data.
 
 ---
 
@@ -365,7 +390,7 @@ Custom aliases are configured on Settings → Search (`{"w": "web"}` makes `w:` 
 
 SQLite at `%APPDATA%\SeekR\seekr.db` (WAL mode, busy timeout, per-thread connections).
 
-Tables: `apps`, `files`, `clipboard`, `notes`, `history`, `custom_commands`, `ssh_profiles`, `quick_actions`, `meta`.
+Tables: `apps`, `files`, `clipboard`, `notes`, `history`, `custom_commands`, `ssh_profiles`, `quick_actions`, `workflows`, `snippets`, `tasks`, `meta`.
 
 - Clipboard history is off by default. When explicitly enabled, copied text is
   stored unencrypted in the local database; entries are deduplicated by hash
@@ -543,7 +568,7 @@ troubleshooting guidance.
 
 ## Roadmap: plugins
 
-Version 1.0.0 intentionally ships **no plugin loading and no third-party code execution**. The provider interface, centralized keyword resolution and `UIHooks` boundary are the extension points a future plugin system will use. Settings → Plugins currently presents the planned marketplace as *Coming Soon* with no fake install buttons.
+Version 2.0.0 intentionally ships **no plugin loading and no third-party code execution**. The provider interface, centralized keyword resolution and `UIHooks` boundary are the extension points planned for the 3.0.0 plugin system. Settings → Plugins presents the marketplace as *Coming Soon*; no plugin code is loaded or executed.
 
 ---
 

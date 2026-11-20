@@ -10,7 +10,7 @@ from typing import Any, Optional
 
 from PySide6.QtCore import QObject, QThread, QThreadPool, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QGuiApplication
-from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
+from PySide6.QtWidgets import QApplication, QFileDialog, QMenu, QSystemTrayIcon
 
 from features import system_info, util
 from features.applications import AppService, ApplicationsProvider
@@ -23,18 +23,23 @@ from features.calculator import (
 )
 from features.clipboard import ClipboardMonitor, ClipboardProvider, ClipboardService
 from features.color_tools import ColorProvider
-from features.commands import CommandService, CommandsProvider
+from features.commands import CommandChainProvider, CommandService, CommandsProvider
+from features.command_center import CommandCenterProvider
 from features.date_time import DateTimeProvider
 from features.dictionary import DefineProvider
 from features.emoji_search import EmojiProvider
 from features.files import FileService, FilesProvider
+from features.file_content import FileContentProvider
 from features.notes import NotesProvider, NotesService
 from features.power import supported as power_supported
 from features.process_manager import ProcessProvider
 from features.quick_actions import QuickActionService, QuickActionsProvider
 from features.quick_connect import QuickConnectService, SSHProvider
 from features.screenshots import ScreenshotProvider
+from features.snippets import SnippetProvider, SnippetService
 from features.system_info import SystemInfoProvider
+from features.tasks import TaskProvider, TaskService
+from features.updates import UpdateProvider, UpdateService
 from features.web_search import (
     GitHubProvider,
     TranslateProvider,
@@ -44,6 +49,8 @@ from features.web_search import (
     YouTubeProvider,
 )
 from features.window_search import WindowProvider
+from features.window_manager import WindowManagerProvider
+from features.workflows import WorkflowProvider, WorkflowService
 from ui import dialogs, i18n
 from ui.icons import IconStore, app_icon
 from ui.launcher_window import LauncherWindow
@@ -111,11 +118,16 @@ class SeekRApplication(QObject, UIHooks):
         self.web_service = WebService(self.config, self, self.db)
         self.quick_connect_service = QuickConnectService(self.config, self.db)
         self.quick_action_service = QuickActionService(self.config, self.db, self)
+        self.workflow_service = WorkflowService(self.config, self.db, self, self.command_service)
+        self.snippet_service = SnippetService(self.config, self.db, self)
+        self.update_service = UpdateService(self.config)
+        self.task_service = TaskService(self.config, self.db, self)
 
     def _register_providers(self) -> None:
         providers = [
             ApplicationsProvider(self.config, self.db, self, self.app_service),
             FilesProvider(self.config, self.db, self, self.file_service),
+            FileContentProvider(self.config, self.db, self),
             CalculatorProvider(self.config, self.db, self, self.calculator_service),
             UnitProvider(self.config, self.db, self, self.calculator_service),
             WebProvider(self.config, self.db, self, self.web_service),
@@ -125,11 +137,16 @@ class SeekRApplication(QObject, UIHooks):
             TranslateProvider(self.config, self.db, self, self.web_service),
             DefineProvider(self.config, self.db, self),
             CommandsProvider(self.config, self.db, self, self.command_service),
+            CommandChainProvider(self.config, self.db, self, self.command_service),
+            CommandCenterProvider(self.config, self.db, self),
             ClipboardProvider(self.config, self.db, self, self.clipboard_service),
             NotesProvider(self.config, self.db, self, self.notes_service),
             SystemInfoProvider(self.config, self.db, self),
             DateTimeProvider(self.config, self.db, self),
             WindowProvider(self.config, self.db, self),
+            WindowManagerProvider(self.config, self.db, self),
+            UpdateProvider(self.config, self.db, self, self.update_service),
+            TaskProvider(self.config, self.db, self, self.task_service),
             EmojiProvider(self.config, self.db, self),
             ColorProvider(self.config, self.db, self),
             ScreenshotProvider(self.config, self.db, self),
@@ -137,6 +154,8 @@ class SeekRApplication(QObject, UIHooks):
             BookmarksProvider(self.config, self.db, self),
             SSHProvider(self.config, self.db, self, self.quick_connect_service),
             QuickActionsProvider(self.config, self.db, self, self.quick_action_service),
+            WorkflowProvider(self.config, self.db, self, self.workflow_service),
+            SnippetProvider(self.config, self.db, self, self.snippet_service),
         ]
         for provider in providers:
             self.engine.register(provider)
@@ -168,6 +187,12 @@ class SeekRApplication(QObject, UIHooks):
         self._prune_data()
         self.config.subscribe(self._on_config_changed)
         self.app.aboutToQuit.connect(self.shutdown)
+        if self.config.get("updates.check_automatically", False) and self.update_service.check_due():
+            run_async(
+                self.update_service.check_latest,
+                on_finished=self._on_update_check_finished,
+                on_failed=self._on_update_check_failed,
+            )
         # Prime the cached GPU probe so the first sys: lookup has data without
         # ever running PowerShell/WMI on the GUI thread.
         system_info.warm_up()
@@ -177,6 +202,16 @@ class SeekRApplication(QObject, UIHooks):
             self.launcher.show_launcher()
         QTimer.singleShot(300, self._auto_index)
         log.info("SeekR %s started", APP_VERSION)
+
+    def _on_update_check_finished(self, info: dict) -> None:
+        if info.get("update_available"):
+            self.notify(
+                f"SeekR {info.get('latest_version')} is available. Search update: to view the official release.",
+                "info",
+            )
+
+    def _on_update_check_failed(self, message: str, _traceback_text: str) -> None:
+        log.info("Automatic update check did not complete: %s", message)
 
     def _setup_hotkey(self) -> None:
         if self.hotkey is None:
@@ -354,7 +389,7 @@ class SeekRApplication(QObject, UIHooks):
     def _on_config_changed(self, path: str, _value: Any) -> None:
         if path == "*" or path.startswith("general.language"):
             i18n.set_language(self.config)
-        if path == "*" and self.launcher is not None:
+        if (path == "*" or path.startswith("widgets.") or path.startswith("appearance.theme")) and self.launcher is not None:
             self.launcher.launcher_widgets.refresh_settings(animate=False)
         if path == "*" or path.startswith("appearance.") or path.startswith("general.language"):
             apply_theme(self.app, self.config)
@@ -417,6 +452,20 @@ class SeekRApplication(QObject, UIHooks):
             return False
         clipboard.setText(text or "")
         return True
+
+    def verify_update_asset(self, asset: dict) -> bool:
+        name = str(asset.get("name", "SeekR update") if isinstance(asset, dict) else "SeekR update")
+        path, _ = QFileDialog.getOpenFileName(
+            self._dialog_parent(),
+            f"Verify downloaded {name}",
+            "",
+            "All files (*)",
+        )
+        if not path:
+            return False
+        valid, message = self.update_service.verify_asset_file(asset, path)
+        self.notify(message, "info" if valid else "warning")
+        return valid
 
     def show_info(self, title: str, text: str) -> None:
         if len(text) > 700:

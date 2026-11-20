@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -43,6 +44,46 @@ class CommandEntry:
         if self.builtin:
             return self.destructive
         return bool(self.raw.get("confirm", 1))
+
+
+
+def split_command_chain(expression: str) -> list[str]:
+    """Split on the word 'then' only outside quoted command arguments."""
+    parts: list[str] = []
+    start = 0
+    quote: str | None = None
+    escaped = False
+    index = 0
+    while index < len(expression):
+        char = expression[index]
+        if escaped:
+            escaped = False
+            index += 1
+            continue
+        if (quote == '"' and char == "\\" and index + 1 < len(expression)
+                and expression[index + 1] in {'"', "\\"}):
+            escaped = True
+            index += 1
+            continue
+        if quote:
+            if char == quote:
+                quote = None
+            index += 1
+            continue
+        if char in {"'", '"'}:
+            quote = char
+            index += 1
+            continue
+        if char.isspace():
+            match = re.match(r"\s+then\s+", expression[index:], flags=re.IGNORECASE)
+            if match:
+                parts.append(expression[start:index].strip())
+                index += match.end()
+                start = index
+                continue
+        index += 1
+    parts.append(expression[start:].strip())
+    return parts
 
 
 class CommandService:
@@ -134,22 +175,82 @@ class CommandService:
 
     # --------------------------------------------------------------- execution
     def run(self, entry: CommandEntry, args_text: str = "") -> CommandOutcome:
+        return self.run_arguments(entry, util.split_args(args_text))
+
+    def run_arguments(self, entry: CommandEntry, arguments: list[str]) -> CommandOutcome:
+        """Run an existing command with already-tokenized arguments, without a shell."""
+        if len(arguments) > 64 or not all(
+            isinstance(arg, str) and len(arg) <= 2048 for arg in arguments
+        ):
+            return CommandOutcome(False, "Command arguments must be strings of at most 2048 characters (64 maximum)")
         if entry.builtin:
             handler = self._handlers.get(entry.key)
             if handler is None:
                 return CommandOutcome(False, f"Unknown command: {entry.title}")
             try:
-                outcome = handler(util.split_args(args_text))
+                outcome = handler(list(arguments))
             except Exception as exc:
                 log.exception("Built-in command %s failed", entry.key)
                 return CommandOutcome(False, f"{entry.title} failed: {exc}")
         else:
-            outcome = self._run_custom(entry, args_text)
+            outcome = self._run_custom_arguments(entry, arguments)
         if outcome.success:
             self.db.add_history("command", entry.title)
         return outcome
 
+    def preview_chain(self, expression: str):
+        """Resolve a command chain without running anything and return a readable plan."""
+        segments = split_command_chain(expression)
+        if not segments or len(segments) > 10 or any(not part for part in segments):
+            return False, "A command chain needs 1–10 non-empty steps separated by 'then'", []
+        entries = self.entries()
+        resolved = []
+        lines = []
+        for index, segment in enumerate(segments, 1):
+            lowered = segment.casefold()
+            matches = []
+            for candidate in entries:
+                for name in [candidate.key, candidate.title, *candidate.aliases]:
+                    normalized = str(name).strip().casefold()
+                    if normalized and (lowered == normalized or lowered.startswith(normalized + " ")):
+                        matches.append((len(normalized), candidate, normalized))
+            if not matches:
+                return False, f"Step {index}: unknown command '{segment.split()[0]}'", []
+            _length, entry, matched_name = max(matches, key=lambda item: item[0])
+            args_text = segment[len(matched_name):].strip()
+            marker = " (confirmation required)" if self.needs_confirmation(entry) else ""
+            lines.append(f"{index}. {entry.title} {args_text}{marker}".rstrip())
+            resolved.append((entry, args_text))
+        return True, "", (lines, resolved)
+
+    def run_chain(self, expression: str) -> CommandOutcome:
+        """Run a bounded chain of named commands; no shell syntax is interpreted."""
+        ok, message, plan = self.preview_chain(expression)
+        if not ok:
+            return CommandOutcome(False, message)
+        _lines, resolved = plan
+        completed: list[str] = []
+        for index, (entry, args_text) in enumerate(resolved, 1):
+            if self.needs_confirmation(entry):
+                if not self.hooks.confirm(
+                    f"Confirm chain step: {entry.title}",
+                    f"Run this step?\n\n{entry.description}\n\n"
+                    f"Step {index} of {len(resolved)}. The chain stops if a step fails.",
+                ):
+                    return CommandOutcome(False, f"Chain cancelled at step {index}")
+            outcome = self.run(entry, args_text)
+            if not outcome.success:
+                return CommandOutcome(False, f"Step {index} ({entry.title}) failed: {outcome.message}",
+                                      "\n".join(completed))
+            completed.append(outcome.message or entry.title)
+        return CommandOutcome(True, f"Completed {len(completed)} command-chain steps",
+                              "\n".join(completed))
+
+
     def _run_custom(self, entry: CommandEntry, args_text: str) -> CommandOutcome:
+        return self._run_custom_arguments(entry, util.split_args(args_text))
+
+    def _run_custom_arguments(self, entry: CommandEntry, extra: list[str]) -> CommandOutcome:
         command = str(entry.raw.get("command", "")).strip()
         if not command:
             return CommandOutcome(False, "The command has no executable")
@@ -158,7 +259,6 @@ class CommandService:
             return CommandOutcome(False, f"Executable not found: {command}")
         template = str(entry.raw.get("args", "") or "")
         arguments = util.split_args(template)
-        extra = util.split_args(args_text)
         if "{args}" in arguments:
             index = arguments.index("{args}")
             arguments = arguments[:index] + extra + arguments[index + 1 :]
@@ -432,4 +532,62 @@ class CommandsProvider(SearchProvider):
         )
 
 
-__all__ = ["CommandService", "CommandEntry", "CommandOutcome", "CommandsProvider"]
+
+class CommandChainProvider(SearchProvider):
+    """Explicit chain: keyword for safe sequences of existing named commands."""
+
+    id = "command_chains"
+    title = "Command chains"
+    keyword = "chain"
+    weight = 1.0
+    auto = False
+
+    def __init__(self, config, db, hooks, service: CommandService | None = None):
+        super().__init__(config, db, hooks)
+        self.service = service or CommandService(config, db, hooks)
+
+    def search(self, query: str, limit: int) -> list[SearchResult]:
+        expression = (query or "").strip()
+        if not expression:
+            return [self.make_result(
+                title="Command chains",
+                subtitle="Use: chain: taskmgr then explorer",
+                category="Command chain",
+                score=1.0,
+                primary=lambda: self.hooks.fill_query("chain: "),
+                icon_glyph="⇢",
+            )]
+        step_count = len(split_command_chain(expression))
+        return [self.make_result(
+            title=f"Run {step_count} command steps",
+            subtitle=expression,
+            category="Command chain",
+            score=1.0,
+            primary=lambda: self._run(expression),
+            icon_glyph="⇢",
+        )]
+
+    def _run(self, expression: str) -> None:
+        valid, message, plan = self.service.preview_chain(expression)
+        if not valid:
+            self.hooks.show_error("Command chain", message)
+            return
+        lines, resolved = plan
+        if any(self.service.needs_confirmation(entry) for entry, _args in resolved):
+            if not self.hooks.confirm(
+                "Review command chain",
+                "The following actions will run in order:\n\n" + "\n".join(lines),
+            ):
+                return
+        outcome = self.service.run_chain(expression)
+        if outcome.success:
+            self.hooks.notify(outcome.message)
+            self.hooks.hide_launcher()
+        else:
+            detail = outcome.message
+            if outcome.output:
+                detail += "\n\nCompleted before failure:\n" + outcome.output
+            self.hooks.show_error("Command chain", detail)
+
+
+__all__ = ["CommandService", "CommandEntry", "CommandOutcome", "CommandsProvider", "CommandChainProvider", "split_command_chain"]

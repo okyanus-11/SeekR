@@ -146,7 +146,12 @@ class SearchEngine(QObject):
         return mapping
 
     def resolve(self, text: str) -> tuple[SearchProvider, str] | None:
-        """Split ``"calc: 2+2"`` into its provider and remaining query."""
+        """Split keyword queries and the leading-> command-center mode."""
+        cleaned = (text or "").lstrip()
+        if cleaned.startswith(">"):
+            provider = self._providers.get("command_center")
+            if provider is not None:
+                return provider, cleaned[1:].strip()
         match = _KEYWORD_RE.match(text)
         if not match:
             return None
@@ -235,6 +240,20 @@ class SearchEngine(QObject):
                     primary=lambda k=keyword: self.hooks.fill_query(f"{k}: "),
                     copy_text=f"{keyword}:",
                     icon_glyph="⌨",
+                )
+            )
+        center = self._providers.get("command_center")
+        if center is not None and center.is_enabled():
+            results.append(
+                SearchResult(
+                    title=">  Command Center",
+                    subtitle="Search settings, system tools, workflows, tasks, snippets and widgets",
+                    category="Command Center",
+                    provider=center.id,
+                    score=1.0,
+                    primary=lambda: self.hooks.fill_query("> "),
+                    copy_text=">",
+                    icon_glyph="⌘",
                 )
             )
         return results

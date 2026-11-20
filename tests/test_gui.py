@@ -21,6 +21,7 @@ from core.config_manager import ConfigManager
 from core.database import Database
 from core.models import ResultAction, SearchResult
 from core.search_engine import SearchProvider
+from ui.themes import palette_for
 
 
 class DummyProvider(SearchProvider):
@@ -258,6 +259,118 @@ def test_icon_store_evicts_least_recently_used_paths(qapp, tmp_path):
     assert provider.calls[paths[1].name] == 2
 
 
+
+def test_launcher_widgets_survive_settings_and_theme_refresh(qapp, controller):
+    launcher = controller.launcher
+    widgets = launcher.launcher_widgets
+    launcher.show_launcher()
+    qapp.processEvents()
+
+    original_theme = controller.config.get("appearance.theme", "dark")
+    try:
+        for cycle in range(3):
+            for key in ("clock", "weather", "system", "meme", "tasks", "media"):
+                controller.config.set(f"widgets.{key}_enabled", False)
+            widgets.refresh_settings()
+            qapp.processEvents()
+            assert not widgets.left_column.isVisible()
+            assert not widgets.right_column.isVisible()
+
+            for key in ("clock", "weather", "system", "meme", "tasks", "media"):
+                controller.config.set(f"widgets.{key}_enabled", True)
+            widgets.refresh_settings()
+            qapp.processEvents()
+            assert widgets.left_column.isVisible()
+            assert widgets.right_column.isVisible()
+            assert all(card.isVisible() for card in widgets._cards.values())
+            assert all(card.parentWidget() in (widgets.left_column, widgets.right_column)
+                       for card in widgets._cards.values())
+
+            launcher.resize(980 + cycle * 80, 560 + cycle * 40)
+            qapp.processEvents()
+            launcher.hide_launcher()
+            qapp.processEvents()
+            launcher.show_launcher()
+            qapp.processEvents()
+            launcher.set_query(f"calc: {cycle + 2}*3")
+            wait_for_search(qapp, launcher)
+            assert all(card.isVisible() for card in widgets._cards.values())
+
+            theme = "light" if cycle % 2 == 0 else "dark"
+            controller.config.set("appearance.theme", theme)
+            widgets.refresh_settings()
+            qapp.processEvents()
+            expected = palette_for(theme)["surface"]
+            assert expected in widgets.clock.styleSheet()
+            assert all(card.isVisible() for card in widgets._cards.values())
+    finally:
+        controller.config.set("appearance.theme", original_theme)
+        widgets.refresh_settings()
+        for key in ("clock", "weather", "system", "meme", "tasks"):
+            controller.config.set(f"widgets.{key}_enabled", True)
+        widgets.refresh_settings()
+
+
+
+def test_widget_polling_pauses_when_launcher_is_hidden(qapp, controller):
+    launcher = controller.launcher
+    widgets = launcher.launcher_widgets
+    launcher.show_launcher()
+    qapp.processEvents()
+    assert widgets._active
+    assert widgets.clock.timer.isActive()
+    assert widgets.system.timer.isActive()
+    assert widgets.tasks.timer.isActive()
+
+    launcher.hide_launcher()
+    qapp.processEvents()
+    assert not widgets._active
+    assert not widgets.clock.timer.isActive()
+    assert not widgets.system.timer.isActive()
+    assert not widgets.weather.timer.isActive()
+    assert not widgets.meme.day_timer.isActive()
+    assert not widgets.tasks.timer.isActive()
+
+    launcher.show_launcher()
+    qapp.processEvents()
+    assert widgets._active
+    assert widgets.clock.timer.isActive()
+    assert widgets.system.timer.isActive()
+
+
+def test_widget_refresh_intervals_are_configurable_and_bounded(qapp, controller):
+    widgets = controller.launcher.launcher_widgets
+    # Keep this test hermetic: interval changes must not trigger live network calls.
+    controller.config.set("widgets.clock_refresh_ms", 1500)
+    controller.config.set("widgets.system_refresh_ms", 5000)
+    controller.config.set("widgets.weather_refresh_minutes", 45)
+    controller.config.set("widgets.meme_refresh_minutes", 120)
+    controller.config.set("widgets.tasks_refresh_minutes", 10)
+    widgets.weather.refresh = lambda: None
+    widgets.meme._load_daily = lambda: None
+    widgets.set_active(True)
+    widgets.refresh_settings()
+    qapp.processEvents()
+
+    assert widgets.clock.timer.interval() == 1500
+    assert widgets.system.timer.interval() == 5000
+    assert widgets.weather.timer.interval() == 45 * 60 * 1000
+    assert widgets.meme.day_timer.interval() == 120 * 60 * 1000
+    assert widgets.tasks.timer.interval() == 10 * 60 * 1000
+
+    controller.config.set("widgets.clock_refresh_ms", 1)
+    controller.config.set("widgets.system_refresh_ms", 999999)
+    controller.config.set("widgets.weather_refresh_minutes", 1)
+    controller.config.set("widgets.meme_refresh_minutes", 9999)
+    controller.config.set("widgets.tasks_refresh_minutes", 9999)
+    assert controller.config.get("widgets.clock_refresh_ms") == 250
+    assert controller.config.get("widgets.system_refresh_ms") == 30000
+    assert controller.config.get("widgets.weather_refresh_minutes") == 5
+    assert controller.config.get("widgets.meme_refresh_minutes") == 360
+    assert controller.config.get("widgets.tasks_refresh_minutes") == 60
+    widgets.set_active(False)
+
+
 def test_launcher_execution_copies_and_hides(qapp, controller):
     launcher = controller.launcher
     launcher.show_launcher()
@@ -318,7 +431,7 @@ def test_settings_window_pages(qapp, controller):
     qapp.processEvents()
     window = controller._settings_window
     assert window is not None
-    assert len(window.pages) == 14
+    assert len(window.pages) == len(window.PAGES)
     for key in ("general", "appearance", "search", "applications", "files", "web", "calculator", "commands", "clipboard", "privacy", "advanced", "widgets", "plugins", "about"):
         assert key in window.pages
 
@@ -353,7 +466,7 @@ def test_tools_window_pages(qapp, controller):
     qapp.processEvents()
     window = controller._tools_window
     assert window is not None
-    assert len(window.pages) == 14
+    assert len(window.pages) == len(window.PAGES)
     window.open_page("notes")
     assert window.stack.currentWidget() is window.pages["notes"]
     window.open_page("developer")
@@ -643,6 +756,7 @@ def test_launcher_shows_all_enabled_widget_cards_in_visible_rails(qapp, controll
     controller.config.set("widgets.system_enabled", True)
     controller.config.set("widgets.weather_enabled", True)
     controller.config.set("widgets.meme_enabled", True)
+    controller.config.set("widgets.media_enabled", True)
     widgets.refresh_settings()
     launcher.show_launcher()
     qapp.processEvents()
@@ -682,3 +796,230 @@ def test_disabled_daily_meme_does_not_restart_retry_timer(qapp):
     assert not widget.retry_timer.isActive()
     widget.deleteLater()
     qapp.processEvents()
+
+def test_20_new_search_providers_are_registered(controller, tmp_path):
+    for query, expected in (
+        ("flow: ", "workflows"),
+        ("snip: ", "snippets"),
+        ("content: ", "file_content"),
+        ("chain: ", "command_chains"),
+        ("wm: ", "window_manager"),
+        ("> system", "command_center"),
+        ("update: ", "updates"),
+        ("task: ", "tasks"),
+    ):
+        resolved = controller.engine.resolve(query)
+        assert resolved is not None
+        assert resolved[0].id == expected
+
+
+def test_workflow_and_snippet_tools_pages_are_constructible(qapp, controller, tmp_path):
+    from ui.tools_window import ToolsWindow
+
+    window = ToolsWindow(controller)
+    assert "workflows" in window.pages
+    assert "snippets" in window.pages
+    assert "tasks" in window.pages
+    assert "database" in window.pages
+    assert "diagnostics" in window.pages
+
+    folder = tmp_path / "workspace"
+    folder.mkdir()
+    ok, message = controller.workflow_service.save({
+        "title": "Open workspace",
+        "description": "Test workflow",
+        "steps": [{"type": "open_folder", "path": str(folder)}],
+    })
+    assert ok, message
+    ok, message = controller.snippet_service.save({
+        "title": "Greeting", "category": "General", "shortcut": "hi", "content": "Hello",
+    })
+    assert ok, message
+
+    workflow_tab = window.pages["workflows"]
+    snippet_tab = window.pages["snippets"]
+    tasks_tab = window.pages["tasks"]
+    database_tab = window.pages["database"]
+    workflow_tab.reload()
+    snippet_tab.reload()
+    tasks_tab.reload()
+    assert hasattr(database_tab, "_backup") and hasattr(database_tab, "_restore")
+    assert workflow_tab.table.rowCount() >= 1
+    assert snippet_tab.table.rowCount() >= 1
+    window.close()
+
+
+def test_system_widget_includes_storage_battery_and_network(qapp, controller):
+    system = controller.launcher.launcher_widgets.system
+    system.refresh()
+    assert system.disk_label.text().startswith("Storage")
+    assert system.battery_label.text().startswith("Battery")
+    assert system.network_label.text().startswith("Network")
+    assert system.disk_bar.value() >= 0
+
+def test_clock_widget_focus_timer_starts_pauses_and_resets(controller):
+    clock = controller.launcher.launcher_widgets.clock
+    original = controller.config.get("widgets.focus_duration_minutes", 25)
+    try:
+        controller.config.set("widgets.focus_duration_minutes", 5)
+        clock._reset_focus()
+        assert clock.focus_remaining == 300
+        clock._toggle_focus()
+        assert clock.focus_deadline is not None
+        clock._toggle_focus()
+        assert clock.focus_deadline is None
+        assert 0 <= clock.focus_remaining <= 300
+        clock._reset_focus()
+        assert clock.focus_remaining == 300
+    finally:
+        controller.config.set("widgets.focus_duration_minutes", original)
+        clock._reset_focus()
+
+
+def test_database_tools_page_backup_and_restore(qapp, controller, tmp_path, monkeypatch):
+    from ui.tools import data as data_tools
+
+    page = data_tools.DatabaseTab(controller, None)
+    original_id = controller.notes_service.create("Backup note", "restored content")
+    backup_path = tmp_path / "SeekR-backup.db"
+    monkeypatch.setattr(
+        data_tools.QFileDialog, "getSaveFileName",
+        lambda *_args, **_kwargs: (str(backup_path), "SQLite database (*.db)"),
+    )
+    page._backup()
+    assert backup_path.is_file()
+    assert "Verified backup" in page.status.text()
+
+    controller.notes_service.create("Later note", "must be removed by restore")
+    monkeypatch.setattr(
+        data_tools.QFileDialog, "getOpenFileName",
+        lambda *_args, **_kwargs: (str(backup_path), "SQLite database (*.db)"),
+    )
+    monkeypatch.setattr(data_tools.dialogs, "ask_confirm", lambda *_args, **_kwargs: True)
+    page._restore()
+    assert controller.notes_service.get(original_id)["body"] == "restored content"
+    assert controller.notes_service.list("Later note") == []
+    assert "Database restored" in page.status.text()
+
+
+def test_widget_size_settings_apply_without_reparenting(qapp, controller):
+    widgets = controller.launcher.launcher_widgets
+    parents = {name: card.parentWidget() for name, card in widgets._cards.items()}
+    controller.config.set("widgets.rail_width", 232)
+    controller.config.set("widgets.card_height", 176)
+    widgets.refresh_settings()
+    assert widgets.left_column.width() == 232
+    assert widgets.right_column.width() == 232
+    for name, card in widgets._cards.items():
+        assert card.minimumHeight() == 176
+        assert card.parentWidget() is parents[name]
+    controller.config.set("widgets.rail_width", 196)
+    controller.config.set("widgets.card_height", 140)
+    widgets.refresh_settings()
+
+
+def test_widget_order_settings_reorder_without_reparenting(qapp, controller):
+    widgets = controller.launcher.launcher_widgets
+    parents = {name: card.parentWidget() for name, card in widgets._cards.items()}
+    controller.config.set("widgets.left_order", ["tasks", "clock", "system"])
+    controller.config.set("widgets.right_order", ["meme", "weather"])
+    widgets.refresh_settings()
+    left = [widgets._left_layout.itemAt(i).widget() for i in range(widgets._left_layout.count())]
+    right = [widgets._right_layout.itemAt(i).widget() for i in range(widgets._right_layout.count())]
+    assert left[:3] == [widgets.tasks, widgets.clock, widgets.system]
+    assert right[:2] == [widgets.meme, widgets.weather]
+    for name, card in widgets._cards.items():
+        assert card.parentWidget() is parents[name]
+    controller.config.set("widgets.left_order", ["clock", "system", "tasks"])
+    controller.config.set("widgets.right_order", ["weather", "meme"])
+    widgets.refresh_settings()
+
+ 
+def test_weather_keeps_last_good_data_when_refresh_fails(qapp, controller):
+    from PySide6.QtCore import QThreadPool
+    from ui.launcher_widgets import WeatherWidget
+
+    controller.config.set("widgets.weather_location", "Izmir")
+    widget = WeatherWidget(controller.config, QThreadPool())
+    widget._last_location = "Izmir"
+    widget.set_weather("weather", {
+        "place_name": "Izmir, Türkiye",
+        "current": {
+            "weather_code": 0,
+            "temperature_2m": 22,
+            "apparent_temperature": 21,
+            "relative_humidity_2m": 45,
+        },
+    })
+    previous_value = widget.value.text()
+    widget.set_error("weather", "network unavailable")
+    assert widget.value.text() == previous_value
+    assert "last successful update" in widget.details.text().lower()
+    widget.timer.stop()
+    widget.deleteLater()
+
+ 
+def test_meme_keeps_last_good_item_when_refresh_fails(qapp, monkeypatch, tmp_path):
+    from PySide6.QtCore import QThreadPool
+    from ui.launcher_widgets import MemeWidget
+
+    cache = tmp_path / "daily_meme.json"
+    monkeypatch.setattr(MemeWidget, "_get_cache_path", staticmethod(lambda: cache))
+    widget = MemeWidget(QThreadPool())
+    widget.set_meme("meme", {
+        "title": "Cached good meme",
+        "subreddit": "wholesomememes",
+        "postLink": "https://reddit.com/r/test/comments/123/",
+    })
+    widget.set_error("meme", "network unavailable")
+    assert widget.title.text() == "Cached good meme"
+    assert "cached offline copy" in widget.subreddit.text().lower()
+    widget.retry_timer.stop()
+    widget.day_timer.stop()
+    widget.deleteLater()
+
+ 
+def test_weather_cache_restores_last_good_data_across_instances(qapp, monkeypatch, controller, tmp_path):
+    from PySide6.QtCore import QThreadPool
+    from ui.launcher_widgets import WeatherWidget
+
+    cache = tmp_path / "weather_cache.json"
+    monkeypatch.setattr(WeatherWidget, "_get_cache_path", staticmethod(lambda: cache))
+    controller.config.set("widgets.weather_location", "Izmir")
+    first = WeatherWidget(controller.config, QThreadPool())
+    first._last_location = "Izmir"
+    first.set_weather("weather", {
+        "place_name": "Izmir, Türkiye",
+        "current": {
+            "weather_code": 0,
+            "temperature_2m": 22,
+            "apparent_temperature": 21,
+            "relative_humidity_2m": 45,
+        },
+    })
+    first_value = first.value.text()
+    second = WeatherWidget(controller.config, QThreadPool())
+    assert second.value.text() == first_value
+    assert "Izmir" in second.details.text()
+    first.timer.stop()
+    second.timer.stop()
+    first.deleteLater()
+    second.deleteLater()
+
+ 
+def test_widget_json_rejects_non_object_provider_response(monkeypatch):
+    import urllib.request
+    from ui.launcher_widgets import _FetchTask
+
+    class Response:
+        def __enter__(self):
+            return self
+        def __exit__(self, *_args):
+            return False
+        def read(self, _limit):
+            return b"[]"
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *_args, **_kwargs: Response())
+    import pytest
+    with pytest.raises(ValueError, match="invalid response"):
+        _FetchTask._get_json("https://example.test/widget")

@@ -128,10 +128,11 @@ earlier SeekR build is available and record it as N/A.
 | ID | Test | Steps | Expected | Result | Notes |
 |---|---|---|---|---|---|
 | B01 | Clipboard capture | Enable clipboard history, copy several text snippets in another app, open SeekR and search for them. | Copied entries appear and can be pasted/reused. | | |
-| B02 | Clipboard controls | Pin, delete and clear entries. | Each action works and survives a restart. | | |
-| B03 | Notes autosave | Create a note, type text, wait for autosave, close SeekR. | Note is saved. | | |
-| B04 | Notes persistence | Restart SeekR and open Tools → Quick notes. | Note and its text are still present. | | |
-| B05 | Notes search | Search for note text from the launcher. | Matching notes appear. | | |
+| B02 | Clipboard controls | Pin, delete, clear unpinned, pause monitoring, then clear all including pinned entries. | Each action works; paused monitoring captures nothing; clear-all removes text and image entries. | | |
+| B03 | Clipboard privacy | Confirm capture is off by default; opt in, copy multiline text, HTML-formatted text, and representative test strings matching common credential formats. | No capture occurs before opt-in; multiline text remains readable; rich formatting is reduced to plain text; common credential-shaped samples are skipped. This filter is best-effort, not a security guarantee. | | |
+| B04 | Notes autosave | Create a note, type text, wait for autosave, close SeekR. | Note is saved. | | |
+| B05 | Notes persistence | Restart SeekR and open Tools → Quick notes. | Note and its text are still present. | | |
+| B06 | Notes search | Search for note text from the launcher. | Matching notes appear. | | |
 
 ### Settings, themes and tools
 
@@ -148,7 +149,9 @@ earlier SeekR build is available and record it as N/A.
 | S09 | Theme: Dracula | Select Dracula. | Theme applies consistently. | | |
 | S10 | Theme: Nord | Select Nord. | Theme applies consistently. | | |
 | S11 | Accent and transparency | Change accent, transparency, font family/size, width and animation toggle. | Changes apply live, remain readable, and persist after restart. | | |
-| S12 | Tools pages | Open Tools and visit all 14 pages: Calculator, Developer tools, Date & time, Color, Dictionary, Screenshots, System, Processes, Power, Clipboard, Quick notes, Bookmarks, Quick Connect, Quick actions. | Every page opens and its visible controls respond; unavailable data says so instead of inventing values. | | |
+| U01 | Update metadata and checksums | Enable update checks, run an update check against a published release, inspect available asset actions, download the asset explicitly, and choose Verify downloaded asset… to validate the local file. Do not run the downloaded file during this check. | Only official SeekR release assets are offered; the app confirms only when both expected size and SHA-256 match; mismatches are rejected; downloads are user-initiated and no silent install occurs. | | |
+| S12 | Tools pages | Open Tools and visit all 19 pages: Calculator, Developer tools, Date & time, Color, Dictionary, Screenshots, System, Processes, Power, Clipboard, Quick notes, Bookmarks, Quick Connect, Quick actions, Workflows, Text snippets, Tasks, Database & backups, Diagnostics. | Every page opens and its visible controls respond; unavailable data says so instead of inventing values. | | |
+| D01 | Database backup and restore | Tools → Database & backups: create a backup, add a test note, restore the backup, then verify the note state. Repeat with a non-SeekR SQLite file and a corrupted file. | Backup is created and integrity-checked; restore returns the database to the backed-up state; invalid backups are rejected without losing current data. | | |
 | S13 | Developer tools | Exercise a few utilities: UUID, Base64 encode/decode, JSON format/validate, hash, regex, timestamp, case/count/hex. | Results are correct; invalid input produces a clear error. | | |
 | S14 | System information | Open Tools → System. | CPU, memory, disks, OS and other available values populate without freezing the UI; GPU shows driver utilisation where GPU Engine counters or vendor telemetry are available, or an honest unavailable state. | | |
 | S15 | Processes | Search processes and open details. Try terminating a harmless test process and a protected system process. | Harmless process can be terminated after confirmation; critical/system process is refused with an explanation. | | |
@@ -179,6 +182,26 @@ earlier SeekR build is available and record it as N/A.
 | T09 | Clean close | Close SeekR from its tray/menu path. | No error dialog, no lingering process, log ends cleanly. | | |
 | T10 | Restart persistence | Restart SeekR. | Settings, notes, clipboard history, hotkey, theme and window preferences are preserved; no duplicate data or loss. | | |
 | T11 | Second launch after restart | Launch the executable again while running. | Existing instance is activated; still only one process. | | |
+
+### SeekR 2.0.0 feature checks
+
+These checks cover the features added for 2.0.0. Use a disposable profile and harmless test data for backup/restore and workflow tests.
+
+| ID | Test | Steps | Expected | Result | Notes |
+|---|---|---|---|---|---|
+| V01 | Widget persistence | Enable/disable each widget, change rail width/card height, reorder both rails, hide/show SeekR and restart. | Enabled states, dimensions and order persist; widgets do not vanish after search refreshes, theme changes or repeated activation. | | |
+| V02 | Widget refresh/offline | Set short valid refresh intervals, disconnect networking, then reconnect. | Local widgets continue; network widgets retain and label last-good data, show errors independently, and recover after connectivity returns. | | |
+| V03 | Media widget | On supported Windows 10/11, play media in a Windows media-session-compatible app and test metadata, play/pause, previous and next. Repeat with no active session. | Metadata and controls match the active session; no-session/unsupported states are clear and the opt-in card remains stable. | | |
+| V04 | Command Center | Enter `>`, search settings/tools/tasks/widgets and open several results using keyboard only. | Searchable commands work, focus remains visible, and unavailable targets report a useful message. | | |
+| V05 | Command chains | Run a harmless two-step chain, cancel a destructive-step confirmation, and test a harmless chain where a later step is mocked/unavailable. | Full plan is shown first; confirmation preferences are respected; cancellation prevents the step; execution stops on failure and reports completed steps. | | |
+| V06 | Workflows | Create a multi-step workflow with open-folder/copy actions, preview, run, cancel, export, import, and try malformed JSON. | Valid steps run in order; cancellation stops remaining steps; malformed/unsupported imports are rejected without partial database changes. | | |
+| V07 | Snippets | Create, categorize, search, copy, export and restore snippets; test multiline and Unicode content. | Content remains local; copying requires explicit action; backup validation rejects malformed data. | | |
+| V08 | Tasks | Add tasks with and without due dates, complete/reopen them, search, and inspect the launcher summary. | Due/overdue and completion states remain consistent after restart; summary updates on its configured interval. | | |
+| V09 | Database backup/restore | Create a backup, change a disposable task, restore the backup, then attempt to restore an invalid SQLite file. | Valid restore returns the prior state; invalid restore is rejected and the pre-restore database remains intact. | | |
+| V10 | Diagnostics export | Export a default report, then export with logs enabled; inspect both files before sharing. | Default excludes logs and private content; log export warns about best-effort redaction; no report is uploaded. | | |
+| V11 | File content search | Configure a disposable folder and allowlisted text extension, enable content search, search a unique test phrase, then disable it. | Only configured roots/extensions are searched within documented size/candidate limits; disabling prevents content reads. | | |
+| V12 | Update verification | Inspect official release metadata, verify a matching local asset, then try a modified file and an unrelated URL. | Only official assets are offered; exact size and SHA-256 must match; mismatches and non-official URLs are rejected; nothing installs automatically. | | |
+| V13 | Reduced motion and scaling | Disable animations, change UI font size, and repeat launcher/widget/settings navigation at available DPI scales. | Motion is reduced consistently and text/layout remains usable without clipping. | | |
 
 ### Error reporting
 

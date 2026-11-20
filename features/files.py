@@ -73,11 +73,12 @@ class FileIndexer:
         self,
         progress: Callable[[int, str], None] | None = None,
         token: CancelToken | None = None,
-        clear: bool = True,
+        clear: bool = False,
     ) -> dict:
-        """Index every configured directory. Safe to run on a worker thread."""
+        """Incrementally update file metadata and prune stale paths after a complete scan."""
         if not self.config.get("files.enabled", True):
-            return {"indexed": 0, "directories": 0, "cancelled": False, "seconds": 0.0}
+            return {"indexed": 0, "scanned": 0, "unchanged": 0, "directories": 0,
+                    "cancelled": False, "seconds": 0.0}
 
         directories = [d for d in self.config.get("files.directories", []) if d]
         include_hidden = bool(self.config.get("files.include_hidden", False))
@@ -88,27 +89,38 @@ class FileIndexer:
         excluded_extensions = self._excluded_extensions()
 
         started = time.perf_counter()
-        if clear:
-            self.db.clear_files()
         self.db.set_meta("files_index_started", started)
+        existing = {}
+        if not clear:
+            for row in self.db.file_index_snapshot(max_files + 1, directories):
+                existing[row["path"]] = (
+                    int(row.get("size", 0) or 0),
+                    float(row.get("mtime", 0) or 0),
+                    str(row.get("ext", "") or "").lower(),
+                    bool(row.get("is_dir")),
+                )
 
         inserted = 0
+        scanned = 0
+        unchanged = 0
         batch: list[dict] = []
+        seen_paths: set[str] = set()
         cancelled = False
+        scan_complete = True
         limit_reached = False
         visited_dirs = 0
 
         def flush() -> None:
             nonlocal inserted
             if batch:
-                self.db.upsert_files(batch)
-                inserted += len(batch)
+                inserted += self.db.upsert_files(batch, indexed_at=started)
                 batch.clear()
 
         for root_index, root in enumerate(directories):
-            root_path = Path(root)
+            root_path = Path(root).expanduser()
             if not root_path.is_dir():
                 log.info("Skipping missing index directory %s", root)
+                scan_complete = False
                 continue
             stack: list[tuple[str, int]] = [(str(root_path), 0)]
             while stack:
@@ -119,10 +131,11 @@ class FileIndexer:
                 visited_dirs += 1
                 if progress and visited_dirs % 25 == 0:
                     percent = int((root_index / max(1, len(directories))) * 100)
-                    progress(min(99, percent), f"Indexing {util.truncate_middle(directory, 70)}  ({inserted} items)")
+                    progress(min(99, percent), f"Scanning {util.truncate_middle(directory, 70)}  ({scanned} items)")
                 try:
                     iterator = os.scandir(directory)
                 except OSError:
+                    scan_complete = False
                     continue
                 with iterator:
                     for entry in iterator:
@@ -131,6 +144,7 @@ class FileIndexer:
                             break
                         name = entry.name
                         try:
+                            record = None
                             if entry.is_dir(follow_symlinks=False):
                                 lowered = name.lower()
                                 if lowered in excluded_dirs:
@@ -141,17 +155,10 @@ class FileIndexer:
                                     if os.name == "nt" and _windows_hidden(entry.stat(follow_symlinks=False)):
                                         continue
                                 if include_folders:
-                                    batch.append(
-                                        {
-                                            "path": entry.path,
-                                            "name": name,
-                                            "dir": directory,
-                                            "ext": "",
-                                            "is_dir": True,
-                                            "size": 0,
-                                            "mtime": 0.0,
-                                        }
-                                    )
+                                    record = {
+                                        "path": entry.path, "name": name, "dir": directory,
+                                        "ext": "", "is_dir": True, "size": 0, "mtime": 0.0,
+                                    }
                                 if depth < max_depth and not _is_reparse_directory(entry):
                                     stack.append((entry.path, depth + 1))
                             elif entry.is_file(follow_symlinks=False):
@@ -164,23 +171,33 @@ class FileIndexer:
                                         continue
                                     if os.name == "nt" and _windows_hidden(stat_result):
                                         continue
-                                batch.append(
-                                    {
-                                        "path": entry.path,
-                                        "name": name,
-                                        "dir": directory,
-                                        "ext": extension,
-                                        "is_dir": False,
-                                        "size": stat_result.st_size,
-                                        "mtime": stat_result.st_mtime,
-                                    }
-                                )
+                                record = {
+                                    "path": entry.path, "name": name, "dir": directory,
+                                    "ext": extension, "is_dir": False,
+                                    "size": stat_result.st_size, "mtime": stat_result.st_mtime,
+                                }
+                            if record is None:
+                                continue
+
+                            path = str(record["path"])
+                            seen_paths.add(path)
+                            scanned += 1
+                            fingerprint = (
+                                int(record["size"]), float(record["mtime"]),
+                                str(record["ext"]).lower(), bool(record["is_dir"]),
+                            )
+                            if clear or existing.get(path) != fingerprint:
+                                batch.append(record)
+                            else:
+                                unchanged += 1
+
                         except OSError:
+                            scan_complete = False
                             continue
 
                         if len(batch) >= _BATCH_SIZE:
                             flush()
-                        if inserted + len(batch) >= max_files:
+                        if scanned >= max_files:
                             log.info("File index limit of %s entries reached", max_files)
                             if progress:
                                 progress(100, f"Index limit reached ({max_files} entries)")
@@ -195,11 +212,17 @@ class FileIndexer:
                 break
 
         flush()
+        # Never discard the previous snapshot on cancellation, partial scans,
+        # inaccessible roots or index-limit exits.
+        if scan_complete and not cancelled and not limit_reached:
+            self.db.prune_files_not_seen(directories, seen_paths)
         elapsed = time.perf_counter() - started
         self.db.set_meta("files_last_index", time.time())
         self.db.set_meta("files_index_cancelled", "1" if cancelled else "0")
         stats = {
             "indexed": inserted,
+            "scanned": scanned,
+            "unchanged": unchanged,
             "directories": visited_dirs,
             "cancelled": cancelled,
             "limit_reached": limit_reached,
@@ -207,7 +230,7 @@ class FileIndexer:
         }
         log.info("File index finished: %s", stats)
         if progress:
-            message = f"Indexed {inserted} items in {elapsed:.1f}s"
+            message = f"Scanned {scanned} items; updated {inserted} in {elapsed:.1f}s"
             if limit_reached:
                 message += f" (entry limit {max_files} reached)"
             progress(100, message)
@@ -233,8 +256,11 @@ class FileService:
         return FileIndexer(self.config, self.db).index(progress=progress, token=token)
 
     def search(self, query: str, limit: int = 6) -> list[tuple[float, dict]]:
-        text = (query or "").strip()
-        extension = ""
+        from .file_query import parse_file_query
+
+        parsed = parse_file_query(query)
+        text = parsed.text
+        extension = parsed.extension
         match = _EXT_TOKEN.search(text)
         if match:
             extension = match.group(1).lower()
@@ -244,12 +270,21 @@ class FileService:
 
         if not text:
             if extension:
-                rows = self.db.files_by_extension(extension, limit=limit * 20)
-                return [(0.5, row) for row in rows[:limit]]
-            return []
-
-        term = text
-        candidates = self.db.file_candidates(term[:40], limit=800, ext=extension or None)
+                candidates = self.db.files_by_extension(extension, limit=limit * 20)
+            elif (parsed.modified_after is not None or parsed.modified_before is not None
+          or parsed.size_bytes is not None or parsed.size_min_bytes is not None
+          or parsed.size_max_bytes is not None):
+                candidates = self.db.recent_files(limit=800)
+            else:
+                return []
+            term = ""
+        else:
+            term = text
+            candidates = self.db.file_candidates(term[:40], limit=800, ext=extension or None)
+            # A lightweight English plural fallback keeps "invoices" useful
+            # for files named "invoice.pdf" without broadening to a full scan.
+            if not candidates and len(term) >= 4 and " " not in term and term.lower().endswith("s"):
+                candidates = self.db.file_candidates(term[:-1][:40], limit=800, ext=extension or None)
         if len(candidates) < limit and len(term) >= 3 and len(term.split()) > 1:
             # Widen using the longest word to allow typo-tolerant ranking.
             longest = max(re.split(r"\s+", term), key=len)
@@ -260,7 +295,25 @@ class FileService:
         now = time.time()
         scored: list[tuple[float, dict]] = []
         for row in candidates:
-            score = fuzzy_score(text, row["name"], typo_tolerance=typo)
+            if extension and str(row.get("ext", "")).lower() != extension:
+                continue
+            modified_at = float(row.get("mtime") or 0)
+            if parsed.modified_after is not None and modified_at < parsed.modified_after:
+                continue
+            if parsed.modified_before is not None and modified_at >= parsed.modified_before:
+                continue
+            if parsed.size_bytes is not None:
+                size = int(row.get("size") or 0)
+                if parsed.size_operator == ">" and size <= parsed.size_bytes:
+                    continue
+                if parsed.size_operator == "<" and size >= parsed.size_bytes:
+                    continue
+            file_size = int(row.get("size") or 0)
+            if parsed.size_min_bytes is not None and file_size <= parsed.size_min_bytes:
+                continue
+            if parsed.size_max_bytes is not None and file_size >= parsed.size_max_bytes:
+                continue
+            score = fuzzy_score(text, row["name"], typo_tolerance=typo) if text else 0.5
             if score <= 0:
                 continue
             mtime = float(row.get("mtime") or 0)

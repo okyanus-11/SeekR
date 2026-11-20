@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import sqlite3
+import subprocess
+import sys
 import threading
 import time
 
 from PySide6.QtCore import QThreadPool
 
 from core.database import Database
+from core.errors import DatabaseError
 from core.workers import run_async
 
 
@@ -92,7 +96,7 @@ def test_extension_index_replaces_v1_index(tmp_path):
 
     assert "idx_files_ext_mtime" in indexes
     assert "idx_files_ext" not in indexes
-    assert upgraded.get_meta("schema_version") == "2"
+    assert upgraded.get_meta("schema_version") == "6"
     upgraded.close()
 
 
@@ -273,3 +277,112 @@ def test_recent_files_directory_filter_respects_boundaries(db):
         "/tmp/alex/nested/b.txt",
     }
     assert db.recent_files(limit=10, directories=[""]) == []
+
+def test_database_migrates_clipboard_category_column(tmp_path):
+    path = tmp_path / "legacy.sqlite3"
+    connection = sqlite3.connect(path)
+    connection.execute("CREATE TABLE kv (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+    connection.execute(
+        "CREATE TABLE clipboard (id INTEGER PRIMARY KEY, text TEXT NOT NULL, hash TEXT NOT NULL, "
+        "pinned INTEGER NOT NULL DEFAULT 0, created REAL NOT NULL, source TEXT NOT NULL DEFAULT '')"
+    )
+    connection.execute("INSERT INTO kv(key, value) VALUES('schema_version', '4')")
+    connection.commit()
+    connection.close()
+
+    database = Database(str(path))
+    try:
+        columns = {row["name"] for row in database._query("PRAGMA table_info(clipboard)")}
+        assert {"category", "kind", "image_path", "width", "height"} <= columns
+        assert database.get_meta("schema_version") == "6"
+    finally:
+        database.close()
+
+
+def test_sqlite_recovers_cleanly_from_process_exit_during_uncommitted_write(tmp_path):
+    database_path = tmp_path / "interrupted.db"
+    initial = Database(database_path)
+    initial.close()
+
+    script = """
+import os
+import sqlite3
+import sys
+import time
+connection = sqlite3.connect(sys.argv[1], timeout=5)
+connection.execute("BEGIN IMMEDIATE")
+connection.execute(
+    "INSERT INTO notes(title, body, created, updated) VALUES(?, ?, ?, ?)",
+    ("uncommitted", "must roll back", time.time(), time.time()),
+)
+os._exit(0)
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", script, str(database_path)],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+
+    recovered = Database(database_path)
+    assert recovered.note_count() == 0
+    assert recovered.connection().execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    recovered.close()
+
+
+def test_database_backup_and_restore_round_trip(tmp_path):
+    database_path = tmp_path / "main.db"
+    backup_path = tmp_path / "backups" / "seekr.db"
+    db = Database(database_path)
+    original_id = db.create_note("Important", "preserve this note")
+    assert original_id > 0
+    assert db.backup_to(backup_path) is True
+
+    db.delete_note(original_id)
+    assert db.note_count() == 0
+    assert db.restore_from(backup_path) is True
+    restored = db.notes("Important")
+    assert len(restored) == 1
+    assert restored[0]["body"] == "preserve this note"
+    assert db.connection().execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    db.close()
+
+
+def test_database_restore_rejects_corrupt_or_unrelated_files(tmp_path):
+    db = Database(tmp_path / "main.db")
+    corrupt = tmp_path / "corrupt.db"
+    corrupt.write_bytes(b"not a sqlite database")
+    unrelated = tmp_path / "unrelated.db"
+    connection = sqlite3.connect(unrelated)
+    connection.execute("CREATE TABLE unrelated (value TEXT)")
+    connection.commit()
+    connection.close()
+
+    assert db.restore_from(corrupt) is False
+    assert db.restore_from(unrelated) is False
+    assert db.note_count() == 0
+    db.close()
+
+
+def test_database_backup_rejects_overwriting_live_database(db, tmp_path):
+    assert db.backup_to(db.path) is False
+
+
+def test_database_restore_rolls_back_if_migration_fails(tmp_path, monkeypatch):
+    db = Database(tmp_path / "main.db")
+    backup_note = db.create_note("Backup state", "from backup")
+    backup_path = tmp_path / "backup.db"
+    assert db.backup_to(backup_path)
+    db.delete_note(backup_note)
+    live_note = db.create_note("Live state", "keep this if restore fails")
+
+    def fail_migration():
+        raise DatabaseError("simulated migration failure")
+
+    monkeypatch.setattr(db, "_init_schema", fail_migration)
+    assert db.restore_from(backup_path) is False
+    assert db.get_note(live_note)["body"] == "keep this if restore fails"
+    assert db.connection().execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    db.close()

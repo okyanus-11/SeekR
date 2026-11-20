@@ -15,7 +15,7 @@ from .logging_setup import get_logger
 
 log = get_logger(__name__)
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 6
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS apps (
@@ -52,7 +52,12 @@ CREATE TABLE IF NOT EXISTS clipboard (
     hash TEXT NOT NULL,
     pinned INTEGER NOT NULL DEFAULT 0,
     created REAL NOT NULL,
-    source TEXT NOT NULL DEFAULT ''
+    source TEXT NOT NULL DEFAULT '',
+    category TEXT NOT NULL DEFAULT '',
+    kind TEXT NOT NULL DEFAULT 'text',
+    image_path TEXT NOT NULL DEFAULT '',
+    width INTEGER NOT NULL DEFAULT 0,
+    height INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_clipboard_hash ON clipboard(hash);
 CREATE INDEX IF NOT EXISTS idx_clipboard_created ON clipboard(created DESC);
@@ -104,6 +109,40 @@ CREATE TABLE IF NOT EXISTS quick_actions (
     description TEXT NOT NULL DEFAULT '',
     created REAL NOT NULL
 );
+
+
+
+CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    notes TEXT NOT NULL DEFAULT '',
+    due_date TEXT NOT NULL DEFAULT '',
+    completed INTEGER NOT NULL DEFAULT 0,
+    created REAL NOT NULL,
+    updated REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tasks_status_due ON tasks(completed, due_date, created);
+
+CREATE TABLE IF NOT EXISTS snippets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT '',
+    shortcut TEXT NOT NULL DEFAULT '',
+    content TEXT NOT NULL,
+    created REAL NOT NULL,
+    updated REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_snippets_title ON snippets(title COLLATE NOCASE);
+
+CREATE TABLE IF NOT EXISTS workflows (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    steps_json TEXT NOT NULL,
+    created REAL NOT NULL,
+    updated REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_workflows_title ON workflows(title COLLATE NOCASE);
 
 CREATE TABLE IF NOT EXISTS kv (
     key TEXT PRIMARY KEY,
@@ -168,6 +207,17 @@ class Database:
         with self._lock:
             conn = self.connection()
             conn.executescript(_SCHEMA)
+            clipboard_columns = {row["name"] for row in conn.execute("PRAGMA table_info(clipboard)")}
+            if "category" not in clipboard_columns:
+                conn.execute("ALTER TABLE clipboard ADD COLUMN category TEXT NOT NULL DEFAULT ''")
+            if "kind" not in clipboard_columns:
+                conn.execute("ALTER TABLE clipboard ADD COLUMN kind TEXT NOT NULL DEFAULT 'text'")
+            if "image_path" not in clipboard_columns:
+                conn.execute("ALTER TABLE clipboard ADD COLUMN image_path TEXT NOT NULL DEFAULT ''")
+            if "width" not in clipboard_columns:
+                conn.execute("ALTER TABLE clipboard ADD COLUMN width INTEGER NOT NULL DEFAULT 0")
+            if "height" not in clipboard_columns:
+                conn.execute("ALTER TABLE clipboard ADD COLUMN height INTEGER NOT NULL DEFAULT 0")
             conn.execute("DROP INDEX IF EXISTS idx_files_ext")
             conn.execute(
                 "INSERT OR REPLACE INTO kv(key, value) VALUES('schema_version', ?)",
@@ -245,7 +295,11 @@ class Database:
                  name = excluded.name,
                  source = excluded.source,
                  args = excluded.args,
-                 icon_path = excluded.icon_path""",
+                 icon_path = excluded.icon_path
+               WHERE apps.name IS NOT excluded.name
+                  OR apps.source IS NOT excluded.source
+                  OR apps.args IS NOT excluded.args
+                  OR apps.icon_path IS NOT excluded.icon_path""",
             rows,
         )
         if prune_missing:
@@ -298,8 +352,8 @@ class Database:
         self._write("DELETE FROM apps")
 
     # ------------------------------------------------------------------ files
-    def upsert_files(self, entries: Iterable[dict[str, Any]]) -> int:
-        now = time.time()
+    def upsert_files(self, entries: Iterable[dict[str, Any]], indexed_at: float | None = None) -> int:
+        now = time.time() if indexed_at is None else float(indexed_at)
         rows = [
             (
                 entry["path"],
@@ -353,6 +407,29 @@ class Database:
         )
         return [dict(row) for row in rows]
 
+    def file_index_snapshot(self, limit: int, directories: Sequence[str]) -> list[dict[str, Any]]:
+        """Return indexed files and folders under the configured roots."""
+        if not directories:
+            return []
+        scopes = [(str(directory), str(directory).rstrip("/\\"))
+                  for directory in directories if directory]
+        if not scopes:
+            return []
+        clauses = " OR ".join(
+            "(dir IN (?, ?) OR (substr(dir, 1, ?) = ? AND "
+            "substr(dir, ?, 1) IN ('/', char(92))))"
+            for _ in scopes
+        )
+        params: list[Any] = []
+        for original, prefix in scopes:
+            params.extend((original, prefix, len(prefix), prefix, len(prefix) + 1))
+        params.append(max(1, int(limit)))
+        rows = self._query(
+            f"SELECT * FROM files WHERE ({clauses}) ORDER BY mtime DESC LIMIT ?",
+            params,
+        )
+        return [dict(row) for row in rows]
+
     def recent_files(self, limit: int = 5, directories: Sequence[str] = ()) -> list[dict[str, Any]]:
         if directories:
             scopes = [(directory, directory.rstrip("/\\"))
@@ -382,6 +459,70 @@ class Database:
         row = self._query_one("SELECT COUNT(*) AS n FROM files")
         return int(row["n"]) if row else 0
 
+    def prune_files_not_seen(self, directories: Sequence[str], seen_paths: Iterable[str]) -> int:
+        """Remove stale indexed paths after a complete scan, using a temp table."""
+        scopes = [str(Path(directory)) for directory in directories if directory]
+        if not scopes:
+            return 0
+        clauses = []
+        params: list[Any] = []
+        for directory in scopes:
+            prefix = directory.rstrip("/\\")
+            if not prefix:
+                clauses.append("(dir = ? OR substr(dir, 1, 1) = ?)")
+                params.extend((directory, directory[:1]))
+                continue
+            clauses.append(
+                "(dir IN (?, ?) OR (substr(dir, 1, ?) = ? AND "
+                "substr(dir, ?, 1) IN ('/', char(92))))"
+            )
+            params.extend((directory, prefix, len(prefix), prefix, len(prefix) + 1))
+        if not clauses:
+            return 0
+        try:
+            conn = self.connection()
+            with self._lock:
+                conn.execute("CREATE TEMP TABLE IF NOT EXISTS seen_file_paths (path TEXT PRIMARY KEY)")
+                conn.execute("DELETE FROM seen_file_paths")
+                conn.executemany(
+                    "INSERT OR IGNORE INTO seen_file_paths(path) VALUES (?)",
+                    ((str(path),) for path in seen_paths),
+                )
+                cursor = conn.execute(
+                    "DELETE FROM files WHERE (" + " OR ".join(clauses) + ") "
+                    "AND path NOT IN (SELECT path FROM seen_file_paths)",
+                    params,
+                )
+                conn.commit()
+                return cursor.rowcount
+        except sqlite3.Error as exc:
+            log.error("Could not prune stale file index rows: %s", exc)
+            return 0
+
+    def prune_files_before(self, directories: Sequence[str], indexed_before: float) -> int:
+        """Remove stale indexed rows under configured roots after a complete scan."""
+        scopes = [str(Path(directory)) for directory in directories if directory]
+        if not scopes:
+            return 0
+        clauses = []
+        params: list[Any] = []
+        for directory in scopes:
+            prefix = directory.rstrip("/\\")
+            if not prefix:
+                continue
+            clauses.append(
+                "(dir IN (?, ?) OR (substr(dir, 1, ?) = ? AND "
+                "substr(dir, ?, 1) IN ('/', char(92))))"
+            )
+            params.extend((directory, prefix, len(prefix), prefix, len(prefix) + 1))
+        if not clauses:
+            return 0
+        params.append(float(indexed_before))
+        return self._write(
+            "DELETE FROM files WHERE (" + " OR ".join(clauses) + ") AND indexed < ?",
+            params,
+        )
+
     def clear_files(self) -> None:
         self._write("DELETE FROM files")
 
@@ -409,14 +550,41 @@ class Database:
             return None
         digest = self._hash_text(text)
         if dedupe:
-            row = self._query_one("SELECT id, text FROM clipboard ORDER BY created DESC LIMIT 1")
-            if row is not None and row["text"] == text:
+            row = self._query_one("SELECT id, text, kind FROM clipboard ORDER BY created DESC LIMIT 1")
+            if row is not None and row["kind"] == "text" and row["text"] == text:
                 return None
         note_id = self._write(
             "INSERT INTO clipboard(text, hash, pinned, created, source) VALUES (?, ?, 0, ?, ?)",
             (text, digest, time.time(), source),
         )
         return note_id if note_id and note_id > 0 else None
+
+    def add_clipboard_image(
+        self, image_path: str, digest: str, width: int, height: int, source: str = ""
+    ) -> int | None:
+        if not image_path or not digest:
+            return None
+        row = self._query_one("SELECT id, hash, kind FROM clipboard ORDER BY created DESC LIMIT 1")
+        if row is not None and row["kind"] == "image" and row["hash"] == digest:
+            return None
+        item_id = self._write(
+            "INSERT INTO clipboard(text, hash, pinned, created, source, kind, image_path, width, height) "
+            "VALUES (?, ?, 0, ?, ?, 'image', ?, ?, ?)",
+            ("[Image]", digest, time.time(), source, image_path, int(width), int(height)),
+        )
+        return item_id if item_id and item_id > 0 else None
+
+    def clipboard_image_paths(self) -> set[str] | None:
+        """Return referenced image paths, or None if storage could not be queried."""
+        try:
+            with self._lock:
+                rows = self.connection().execute(
+                    "SELECT image_path FROM clipboard WHERE kind = 'image' AND image_path != ''"
+                ).fetchall()
+            return {str(row["image_path"]) for row in rows}
+        except (sqlite3.Error, DatabaseError):
+            log.exception("Could not read clipboard image references")
+            return None
 
     @staticmethod
     def _hash_text(text: str) -> str:
@@ -427,14 +595,20 @@ class Database:
     def clipboard_items(self, search: str = "", limit: int = 100) -> list[dict[str, Any]]:
         if search:
             rows = self._query(
-                "SELECT * FROM clipboard WHERE text LIKE ? ORDER BY pinned DESC, created DESC LIMIT ?",
-                (f"%{search}%", limit),
+                "SELECT * FROM clipboard WHERE text LIKE ? OR category LIKE ? ORDER BY pinned DESC, created DESC LIMIT ?",
+                (f"%{search}%", f"%{search}%", limit),
             )
         else:
             rows = self._query(
                 "SELECT * FROM clipboard ORDER BY pinned DESC, created DESC LIMIT ?", (limit,)
             )
         return [dict(row) for row in rows]
+
+    def set_clipboard_category(self, item_id: int, category: str) -> None:
+        self._write(
+            "UPDATE clipboard SET category = ? WHERE id = ?",
+            (str(category).strip()[:40], int(item_id)),
+        )
 
     def set_clipboard_pinned(self, item_id: int, pinned: bool) -> None:
         self._write("UPDATE clipboard SET pinned = ? WHERE id = ?", (1 if pinned else 0, item_id))
@@ -448,12 +622,22 @@ class Database:
         else:
             self._write("DELETE FROM clipboard")
 
-    def prune_clipboard(self, limit: int) -> None:
+    def prune_clipboard(self, limit: int, retention_days: int | None = None) -> None:
+        """Apply count and optional age limits to unpinned clipboard entries.
+
+        Pinned entries are deliberately retained until the user deletes them.
+        """
+        if retention_days is not None:
+            cutoff = time.time() - max(1, int(retention_days)) * 86400
+            self._write(
+                "DELETE FROM clipboard WHERE pinned = 0 AND created < ?",
+                (cutoff,),
+            )
         self._write(
             """DELETE FROM clipboard WHERE pinned = 0 AND id NOT IN (
                    SELECT id FROM clipboard WHERE pinned = 0 ORDER BY created DESC LIMIT ?
                )""",
-            (max(1, limit),),
+            (max(1, int(limit)),),
         )
 
     def clipboard_count(self) -> int:
@@ -668,6 +852,140 @@ class Database:
     def delete_quick_action(self, action_id: int) -> None:
         self._write("DELETE FROM quick_actions WHERE id = ?", (action_id,))
 
+
+
+    # ------------------------------------------------------------------- tasks
+    def list_tasks(self, include_completed: bool = True) -> list[dict[str, Any]]:
+        where = "" if include_completed else "WHERE completed = 0"
+        rows = self._query(
+            f"SELECT * FROM tasks {where} ORDER BY completed ASC, CASE WHEN due_date = '' THEN 1 ELSE 0 END, due_date ASC, created DESC"
+        )
+        return [dict(row) for row in rows]
+
+    def get_task(self, task_id: int) -> dict[str, Any] | None:
+        row = self._query_one("SELECT * FROM tasks WHERE id = ?", (int(task_id),))
+        return dict(row) if row else None
+
+    def upsert_task(self, data: dict[str, Any]) -> int:
+        now = time.time()
+        task_id = data.get("id")
+        values = (
+            data["title"], data.get("notes", ""), data.get("due_date", ""),
+            1 if data.get("completed") else 0, now,
+        )
+        if task_id:
+            self._write(
+                "UPDATE tasks SET title = ?, notes = ?, due_date = ?, completed = ?, updated = ? WHERE id = ?",
+                (*values, int(task_id)),
+            )
+            return int(task_id)
+        return self._write(
+            "INSERT INTO tasks(title, notes, due_date, completed, created, updated) VALUES (?, ?, ?, ?, ?, ?)",
+            (*values[:4], now, now),
+        )
+
+    def set_task_completed(self, task_id: int, completed: bool) -> None:
+        self._write(
+            "UPDATE tasks SET completed = ?, updated = ? WHERE id = ?",
+            (1 if completed else 0, time.time(), int(task_id)),
+        )
+
+    def delete_task(self, task_id: int) -> None:
+        self._write("DELETE FROM tasks WHERE id = ?", (int(task_id),))
+
+    # ---------------------------------------------------------------- snippets
+    def list_snippets(self) -> list[dict[str, Any]]:
+        return [dict(row) for row in self._query("SELECT * FROM snippets ORDER BY title COLLATE NOCASE")]
+
+    def get_snippet(self, snippet_id: int) -> dict[str, Any] | None:
+        row = self._query_one("SELECT * FROM snippets WHERE id = ?", (int(snippet_id),))
+        return dict(row) if row else None
+
+    def upsert_snippet(self, data: dict[str, Any]) -> int:
+        now = time.time()
+        snippet_id = data.get("id")
+        values = (
+            data["title"], data.get("category", ""), data.get("shortcut", ""),
+            data["content"], now,
+        )
+        if snippet_id:
+            self._write(
+                "UPDATE snippets SET title = ?, category = ?, shortcut = ?, content = ?, updated = ? WHERE id = ?",
+                (*values, int(snippet_id)),
+            )
+            return int(snippet_id)
+        return self._write(
+            "INSERT INTO snippets(title, category, shortcut, content, created, updated) VALUES (?, ?, ?, ?, ?, ?)",
+            (*values[:4], now, now),
+        )
+
+    def insert_snippets_atomic(self, rows: Sequence[dict[str, Any]]) -> int:
+        """Insert a fully validated snippet import in one SQLite transaction."""
+        now = time.time()
+        try:
+            conn = self.connection()
+            with self._lock:
+                with conn:
+                    conn.executemany(
+                        "INSERT INTO snippets(title, category, shortcut, content, created, updated) "
+                        "VALUES (?, ?, ?, ?, ?, ?)",
+                        [
+                            (row["title"], row.get("category", ""), row.get("shortcut", ""),
+                             row["content"], now, now)
+                            for row in rows
+                        ],
+                    )
+            return len(rows)
+        except sqlite3.Error as exc:
+            raise DatabaseError(f"Could not import snippets: {exc}") from exc
+
+    def delete_snippet(self, snippet_id: int) -> None:
+        self._write("DELETE FROM snippets WHERE id = ?", (int(snippet_id),))
+
+    # --------------------------------------------------------------- workflows
+    def list_workflows(self) -> list[dict[str, Any]]:
+        return [dict(row) for row in self._query("SELECT * FROM workflows ORDER BY title COLLATE NOCASE")]
+
+    def get_workflow(self, workflow_id: int) -> dict[str, Any] | None:
+        row = self._query_one("SELECT * FROM workflows WHERE id = ?", (int(workflow_id),))
+        return dict(row) if row else None
+
+    def upsert_workflow(self, data: dict[str, Any]) -> int:
+        now = time.time()
+        workflow_id = data.get("id")
+        if workflow_id:
+            self._write(
+                "UPDATE workflows SET title = ?, description = ?, steps_json = ?, updated = ? WHERE id = ?",
+                (data["title"], data.get("description", ""), data["steps_json"], now, int(workflow_id)),
+            )
+            return int(workflow_id)
+        return self._write(
+            "INSERT INTO workflows(title, description, steps_json, created, updated) VALUES (?, ?, ?, ?, ?)",
+            (data["title"], data.get("description", ""), data["steps_json"], now, now),
+        )
+
+
+    def insert_workflows_atomic(self, rows: Sequence[dict[str, Any]]) -> int:
+        """Insert a validated import as one SQLite transaction."""
+        now = time.time()
+        try:
+            conn = self.connection()
+            with self._lock:
+                with conn:
+                    conn.executemany(
+                        "INSERT INTO workflows(title, description, steps_json, created, updated) VALUES (?, ?, ?, ?, ?)",
+                        [
+                            (row["title"], row.get("description", ""), row["steps_json"], now, now)
+                            for row in rows
+                        ],
+                    )
+            return len(rows)
+        except sqlite3.Error as exc:
+            raise DatabaseError(f"Could not import workflows: {exc}") from exc
+
+    def delete_workflow(self, workflow_id: int) -> None:
+        self._write("DELETE FROM workflows WHERE id = ?", (int(workflow_id),))
+
     def vacuum(self) -> None:
         """Compact the database file."""
         try:
@@ -679,6 +997,70 @@ class Database:
             raise DatabaseError(f"Could not compact the database: {exc}") from exc
 
     # ------------------------------------------------------------------ close
+    def backup_to(self, destination: str | Path) -> bool:
+        """Create a consistent SQLite backup at destination."""
+        target_path = Path(destination).expanduser()
+        try:
+            if target_path.resolve() == Path(self.path).expanduser().resolve():
+                return False
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            target = sqlite3.connect(str(target_path), timeout=8.0)
+            try:
+                with self._lock:
+                    self.connection().backup(target)
+                check = target.execute("PRAGMA integrity_check").fetchone()
+                return bool(check and check[0] == "ok")
+            finally:
+                target.close()
+        except (OSError, sqlite3.Error) as exc:
+            log.error("Database backup failed: %s", exc)
+            return False
+
+    def restore_from(self, source: str | Path) -> bool:
+        """Restore a verified SeekR SQLite backup; call while the app is quiescent."""
+        source_path = Path(source).expanduser()
+        try:
+            if not source_path.is_file() or source_path.resolve() == Path(self.path).expanduser().resolve():
+                return False
+            backup = sqlite3.connect(str(source_path), timeout=8.0)
+            try:
+                check = backup.execute("PRAGMA integrity_check").fetchone()
+                if not check or check[0] != "ok":
+                    return False
+                tables = {
+                    row[0] for row in backup.execute(
+                        "SELECT name FROM sqlite_master WHERE type = 'table'"
+                    )
+                }
+                if not {"kv", "apps", "files", "clipboard", "notes", "history"}.issubset(tables):
+                    return False
+                with self._lock:
+                    target = self.connection()
+                    safety = sqlite3.connect(":memory:")
+                    try:
+                        target.backup(safety)
+                        try:
+                            backup.backup(target)
+                            target.commit()
+                            self._init_schema()
+                            restored = target.execute("PRAGMA integrity_check").fetchone()
+                            if restored and restored[0] == "ok":
+                                return True
+                        except (sqlite3.Error, DatabaseError):
+                            log.exception("Database restore failed; restoring pre-operation snapshot")
+                        # A failed or incomplete restore must not leave the live
+                        # database in a partially replaced state.
+                        safety.backup(target)
+                        target.commit()
+                        return False
+                    finally:
+                        safety.close()
+            finally:
+                backup.close()
+        except (OSError, sqlite3.Error, DatabaseError) as exc:
+            log.error("Database restore failed: %s", exc)
+            return False
+
     def close_thread_connection(self) -> None:
         """Close the current thread's connection before a pooled worker is reused."""
         if self._is_memory:

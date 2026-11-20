@@ -132,6 +132,8 @@ def main(argv: Optional[list[str]] = None) -> int:
                 if not widgets.right_column.isVisible():
                     failures.append("right widget rail is not visible")
                 for name, card in widgets._cards.items():
+                    if not bool(config.get(f"widgets.{name}_enabled", True)):
+                        continue
                     if not card.isVisible():
                         failures.append(f"{name} widget is not visible after delayed repaint")
                     if card.width() <= 0 or card.height() <= 0:
@@ -141,7 +143,9 @@ def main(argv: Optional[list[str]] = None) -> int:
                     snapshot = card.grab()
                     if snapshot.isNull() or snapshot.width() <= 0 or snapshot.height() <= 0:
                         failures.append(f"{name} widget produced an empty render snapshot")
-                for name in ("clock", "system", "weather", "meme"):
+                for name in ("clock", "system", "weather", "meme", "media"):
+                    if not bool(config.get(f"widgets.{name}_enabled", True)):
+                        continue
                     card = widgets._cards[name]
                     timer = getattr(card, "timer", None) or getattr(card, "day_timer", None)
                     if timer is None or not timer.isActive():
@@ -152,7 +156,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                 log.error("UI_SMOKE_FAIL: %s", "; ".join(failures))
                 app.exit(3)
             else:
-                log.info("UI_SMOKE_OK: all four widgets remained visible, rendered and live after delayed repaint")
+                log.info("UI_SMOKE_OK: all enabled widgets remained visible, rendered and live after delayed repaint")
                 app.exit(0)
 
         initial_clock_text = controller.launcher.launcher_widgets.clock.time_label.text()

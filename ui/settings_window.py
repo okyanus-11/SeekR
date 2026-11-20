@@ -479,10 +479,28 @@ class WidgetsPage(SettingsPage):
 
     def build(self) -> None:
         cards = self.section("Launcher widgets", "Enabled by default. Changes are saved immediately.")
-        self.row(cards, "Clock", "Live local time and date · left rail.", bind_switch(self.config, "widgets.clock_enabled", self._widgets_changed))
-        self.row(cards, "System usage", "Live CPU and memory usage · left rail.", bind_switch(self.config, "widgets.system_enabled", self._widgets_changed))
+        self.row(cards, "Clock", "Live local time, date and focus timer · left rail.", bind_switch(self.config, "widgets.clock_enabled", self._widgets_changed))
+        self.row(cards, "Focus session length", "Duration used by the clock widget focus timer.", bind_spin(self.config, "widgets.focus_duration_minutes", 5, 180, " minutes"))
+        self.row(cards, "System usage", "Live CPU, memory, storage, battery and network throughput · left rail.", bind_switch(self.config, "widgets.system_enabled", self._widgets_changed))
         self.row(cards, "Weather", "Current conditions for your chosen location · right rail.", bind_switch(self.config, "widgets.weather_enabled", self._widgets_changed))
         self.row(cards, "Daily meme", "A daily pick cached locally until the next day · right rail.", bind_switch(self.config, "widgets.meme_enabled", self._widgets_changed))
+        self.row(cards, "Media playback", "Optional Windows system-media controls for the current track · right rail.", bind_switch(self.config, "widgets.media_enabled", self._widgets_changed))
+        self.row(cards, "Tasks", "Show your next local tasks and overdue count · left rail.", bind_switch(self.config, "widgets.tasks_enabled", self._widgets_changed))
+        self.row(cards, "Task refresh", "How often the local task summary updates.", bind_spin(self.config, "widgets.tasks_refresh_minutes", 1, 60, " minutes"))
+        self.row(cards, "Widget rail width", "Width of both side rails; larger values give cards more room.", bind_spin(self.config, "widgets.rail_width", 160, 280, " px"))
+        self.row(cards, "Widget card height", "Base height for each widget card; taller cards reduce clipping on dense layouts.", bind_spin(self.config, "widgets.card_height", 124, 240, " px"))
+        self.left_order_edit = QLineEdit(", ".join(self.config.get("widgets.left_order", ["clock", "system", "tasks"])))
+        self.left_order_edit.setPlaceholderText("clock, system, tasks")
+        self.left_order_edit.editingFinished.connect(lambda: self._save_order("left"))
+        self.row(cards, "Left rail order", "Comma-separated: clock, system, tasks. Unknown and duplicate entries are ignored.", self.left_order_edit)
+        self.right_order_edit = QLineEdit(", ".join(self.config.get("widgets.right_order", ["weather", "meme", "media"])))
+        self.right_order_edit.setPlaceholderText("weather, meme, media")
+        self.right_order_edit.editingFinished.connect(lambda: self._save_order("right"))
+        self.row(cards, "Right rail order", "Comma-separated: weather, meme, media. Unknown and duplicate entries are ignored.", self.right_order_edit)
+        self.row(cards, "Clock refresh", "Update interval for the local clock.", bind_spin(self.config, "widgets.clock_refresh_ms", 250, 5000, " ms"))
+        self.row(cards, "System refresh", "Update interval for CPU, memory and network readings.", bind_spin(self.config, "widgets.system_refresh_ms", 1000, 30000, " ms"))
+        self.row(cards, "Weather refresh", "How often SeekR checks for updated weather.", bind_spin(self.config, "widgets.weather_refresh_minutes", 5, 180, " minutes"))
+        self.row(cards, "Daily widget refresh", "How often the daily widget checks whether its cached day has changed.", bind_spin(self.config, "widgets.meme_refresh_minutes", 15, 360, " minutes"))
         location = self.section("Weather location", "Enter a city or town. SeekR uses Open-Meteo for geocoding and current conditions.")
         self.location_edit = QLineEdit(str(self.config.get("widgets.weather_location", "") or ""))
         self.location_edit.setPlaceholderText("e.g. Izmir, Türkiye")
@@ -494,6 +512,14 @@ class WidgetsPage(SettingsPage):
         launcher = getattr(self.controller, "launcher", None)
         if launcher is not None and hasattr(launcher, "launcher_widgets"):
             launcher.launcher_widgets.refresh_settings(animate=True)
+
+    def _save_order(self, rail: str) -> None:
+        editor = self.left_order_edit if rail == "left" else self.right_order_edit
+        keys = [part.strip().lower() for part in editor.text().split(",") if part.strip()]
+        self.config.set(f"widgets.{rail}_order", keys)
+        editor.setText(", ".join(self.config.get(f"widgets.{rail}_order", [])))
+        self._widgets_changed(True)
+        self.saved(f"{rail.title()} widget order saved")
 
     def _save_location(self) -> None:
         value = self.location_edit.text().strip()
@@ -660,6 +686,16 @@ class FilesPage(SettingsPage):
         self.row(card, "Index automatically at startup", "Rebuild the index when it is older than a day.", bind_switch(self.config, "files.auto_index"))
         self.row(card, "Include hidden files", "Index dotfiles and hidden entries.", bind_switch(self.config, "files.include_hidden"))
         self.row(card, "Include folders", "Folders appear in file search results.", bind_switch(self.config, "files.include_folders"))
+
+        content = self.section("Document content search", "Optional on-demand local search. Disabled by default; only configured folders, extensions and size limits are read.")
+        self.row(content, "Enable content search", "Search inside supported text files with content:. File contents are not uploaded.", bind_switch(self.config, "files.content_search_enabled"))
+        self.row(content, "Maximum file size", "Larger files are skipped to keep searches responsive.", bind_spin(self.config, "files.content_search_max_file_bytes", 100000, 10000000, " bytes"))
+        content.add_widget(
+            ListEditor(
+                self.config.get("files.content_search_extensions", [".txt", ".md", ".py", ".json", ".csv", ".html", ".xml"]),
+                lambda values: self.config.set("files.content_search_extensions", values),
+            )
+        )
         self.row(card, "Maximum depth", "How deep SeekR walks each folder.", bind_spin(self.config, "files.max_depth", 1, 30))
         self.row(card, "Maximum entries", "Hard limit that keeps the index memory-friendly.", bind_spin(self.config, "files.max_files", 1000, 3000000))
 
@@ -1118,6 +1154,12 @@ class PrivacyPage(SettingsPage):
             "Opt in to storing copied text unencrypted in SeekR’s local SQLite database.",
             bind_switch(self.config, "privacy.clipboard_history"),
         )
+        self.row(
+            card,
+            "Capture clipboard images",
+            "Separate opt-in. Images stay as unencrypted local PNG files; maximum 4096 px per side, 16 megapixels and 5 MB per image.",
+            bind_switch(self.config, "clipboard.capture_images"),
+        )
         self.row(card, "Search history", "Allow executed queries to be stored.", bind_switch(self.config, "privacy.save_search_history"))
         self.row(card, "Usage tracking", "Count application launches to rank frequent apps.",
                 bind_switch(self.config, "privacy.usage_tracking"))
@@ -1169,7 +1211,7 @@ class PrivacyPage(SettingsPage):
         ):
             return
         self.db.clear_history()
-        self.db.clear_clipboard(keep_pinned=False)
+        self.controller.clipboard_service.clear(keep_pinned=False)
         self.db._write("UPDATE apps SET use_count = 0, last_used = 0")
         self.saved("All stored history deleted")
 
@@ -1185,6 +1227,15 @@ class AdvancedPage(SettingsPage):
         self.row(card, "Write logs to disk", "Logs live in the SeekR data folder. Restart required.", bind_switch(self.config, "advanced.logging"))
         self.row(card, "Performance statistics", "Show search timing in the launcher footer.", bind_switch(self.config, "advanced.performance_stats"))
         self.row(card, "Single instance", "Only allow one SeekR process. Applies on next launch.", bind_switch(self.config, "advanced.single_instance"))
+
+        updates = self.section("Updates", "Checks use the official SeekR GitHub releases API; no installer is downloaded or run automatically.")
+        self.row(
+            updates,
+            "Check automatically",
+            "Check once per day in the background. This sends a request to GitHub and is off by default.",
+            bind_switch(self.config, "updates.check_automatically"),
+        )
+        updates.add_widget(secondary_button("Check now", self._check_updates))
 
         paths = self.section("Storage")
         paths.add_widget(label(f"Configuration: {config_path()}", "Muted", wrap=True))
@@ -1202,6 +1253,27 @@ class AdvancedPage(SettingsPage):
         holder.setLayout(buttons)
         paths.add_widget(holder)
         self._refresh_size()
+
+    def _check_updates(self) -> None:
+        from core.workers import run_async
+
+        run_async(
+            self.controller.update_service.check_latest,
+            on_finished=self._update_check_finished,
+            on_failed=self._update_check_failed,
+        )
+
+    def _update_check_finished(self, info: dict) -> None:
+        if info.get("update_available"):
+            self.controller.show_info(
+                "SeekR update available",
+                f"Version {info['latest_version']} is available. Open the official release page: {info['release_url']}",
+            )
+        else:
+            self.saved(f"SeekR {info['current_version']} is up to date")
+
+    def _update_check_failed(self, message: str, _traceback_text: str) -> None:
+        self.controller.show_error("Update check", message)
 
     def _refresh_size(self) -> None:
         path = database_path()
@@ -1236,13 +1308,13 @@ class AdvancedPage(SettingsPage):
 # ------------------------------------------------------------------------ Plugins
 class PluginsPage(SettingsPage):
     title = "Plugins"
-    subtitle = "The plugin marketplace is not part of version 1.0.0."
+    subtitle = "The plugin marketplace is planned for version 3.0.0, not 2.0.0."
 
     def build(self) -> None:
         banner = InfoBanner(
             "PLUGIN MARKETPLACE",
             "Extend SeekR with community-developed plugins, custom integrations and powerful new capabilities. "
-            "Plugin support is coming in a future release.",
+            "Plugin support is planned for version 3.0.0.",
             badge_text="COMING SOON…",
         )
         self.layout.addWidget(banner)
@@ -1251,7 +1323,7 @@ class PluginsPage(SettingsPage):
         for text in (
             "Plugins will register new search providers and keywords without changing SeekR itself.",
             "The current provider architecture already isolates every capability behind a stable interface.",
-            "There are no install buttons yet: plugin loading is intentionally not part of this release.",
+            "There are no install buttons: plugin loading is intentionally not part of version 2.0.0.",
             "SeekR will never run third-party code without your explicit action.",
         ):
             item = label("•  " + text, "Muted", wrap=True)
@@ -1259,7 +1331,7 @@ class PluginsPage(SettingsPage):
 
         status = self.section("Status")
         status.add_widget(label("Plugin loading: not available (by design)", "Muted"))
-        status.add_widget(label("Marketplace: planned for a future release", "Muted"))
+        status.add_widget(label("Marketplace: planned for version 3.0.0", "Muted"))
         status.add_widget(label("No plugins are installed", "Muted"))
 
 
@@ -1306,8 +1378,8 @@ class AboutPage(SettingsPage):
         updates = self.section("Updates")
         updates.add_widget(
             label(
-                "SeekR does not phone home. Automatic update checks are disabled in this release; "
-                "new versions are published on the GitHub repository.",
+                "Automatic update checks are opt-in and run once per day when enabled. "
+                "Manual checks are available in Settings → Advanced or with update:.",
                 "Muted",
                 wrap=True,
             )

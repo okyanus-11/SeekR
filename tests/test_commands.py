@@ -118,3 +118,113 @@ def test_provider_custom_commands(service, config, db, hooks):
     results = provider.search("say hi", 5)
     assert results and results[0].title == "Say hi"
     assert any(action.label == "Edit command" for action in results[0].actions)
+
+def test_command_chain_runs_known_commands_in_order(service, hooks):
+    from features.commands import CommandOutcome
+
+    calls = []
+    service._handlers["taskmgr"] = lambda args: (calls.append(("taskmgr", args)) or CommandOutcome(True, "Task Manager opened"))
+    service._handlers["explorer"] = lambda args: (calls.append(("explorer", args)) or CommandOutcome(True, "Explorer opened"))
+    outcome = service.run_chain("taskmgr then explorer")
+    assert outcome.success
+    assert calls == [("taskmgr", []), ("explorer", [])]
+    assert len(service.history()) == 2
+
+
+def test_command_chain_stops_on_unknown_step(service):
+    from features.commands import CommandOutcome
+
+    calls = []
+    service._handlers["taskmgr"] = lambda args: (calls.append("taskmgr") or CommandOutcome(True, "ok"))
+    outcome = service.run_chain("taskmgr then not-a-real-command")
+    assert not outcome.success
+    # The complete chain is validated before any step executes.
+    assert calls == []
+    assert "unknown command" in outcome.message.lower()
+
+
+def test_command_chain_requires_confirmation_for_destructive_steps(service, hooks):
+    from features.commands import CommandOutcome
+
+    calls = []
+    service._handlers["empty_recycle"] = lambda args: (calls.append("empty") or CommandOutcome(True, "emptied"))
+    outcome = service.run_chain("empty_recycle then taskmgr")
+    assert not outcome.success
+    assert calls == []
+    assert any(name == "confirm" for name, _args in hooks.calls)
+
+
+def test_command_chain_provider_is_explicit(service, config, db, hooks):
+    from features.commands import CommandChainProvider
+
+    provider = CommandChainProvider(config, db, hooks, service)
+    result = provider.search("taskmgr then explorer", 5)
+    assert len(result) == 1
+    assert "2 command steps" in result[0].title
+
+def test_command_chain_resolves_multiword_alias_and_custom_title(service, hooks):
+    from features.commands import CommandOutcome
+
+    calls = []
+    hooks.confirm = lambda *_args: True
+    service._handlers["empty_recycle"] = lambda args: (calls.append(("empty", args)) or CommandOutcome(True, "done"))
+    outcome = service.run_chain("empty trash")
+    assert outcome.success
+    assert calls == [("empty", [])]
+
+
+def test_command_chain_separator_ignores_quoted_then_text():
+    from features.commands import split_command_chain
+
+    assert split_command_chain('taskmgr "then this is an argument" then explorer') == [
+        'taskmgr "then this is an argument"', "explorer"
+    ]
+
+
+def test_command_chain_preview_resolves_every_step_without_execution(service):
+    valid, message, plan = service.preview_chain("taskmgr then empty trash")
+    assert valid, message
+    lines, resolved = plan
+    assert len(lines) == 2
+    assert "Task Manager" in lines[0] or "taskmgr" in lines[0].lower()
+    assert "confirmation required" in lines[1]
+    assert len(resolved) == 2
+
+
+@pytest.mark.parametrize(
+    "setting",
+    ["general.confirm_destructive_actions", "commands.confirm_destructive"],
+)
+def test_command_chain_respects_disabled_global_confirmation(service, hooks, setting):
+    from features.commands import CommandOutcome
+
+    calls = []
+    service.config.set(setting, False)
+    service._handlers["empty_recycle"] = lambda args: (
+        calls.append("empty") or CommandOutcome(True, "emptied")
+    )
+    service._handlers["taskmgr"] = lambda args: (
+        calls.append("taskmgr") or CommandOutcome(True, "opened")
+    )
+
+    valid, message, plan = service.preview_chain("empty_recycle then taskmgr")
+    assert valid, message
+    lines, _resolved = plan
+    assert "confirmation required" not in lines[0].lower()
+
+    outcome = service.run_chain("empty_recycle then taskmgr")
+    assert outcome.success
+    assert calls == ["empty", "taskmgr"]
+    assert not any(name == "confirm" for name, _args in hooks.calls)
+
+
+def test_command_chain_reports_completed_steps_after_failure(service):
+    from features.commands import CommandOutcome
+
+    service._handlers["taskmgr"] = lambda _args: CommandOutcome(True, "Task Manager opened")
+    service._handlers["explorer"] = lambda _args: CommandOutcome(False, "Explorer unavailable")
+    outcome = service.run_chain("taskmgr then explorer")
+
+    assert not outcome.success
+    assert "step 2" in outcome.message.lower()
+    assert "Task Manager opened" in outcome.output

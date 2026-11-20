@@ -32,7 +32,30 @@ Clipboard history is opt-in. When enabled, copied text is stored in the local
 SQLite database in plaintext. Do not copy passwords, private keys, or other
 secrets while capture is enabled. Clear history from the Clipboard tools page
 if you no longer want those entries retained; deleting rows is not a secure
-erasure guarantee for database files or backups.
+erasure guarantee for database files or backups. The sensitive-content filter
+recognizes several common credential formats but is only a heuristic; it cannot
+guarantee that every secret is excluded. Optional image captures are stored as
+unencrypted PNG files in the SeekR data directory. Use the Clipboard page's
+pause control to stop future capture, or its clear-all action to remove pinned
+and unpinned history.
+
+## Database backup and restore
+
+Use Tools → Database & backups to create an integrity-checked SQLite backup
+before troubleshooting or reinstalling. Backup files are not encrypted and
+contain the same local data as the database; store them privately. Restoring a
+backup replaces the current database. SeekR validates the backup and attempts
+to restore the previous live snapshot if the restore operation fails. Do not
+delete the current database manually as a first troubleshooting step.
+
+## Update download verification
+
+SeekR checks release metadata from the official GitHub repository. If you
+download an installer or portable archive, use the corresponding **Verify
+downloaded…** action and select the local file. A success message means both
+the expected file size and SHA-256 digest match GitHub's release metadata. A
+mismatch means the file should not be run. SeekR does not automatically run
+downloaded installers.
 
 ## Launching SeekR again does not bring the window forward
 

@@ -10,10 +10,12 @@ from pathlib import Path
 
 import pytest
 
+from PySide6.QtGui import QImage
+
 from core.config_manager import ConfigManager
 from features import applications as applications_module
 from features import bookmarks, color_tools, emoji_search, power, process_manager, quicklook, screenshots, system_info
-from features.applications import AppService
+from features.applications import AppService, ApplicationsProvider
 from features.clipboard import ClipboardProvider, ClipboardService
 from features.files import FileIndexer, FileService, FilesProvider
 from features.notes import NotesService
@@ -38,6 +40,81 @@ def indexed_files(config, db, tmp_path):
     service = FileService(config, db)
     stats = service.index()
     return service, stats, root
+
+
+
+def test_file_index_prunes_stale_rows_only_after_complete_scan(config, db, tmp_path):
+    root = tmp_path / "incremental"
+    root.mkdir()
+    current = root / "current.txt"
+    current.write_text("current", encoding="utf-8")
+    stale = root / "removed.txt"
+    stale.write_text("old", encoding="utf-8")
+    config.set("files.directories", [str(root)])
+    indexer = FileIndexer(config, db)
+    indexer.index()
+    stale.unlink()
+
+    stats = indexer.index()
+    assert not stats["cancelled"]
+    names = {row["name"] for row in db.recent_files(20, [str(root)])}
+    assert "current.txt" in names
+    assert "removed.txt" not in names
+
+
+def test_cancelled_file_index_preserves_previous_rows(config, db, tmp_path):
+    root = tmp_path / "cancelled-index"
+    root.mkdir()
+    existing = root / "existing.txt"
+    existing.write_text("existing", encoding="utf-8")
+    config.set("files.directories", [str(root)])
+    indexer = FileIndexer(config, db)
+    indexer.index()
+    token = CancelToken()
+    token.cancel()
+
+    stats = indexer.index(token=token)
+    assert stats["cancelled"]
+    assert any(row["name"] == "existing.txt"
+               for row in db.recent_files(20, [str(root)]))
+
+
+
+def test_missing_configured_directory_does_not_prune_its_cached_rows(config, db, tmp_path):
+    root = tmp_path / "temporarily-unavailable"
+    root.mkdir()
+    (root / "cached.txt").write_text("cached", encoding="utf-8")
+    config.set("files.directories", [str(root)])
+    indexer = FileIndexer(config, db)
+    indexer.index()
+    root.rename(tmp_path / "offline-folder")
+
+    stats = indexer.index()
+    assert not stats["cancelled"]
+    assert db.file_candidates("cached", limit=10)
+
+
+
+def test_file_index_skips_unchanged_records_and_force_reindexes(config, db, tmp_path):
+    root = tmp_path / "incremental-fast"
+    root.mkdir()
+    file = root / "stable.txt"
+    file.write_text("unchanged", encoding="utf-8")
+    subfolder = root / "folder"
+    subfolder.mkdir()
+    config.set("files.directories", [str(root)])
+    indexer = FileIndexer(config, db)
+
+    first = indexer.index()
+    assert first["indexed"] >= 1
+    second = indexer.index()
+    assert second["scanned"] >= 1
+    assert second["unchanged"] >= 2
+    assert second["indexed"] == 0
+
+    forced = indexer.index(clear=True)
+    assert forced["indexed"] >= 2
+    assert forced["unchanged"] == 0
 
 
 def test_file_index_finds_documents(indexed_files, config):
@@ -132,6 +209,49 @@ def test_files_provider_results(indexed_files, config, db, hooks, monkeypatch):
     assert db.history("file")
 
 
+def test_file_search_understands_natural_language_filters(config, db):
+    now = time.time()
+    db.upsert_files([
+        {"path": "/tmp/invoice-old.pdf", "name": "invoice-old.pdf", "ext": ".pdf",
+         "size": 1200, "mtime": now - 20 * 86400},
+        {"path": "/tmp/invoice-new.pdf", "name": "invoice-new.pdf", "ext": ".pdf",
+         "size": 1200, "mtime": now - 2 * 86400},
+        {"path": "/tmp/invoice-new.txt", "name": "invoice-new.txt", "ext": ".txt",
+         "size": 1200, "mtime": now - 2 * 86400},
+        {"path": "/tmp/invoice-large.pdf", "name": "invoice-large.pdf", "ext": ".pdf",
+         "size": 5_000_000, "mtime": now - 2 * 86400},
+    ])
+    service = FileService(config, db)
+
+    recent_pdfs = service.search("invoices type:pdf modified last week")
+    assert {row["name"] for _, row in recent_pdfs} == {"invoice-new.pdf", "invoice-large.pdf"}
+
+    large = service.search("invoice larger than 1 MB")
+    assert {row["name"] for _, row in large} == {"invoice-large.pdf"}
+
+    bounded = service.search("invoice larger than 1 KB smaller than 2 MB")
+    assert {row["name"] for _, row in bounded} == {
+        "invoice-old.pdf", "invoice-new.pdf", "invoice-new.txt",
+    }
+
+
+
+def test_application_index_upsert_skips_unchanged_rows(db):
+    entry = {
+        "name": "Editor", "path": "/apps/editor", "source": "start_menu",
+        "args": "", "icon_path": "/icons/editor",
+    }
+    assert db.upsert_apps([entry]) == 1
+    created = db.all_apps()[0]["created"]
+
+    assert db.upsert_apps([entry]) == 0
+    assert db.all_apps()[0]["created"] == created
+
+    changed = dict(entry, name="Updated Editor")
+    assert db.upsert_apps([changed]) == 1
+    assert db.all_apps()[0]["name"] == "Updated Editor"
+
+
 # ----------------------------------------------------------------- applications
 def test_scan_desktop_entries(config, db, tmp_path, monkeypatch):
     menu = tmp_path / "applications"
@@ -166,6 +286,7 @@ def test_scan_desktop_entries(config, db, tmp_path, monkeypatch):
 
 
 def test_application_launch_records_history(config, db, tmp_path, monkeypatch):
+    config.set("privacy.usage_tracking", True)
     menu = tmp_path / "applications"
     menu.mkdir()
     if os.name == "nt":
@@ -189,6 +310,90 @@ def test_application_launch_records_history(config, db, tmp_path, monkeypatch):
     assert db.history("app")
 
 
+
+def test_application_usage_ranking_respects_privacy_opt_in(config, db):
+    service = AppService(config, db)
+    db.upsert_apps([
+        {"name": "Editor", "path": "a.exe"},
+        {"name": "Editor", "path": "b.exe"},
+    ])
+    db._write("UPDATE apps SET use_count = 100, last_used = ? WHERE path = ?",
+              (time.time(), "b.exe"))
+    config.set("search.prioritize_recent", True)
+
+    config.set("privacy.usage_tracking", False)
+    neutral = service.search("Editor", 5)
+    assert neutral[0]["path"] == "a.exe"
+    assert service.suggestions(5) == []
+
+    config.set("privacy.usage_tracking", True)
+    personalized = service.search("Editor", 5)
+    assert personalized[0]["path"] == "b.exe"
+    assert service.suggestions(5)[0]["path"] == "b.exe"
+
+
+
+def test_clipboard_image_capture_is_separately_opt_in_and_cleans_up(qapp, config, db, tmp_path, monkeypatch):
+    monkeypatch.setenv("SEEKR_HOME", str(tmp_path / "seekr-data"))
+    service = ClipboardService(config, db)
+    config.set("privacy.clipboard_history", True)
+    config.set("privacy.clipboard_history_consent", True)
+    config.set("clipboard.enabled", True)
+    image = QImage(32, 24, QImage.Format.Format_ARGB32)
+    image.fill(0xFF336699)
+
+    assert service.capture_image(image) is None
+    config.set("clipboard.capture_images", True)
+    stored = service.capture_image(image)
+    assert stored is not None
+    assert stored["kind"] == "image"
+    assert Path(stored["image_path"]).is_file()
+    row = service.items()[0]
+    assert row["kind"] == "image"
+    assert row["width"] == 32 and row["height"] == 24
+    assert service.copy(row)
+    assert qapp.clipboard().mimeData().hasImage()
+
+    assert service.capture_image(image) is None  # adjacent duplicate suppressed
+    image_path = Path(stored["image_path"])
+    service.clear(keep_pinned=False)
+    assert not image_path.exists()
+
+
+
+def test_clipboard_image_cleanup_preserves_files_when_database_is_unavailable(config, db, tmp_path, monkeypatch):
+    monkeypatch.setenv("SEEKR_HOME", str(tmp_path / "seekr-data"))
+    service = ClipboardService(config, db)
+    config.set("privacy.clipboard_history", True)
+    config.set("privacy.clipboard_history_consent", True)
+    config.set("clipboard.enabled", True)
+    config.set("clipboard.capture_images", True)
+    image = QImage(12, 12, QImage.Format.Format_ARGB32)
+    image.fill(0xFF112233)
+    stored = service.capture_image(image)
+    assert stored is not None
+    image_path = Path(stored["image_path"])
+
+    monkeypatch.setattr(db, "clipboard_image_paths", lambda: None)
+    service._cleanup_orphan_images()
+    assert image_path.is_file()
+
+
+def test_clipboard_image_capture_rejects_oversized_dimensions(config, db, tmp_path, monkeypatch):
+    monkeypatch.setenv("SEEKR_HOME", str(tmp_path / "seekr-data"))
+    service = ClipboardService(config, db)
+    config.set("privacy.clipboard_history", True)
+    config.set("privacy.clipboard_history_consent", True)
+    config.set("clipboard.enabled", True)
+    config.set("clipboard.capture_images", True)
+
+    oversized = QImage(4097, 1, QImage.Format.Format_ARGB32)
+    assert service.capture_image(oversized) is None
+    too_many_pixels = QImage(4096, 4096, QImage.Format.Format_ARGB32)
+    assert service.capture_image(too_many_pixels) is None
+    assert service.items() == []
+
+
 # -------------------------------------------------------------------- clipboard
 def test_clipboard_service(config, db):
     service = ClipboardService(config, db)
@@ -203,6 +408,24 @@ def test_clipboard_service(config, db):
     assert service.count() == 1
     config.set("clipboard.enabled", False)
     assert service.capture("ignored") is None
+
+
+
+def test_clipboard_retention_expires_old_unpinned_entries_but_keeps_pinned(config, db):
+    service = ClipboardService(config, db)
+    config.set("privacy.clipboard_history", True)
+    config.set("privacy.retention_days", 2)
+    old_id = db.add_clipboard("old unpinned")
+    pinned_id = db.add_clipboard("old pinned")
+    db.set_clipboard_pinned(pinned_id, True)
+    db._write("UPDATE clipboard SET created = ? WHERE id IN (?, ?)",
+              (time.time() - 5 * 86400, old_id, pinned_id))
+
+    service.capture("fresh entry")
+    remaining = {entry["id"]: entry["text"] for entry in service.items()}
+    assert old_id not in remaining
+    assert remaining[pinned_id] == "old pinned"
+    assert "fresh entry" in remaining.values()
 
 
 def test_clipboard_capture_is_off_by_default(config, db):
@@ -248,6 +471,19 @@ def test_clipboard_skips_private_keys(config, db):
     service = ClipboardService(config, db)
     pem = "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----"
     assert service.capture(pem) is None
+
+
+
+def test_clipboard_categories_support_assignment_and_search(config, db):
+    service = ClipboardService(config, db)
+    first = db.add_clipboard("release installer notes")
+    second = db.add_clipboard("school reminder")
+    service.set_category(first, "Work")
+    service.set_category(second, "School")
+
+    assert service.items("Work")[0]["id"] == first
+    assert service.items("School")[0]["id"] == second
+    assert service.items()[0]["category"] in {"Work", "School"}
 
 
 # ------------------------------------------------------------------------ notes
@@ -528,3 +764,61 @@ def test_screenshot_provider(config, db, hooks):
     provider = ScreenshotProvider(config, db, hooks)
     results = provider.search("", 5)
     assert results and results[0].category == "Screenshot"
+
+
+def test_file_search_modified_yesterday_excludes_today_files(config, db, tmp_path):
+    from datetime import datetime, timedelta
+
+    root = tmp_path / "calendar-filter"
+    root.mkdir()
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+    entries = []
+    for name, modified in (
+        ("invoice-yesterday-morning.pdf", today_start - 16 * 3600),
+        ("invoice-yesterday-evening.pdf", today_start - 2 * 3600),
+        ("invoice-today.pdf", today_start + 1 * 3600),
+    ):
+        path = root / name
+        path.write_text("invoice", encoding="utf-8")
+        entries.append({
+            "path": str(path), "name": name, "name_lower": name.lower(),
+            "dir": str(root), "ext": ".pdf", "is_dir": False,
+            "size": 7, "mtime": modified, "indexed": time.time(),
+        })
+    db.upsert_files(entries)
+    config.set("files.directories", [str(root)])
+
+    results = FileService(config, db).search("invoice modified yesterday", 10)
+    names = {row["name"] for _score, row in results}
+    assert names == {"invoice-yesterday-morning.pdf", "invoice-yesterday-evening.pdf"}
+
+
+
+
+@pytest.mark.parametrize("secret", [
+    "AWS key AKIA1234567890ABCDEF",
+    "github_pat_" + "A" * 30,
+    "ghp_" + "B" * 36,
+    "xoxb-" + "C" * 24,
+    "AIza" + "D" * 35,
+    "sk_live_" + "E" * 24,
+    "-----BEGIN RSA PRIVATE KEY-----",
+])
+def test_clipboard_sensitive_filter_rejects_common_credentials(secret):
+    assert ClipboardService._looks_sensitive(secret)
+
+
+def test_clipboard_sensitive_filter_keeps_ordinary_text():
+    assert not ClipboardService._looks_sensitive(
+        "Please review the API documentation and send the report tomorrow."
+    )
+
+
+def test_clipboard_copy_handles_missing_image_payload(config, db, tmp_path):
+    service = ClipboardService(config, db)
+    missing_image = tmp_path / "missing-preview.png"
+    assert service.copy({
+        "kind": "image",
+        "image_path": str(missing_image),
+        "text": "[Image]",
+    }) is False
