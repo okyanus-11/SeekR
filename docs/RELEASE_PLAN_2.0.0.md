@@ -89,10 +89,10 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 
 ### Clipboard manager
 - [x] Preserve clipboard history as opt-in.
-- [ ] Add rich-text previews with safe formatting limits. (Plain text and separately opt-in, size-bounded PNG image previews are implemented.)
+- [ ] Add rich-text previews with safe formatting limits. (2.0.0 deliberately retains clipboard content as plain text, avoiding untrusted HTML rendering; safe rich-text preservation remains a possible later enhancement.)
 - [x] Add age-based retention for unpinned clipboard entries; pinned entries remain. (Rich-text preservation remains open; categories and pinning are supported.)
 - [x] Explain local storage and encryption status honestly; never silently collect clipboard content.
-- [ ] Exclude sensitive formats where feasible and provide a pause/clear control.
+- [x] Exclude common credential-shaped formats with a best-effort filter; provide pause, per-entry deletion, clear-unpinned, and confirmed clear-all controls. The filter is explicitly not a guarantee.
 - [ ] Test large payloads, corrupt entries, pruning, and database migration.
 
 ### Command chains
@@ -163,6 +163,8 @@ A 2.0.0 release candidate must not be tagged until all of the following are true
 The following 2.0.0 work has been added on the development branch. CI and platform validation remain release gates:
 
 - Natural-language file metadata filters and plural-aware matching, including local-calendar boundaries for today/yesterday and tests proving today is excluded from yesterday results.
+- Clipboard privacy controls now include common credential-pattern filtering, a visible pause switch, per-entry deletion, and a confirmed clear-all action. Plain text and multiline content are retained; rich-text formatting is intentionally reduced to plain text. The sensitive-pattern filter is best-effort, not a guarantee.
+- Update metadata handling now accepts only official SeekR release-download URLs with GitHub-provided SHA-256 digests; no update is silently downloaded or installed.
 - Safe file-index snapshot behavior during cancellation, inaccessible roots and complete scans.
 - Persistent widget lifecycle, visibility-aware polling, configurable refresh intervals, reduced-motion behavior for shared controls, theme refresh and regression coverage; the launcher now includes a local task-summary widget. The system card reports CPU, memory, storage, battery and network throughput, and the clock card includes a configurable focus timer.
 - Bounded app usage ranking and recent/frequent suggestions; tracking is off by default and disabling it suppresses personalization.
