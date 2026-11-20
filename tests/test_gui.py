@@ -914,3 +914,20 @@ def test_widget_size_settings_apply_without_reparenting(qapp, controller):
     controller.config.set("widgets.rail_width", 196)
     controller.config.set("widgets.card_height", 140)
     widgets.refresh_settings()
+
+
+def test_widget_order_settings_reorder_without_reparenting(qapp, controller):
+    widgets = controller.launcher.launcher_widgets
+    parents = {name: card.parentWidget() for name, card in widgets._cards.items()}
+    controller.config.set("widgets.left_order", ["tasks", "clock", "system"])
+    controller.config.set("widgets.right_order", ["meme", "weather"])
+    widgets.refresh_settings()
+    left = [widgets._left_layout.itemAt(i).widget() for i in range(widgets._left_layout.count())]
+    right = [widgets._right_layout.itemAt(i).widget() for i in range(widgets._right_layout.count())]
+    assert left[:3] == [widgets.tasks, widgets.clock, widgets.system]
+    assert right[:2] == [widgets.meme, widgets.weather]
+    for name, card in widgets._cards.items():
+        assert card.parentWidget() is parents[name]
+    controller.config.set("widgets.left_order", ["clock", "system", "tasks"])
+    controller.config.set("widgets.right_order", ["weather", "meme"])
+    widgets.refresh_settings()
