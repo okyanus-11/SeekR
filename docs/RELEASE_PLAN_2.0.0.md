@@ -17,7 +17,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [ ] Review Qt startup, first paint, animation, and repaint costs with profiling evidence.
 - [x] Make application indexing incremental and avoid unnecessary full rescans.
 - [x] Incremental file-index change detection: unchanged metadata rows are skipped, forced reindex is supported, and stale paths are pruned only after a complete scan; cancellation and inaccessible roots preserve the last complete snapshot.
-- [ ] Review icon extraction/cache bounds and ensure cache eviction is deterministic.
+- [x] Review icon extraction/cache bounds and ensure cache eviction is deterministic; LRU eviction is bounded and covered by tests.
 - [x] Pause widget polling while the launcher is hidden and defer weather/meme requests until activation. (Configurable refresh intervals and per-widget stale/offline states remain open.)
 - [ ] Reduce unnecessary widget updates and Qt repaints.
 - [ ] Benchmark large file indexes, including substring search and typo-tolerant ranking, before changing search semantics.
@@ -54,7 +54,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 ## 4. Widgets and their lifecycle
 
 - [x] Keep widget ownership/lifecycle independent from search-result refreshes.
-- [ ] Verify widgets remain visible after repeated show/hide, activation, resize, theme change, settings refresh, and result updates.
+- [x] Verify widgets remain visible after repeated show/hide, activation, resize, theme change, settings refresh, and result updates with Qt regression tests.
 - [ ] Give every widget isolated error handling, loading, stale-data, offline, and disabled states.
 - [x] Make refresh intervals configurable within safe minimum/maximum bounds.
 - [x] Pause or slow polling when hidden or when the relevant widget is disabled.
@@ -62,7 +62,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [ ] Persist widget configuration and restore it safely after upgrades.
 - [ ] Add battery, network throughput, storage, media playback, focus timer, tasks, and expanded performance-monitor widgets where reliable data sources are available.
 - [ ] Keep all optional network widgets non-blocking and cache last-good data.
-- [ ] Document data sources, refresh behavior, and permissions for each widget.
+- [x] Document widget data sources, refresh behavior, and location/permission behavior in the README and settings descriptions.
 
 ## 5. Productivity features
 
@@ -98,7 +98,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 ### Command chains
 - [x] Add a constrained, explicit command-chain syntax for supported built-in actions.
 - [x] Parse into structured actions; never use eval or shell=True.
-- [ ] Show the complete action plan before execution when any step is destructive or ambiguous.
+- [x] Show the complete action plan before execution for saved workflows; destructive/custom commands retain their own confirmation checks.
 - [ ] Add per-step confirmation, cancellation, timeout, and partial-failure reporting.
 - [x] Ensure command chains cannot bypass existing command safety checks.
 
@@ -124,7 +124,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [ ] Preserve user settings/database on normal upgrades and document data removal on uninstall.
 - [x] Add a secure update-checking flow that validates official release metadata and asset URLs, exposes GitHub-published SHA-256 values, and verifies a user-selected downloaded file against both its expected size and SHA-256 before reporting success. SeekR does not silently download or execute installers.
 - [ ] Provide clear in-app update availability, release notes, defer, and restart behavior.
-- [ ] Never silently replace a running executable or install an unverified artifact.
+- [x] Never silently replace a running executable or install an unverified artifact; updates are manual, hashes are verified before reporting success, and installer execution is never automatic.
 - [ ] Add code-signing support when a valid signing certificate is available; do not claim signed builds otherwise.
 - [x] Publish SHA256 checksums for every release artifact.
 - [ ] Improve crash diagnostics with explicit user consent and redaction; never upload clipboard, notes, paths, or query history by default.
@@ -139,7 +139,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [ ] Keep a complete Windows manual test record for each release candidate.
 - [ ] Publish screenshots captured from the actual release candidate.
 - [ ] Provide upgrade notes and migration behavior for existing 1.x user data.
-- [ ] Update troubleshooting and security/privacy documentation.
+- [x] Update troubleshooting and security/privacy documentation, including local storage, clipboard, backups, and update verification.
 - [ ] Ensure all repository workflows are green for the release commit and tag.
 - [ ] Verify generated installer and portable artifacts are downloadable and match published checksums.
 
