@@ -488,6 +488,14 @@ class WidgetsPage(SettingsPage):
         self.row(cards, "Task refresh", "How often the local task summary updates.", bind_spin(self.config, "widgets.tasks_refresh_minutes", 1, 60, " minutes"))
         self.row(cards, "Widget rail width", "Width of both side rails; larger values give cards more room.", bind_spin(self.config, "widgets.rail_width", 160, 280, " px"))
         self.row(cards, "Widget card height", "Base height for each widget card; taller cards reduce clipping on dense layouts.", bind_spin(self.config, "widgets.card_height", 124, 240, " px"))
+        self.left_order_edit = QLineEdit(", ".join(self.config.get("widgets.left_order", ["clock", "system", "tasks"])))
+        self.left_order_edit.setPlaceholderText("clock, system, tasks")
+        self.left_order_edit.editingFinished.connect(lambda: self._save_order("left"))
+        self.row(cards, "Left rail order", "Comma-separated: clock, system, tasks. Unknown and duplicate entries are ignored.", self.left_order_edit)
+        self.right_order_edit = QLineEdit(", ".join(self.config.get("widgets.right_order", ["weather", "meme"])))
+        self.right_order_edit.setPlaceholderText("weather, meme")
+        self.right_order_edit.editingFinished.connect(lambda: self._save_order("right"))
+        self.row(cards, "Right rail order", "Comma-separated: weather, meme. Unknown and duplicate entries are ignored.", self.right_order_edit)
         self.row(cards, "Clock refresh", "Update interval for the local clock.", bind_spin(self.config, "widgets.clock_refresh_ms", 250, 5000, " ms"))
         self.row(cards, "System refresh", "Update interval for CPU, memory and network readings.", bind_spin(self.config, "widgets.system_refresh_ms", 1000, 30000, " ms"))
         self.row(cards, "Weather refresh", "How often SeekR checks for updated weather.", bind_spin(self.config, "widgets.weather_refresh_minutes", 5, 180, " minutes"))
@@ -503,6 +511,14 @@ class WidgetsPage(SettingsPage):
         launcher = getattr(self.controller, "launcher", None)
         if launcher is not None and hasattr(launcher, "launcher_widgets"):
             launcher.launcher_widgets.refresh_settings(animate=True)
+
+    def _save_order(self, rail: str) -> None:
+        editor = self.left_order_edit if rail == "left" else self.right_order_edit
+        keys = [part.strip().lower() for part in editor.text().split(",") if part.strip()]
+        self.config.set(f"widgets.{rail}_order", keys)
+        editor.setText(", ".join(self.config.get(f"widgets.{rail}_order", [])))
+        self._widgets_changed(True)
+        self.saved(f"{rail.title()} widget order saved")
 
     def _save_location(self) -> None:
         value = self.location_edit.text().strip()
