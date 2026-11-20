@@ -31,7 +31,8 @@ def test_update_check_detects_new_release_and_records_timestamp(config, monkeypa
         "tag_name": "v2.1.0",
         "html_url": RELEASE_PAGE + "/tag/v2.1.0",
         "assets": [{"name": "SeekR-Setup-2.1.0.exe",
-                    "browser_download_url": RELEASE_PAGE + "/download/SeekR-Setup-2.1.0.exe"}],
+                    "browser_download_url": "https://github.com/okyanus-11/SeekR/releases/download/v2.1.0/SeekR-Setup-2.1.0.exe",
+                    "digest": "sha256:" + "a" * 64, "size": 123456}],
     }
     monkeypatch.setattr("urllib.request.urlopen", lambda *_args, **_kwargs: FakeResponse(payload))
     service = UpdateService(config)
@@ -39,6 +40,8 @@ def test_update_check_detects_new_release_and_records_timestamp(config, monkeypa
     assert info["update_available"]
     assert info["latest_version"] == "2.1.0"
     assert info["assets"][0]["name"] == "SeekR-Setup-2.1.0.exe"
+    assert info["assets"][0]["sha256"] == "a" * 64
+    assert info["assets"][0]["size"] == 123456
     assert config.get("updates.last_check") > 0
     assert service.last_info == info
 
@@ -69,3 +72,23 @@ def test_update_provider_is_explicit_and_non_blocking(config, db, hooks):
     assert len(results) == 1
     assert results[0].title == "Check for updates"
     assert hooks.calls == []
+
+
+def test_update_check_ignores_untrusted_or_unhashed_assets(config, monkeypatch):
+    payload = {
+        "tag_name": "v2.1.0",
+        "html_url": RELEASE_PAGE + "/tag/v2.1.0",
+        "assets": [
+            {"name": "evil.exe", "browser_download_url": "https://example.com/evil.exe",
+             "digest": "sha256:" + "b" * 64, "size": 1},
+            {"name": "unsigned.exe",
+             "browser_download_url": "https://github.com/okyanus-11/SeekR/releases/download/v2.1.0/unsigned.exe",
+             "digest": "", "size": 1},
+            {"name": "bad-hash.exe",
+             "browser_download_url": "https://github.com/okyanus-11/SeekR/releases/download/v2.1.0/bad.exe",
+             "digest": "sha1:" + "c" * 40, "size": 1},
+        ],
+    }
+    monkeypatch.setattr("urllib.request.urlopen", lambda *_args, **_kwargs: FakeResponse(payload))
+    info = UpdateService(config).check_latest()
+    assert info["assets"] == []
