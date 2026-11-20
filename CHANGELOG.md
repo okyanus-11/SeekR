@@ -4,6 +4,7 @@
 
 ### Added
 
+- Configurable launcher widget rail width, card height, and persistent left/right card ordering; settings changes reorder existing cards without recreating or reparenting them.
 - Local multi-step workflows with validated steps, preview, cancellation, progress,
   per-step errors, and versioned JSON import/export.
 - A reusable snippets manager with categories, aliases, search, explicit copy,
