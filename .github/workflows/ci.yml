@@ -196,15 +196,25 @@ jobs:
           TAG: ${{ steps.release_version.outputs.tag }}
         shell: bash
         run: |
-          # A main-branch push publishes a release only when this version has
-          # not already been released. Tag-triggered runs can refresh assets.
+          # Remove a malformed historical release created under the bare tag
+          # "v". The valid v1.1.2 release remains untouched.
+          if gh release view "v" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete "v" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag
+          fi
+
+          # Main publishes only once; tag-triggered runs may refresh assets.
           if [[ "$GITHUB_REF" == "refs/heads/main" ]] && \
              gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; skipping automatic main-branch republish."
-            exit 0
+            echo "Release $TAG already exists; keeping its published assets."
+          else
+            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+              gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+                --title "SeekR $TAG" --generate-notes
+            gh release upload "$TAG" artifacts/SeekR.exe artifacts/SeekR-Setup-*.exe artifacts/SHA256SUMS.txt \
+              --repo "$GITHUB_REPOSITORY" --clobber
           fi
-          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-              --title "SeekR $TAG" --generate-notes
-          gh release upload "$TAG" artifacts/SeekR.exe artifacts/SeekR-Setup-*.exe artifacts/SHA256SUMS.txt \
-            --repo "$GITHUB_REPOSITORY" --clobber
+
+          # Keep the public release page's notes authoritative and explicit
+          # about hardware-dependent checks that CI cannot perform.
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "SeekR $TAG" \
+            --notes-file docs/RELEASE_NOTES_2.0.0.md
