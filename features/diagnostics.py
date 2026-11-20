@@ -24,6 +24,8 @@ def redact_diagnostic_text(value: str) -> str:
         r"\1\2<REDACTED>",
         text,
     )
+    text = re.sub(r"\b(?:gh[pousr]_[A-Za-z0-9_]{12,}|sk-[A-Za-z0-9_-]{16,})\b", "<REDACTED_TOKEN>", text)
+    text = re.sub(r"([?&][A-Za-z0-9_.-]+=)[^&\s]+", r"\1<REDACTED>", text)
     text = re.sub(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", "<EMAIL>", text, flags=re.IGNORECASE)
     text = re.sub(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", "<IP_ADDRESS>", text)
     text = re.sub(r"(?i)\b[A-Z]:\\Users\\[^\\\s]+", "<USER_PATH>", text)
