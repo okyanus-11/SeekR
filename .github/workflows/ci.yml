@@ -59,7 +59,7 @@ jobs:
       - name: Validate Windows performance script syntax
         shell: pwsh
         run: |
-          foreach ($file in @("tools\windows_performance.ps1", "tools\windows_stability.ps1")) {
+          foreach ($file in @("tools\windows_test.ps1", "tools\windows_performance.ps1", "tools\windows_stability.ps1")) {
             $tokens = $null
             $errors = $null
             [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD $file), [ref]$tokens, [ref]$errors) | Out-Null
