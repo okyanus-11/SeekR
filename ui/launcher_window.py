@@ -891,7 +891,14 @@ class LauncherWindow(QWidget):
     # ------------------------------------------------------------ window hooks
     def changeEvent(self, event) -> None:  # noqa: N802
         if event.type() == QEvent.Type.WindowDeactivate:
-            if self.config.get("general.hide_on_focus_loss", True):
+            # Windows/Qt can deliver a delayed deactivation from the previous
+            # hide/show transition after the launcher has already been raised
+            # again. Treat every deactivation inside the activation grace
+            # period as stale; otherwise its 140 ms timer can hide the freshly
+            # reopened launcher and make the second hotkey press appear broken.
+            if time.monotonic() < self._activation_deadline:
+                self._hide_timer.stop()
+            elif self.config.get("general.hide_on_focus_loss", True):
                 self._hide_timer.start(140)
         elif event.type() == QEvent.Type.WindowActivate:
             self._activation_confirmed = True
