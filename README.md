@@ -89,7 +89,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 | Database backups | Create and restore integrity-checked local SQLite backups from Tools → Database & backups. Restore validates the backup and rolls back if restoration fails. |
 | Command chains | Explicit `chain:` sequences of existing named commands, with per-step confirmation for destructive actions and stop-on-failure behavior. |
 | Command Center | Press `>` for one searchable palette covering settings, system tools, network, workflows, snippets, clipboard, search shortcuts and widget toggles. |
-| Update checks | Manual `update:` checks and opt-in once-daily background checks against the official GitHub releases API; no installer is downloaded or run automatically. |
+| Update checks | Manual `update:` checks and opt-in once-daily background checks against the official GitHub releases API; validates release metadata and lets users verify a manually downloaded asset against its published SHA-256 and expected size. No installer is silently downloaded or run. |
 | Quick Connect | SSH profiles with validation; detects OpenSSH on PATH and in the standard Windows installation folder. Passwords are never stored. |
 | Power | Lists and switches Windows power schemes where `powercfg` supports it. |
 | Quick Actions | Open folders, open websites, launch applications with arguments, copy predefined text. |
