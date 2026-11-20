@@ -973,7 +973,7 @@ class LauncherWidgets(QObject):
             any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("clock", "system", "tasks"))
         )
         self.right_column.setVisible(
-            any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("weather", "meme"))
+            any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("weather", "meme", "media"))
         )
 
     def refresh_settings(self, animate=False):
