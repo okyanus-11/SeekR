@@ -627,8 +627,8 @@ class LauncherWidgets(QObject):
         self.right_column = QWidget(parent)
         self.left_column.setObjectName("LauncherWidgetRail")
         self.right_column.setObjectName("LauncherWidgetRail")
-        self.left_column.setFixedWidth(196)
-        self.right_column.setFixedWidth(196)
+        self.left_column.setFixedWidth(int(self.config.get("widgets.rail_width", 196)))
+        self.right_column.setFixedWidth(int(self.config.get("widgets.rail_width", 196)))
         self._left_layout = QVBoxLayout(self.left_column)
         self._right_layout = QVBoxLayout(self.right_column)
         for layout in (self._left_layout, self._right_layout):
@@ -649,8 +649,8 @@ class LauncherWidgets(QObject):
         self._right_layout.addWidget(self.meme)
         self._right_layout.addStretch(1)
         for key, card in self._cards.items():
-            card.setMinimumHeight(132)
-            card.setMaximumHeight(212 if key == "system" else 196 if key == "clock" else 160 if key == "tasks" else 168)
+            card.setMinimumHeight(int(self.config.get("widgets.card_height", 140)))
+            card.setMaximumHeight(int(self.config.get("widgets.card_height", 140)) + (24 if key == "system" else 16 if key == "clock" else 12))
             card.setContentsMargins(0, 0, 0, 0)
         self._apply_card_theme()
         self._rebuild()
@@ -700,6 +700,13 @@ class LauncherWidgets(QObject):
             )
 
     def _rebuild(self):
+        width = int(self.config.get("widgets.rail_width", 196))
+        self.left_column.setFixedWidth(width)
+        self.right_column.setFixedWidth(width)
+        card_height = int(self.config.get("widgets.card_height", 140))
+        for key, card in self._cards.items():
+            card.setMinimumHeight(card_height)
+            card.setMaximumHeight(card_height + (24 if key == "system" else 16 if key == "clock" else 12))
         # Cards are inserted into their layouts exactly once in __init__.
         # Settings refreshes only toggle visibility; they never remove, hide,
         # reparent, or recreate a card. This makes widget lifetime independent
