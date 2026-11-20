@@ -116,7 +116,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [ ] Test global hotkey conflicts, tray lifetime, startup registration, focus behavior, and window activation.
 - [ ] Review keyboard-only navigation, visible focus, screen-reader labels where supported, and contrast.
 - [x] Verify reduced-motion behavior and scalable UI text.
-- [ ] Keep all existing regression tests passing; add tests before fixing discovered regressions.
+- [x] Keep all existing regression tests passing; add tests before fixing discovered regressions. Latest PR-head run 44698669174 passed on Ubuntu and both Windows runners.
 
 ## 7. Packaging, updates, and distribution
 
@@ -142,7 +142,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [ ] Provide upgrade notes and migration behavior for existing 1.x user data.
 - [x] Update troubleshooting and security/privacy documentation, including local storage, clipboard, backups, and update verification.
 - [ ] Ensure all repository workflows are green for the release commit and tag.
-- [ ] Verify generated installer and portable artifacts are downloadable and match published checksums.
+- [x] Verify generated installer and portable artifacts are downloadable as workflow artifacts and match the staged SHA-256 manifest. Release-page publication remains a final tag/release gate.
 
 ## 9. Release gates
 
