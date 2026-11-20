@@ -22,12 +22,11 @@ from PySide6.QtCore import (
     Signal,
     Slot,
 )
-from PySide6.QtGui import QColor, QCursor, QFont, QGuiApplication, QKeyEvent
+from PySide6.QtGui import QCursor, QFont, QGuiApplication, QKeyEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QFrame,
-    QGraphicsDropShadowEffect,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -125,7 +124,11 @@ class LauncherWindow(QWidget):
             | Qt.WindowType.FramelessWindowHint
             | Qt.WindowType.WindowStaysOnTopHint
         )
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        # Keep the top-level surface opaque. Layered translucent Qt tool windows
+        # can stop receiving visible backing-store repaints on Windows while
+        # still processing input, which presents as a frozen screenshot.
+        self.setObjectName("LauncherWindow")
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, False)
 
         self._build_ui()
@@ -155,13 +158,8 @@ class LauncherWindow(QWidget):
 
         self.root = QFrame()
         self.root.setObjectName("LauncherRoot")
-        shadow = QGraphicsDropShadowEffect(self.root)
-        # A smaller blur keeps the floating surface polished without forcing
-        # Qt to repaint a huge shadow region on every animation frame.
-        shadow.setBlurRadius(28)
-        shadow.setOffset(0, 8)
-        shadow.setColor(QColor(0, 0, 0, 160))
-        self.root.setGraphicsEffect(shadow)
+        # Avoid graphics effects on the translucent top-level surface. The
+        # themed frame border supplies separation without a native layered effect.
         outer.addWidget(self.root)
 
         root_layout = QVBoxLayout(self.root)
@@ -321,11 +319,6 @@ class LauncherWindow(QWidget):
         super().hideEvent(event)
 
     def show_launcher(self) -> None:
-        # Preserve the current opacity when reopening during a fade-out. The
-        # animation must continue from the visible state, not restart at zero.
-        was_visible = self.isVisible()
-        interrupted_opacity = self.windowOpacity() if was_visible else 0.0
-        self._show_start_opacity = interrupted_opacity
         self._hiding = False
         # Any fade-out still in flight belongs to an earlier hide; a show that
         # arrives mid-animation must win.
@@ -381,8 +374,6 @@ class LauncherWindow(QWidget):
         spacing = int(self.config.get("appearance.result_spacing", 4) or 0)
         self.results_list.setSpacing(0)
         self._row_height = _ROW_HEIGHT + spacing
-        opacity = float(self.config.get("appearance.opacity", 0.98))
-        self.setWindowOpacity(max(0.65, min(1.0, opacity)))
 
     def _stop_window_animation(self) -> None:
         """Stop an in-flight transition before starting its opposite."""
@@ -394,27 +385,16 @@ class LauncherWindow(QWidget):
     def _animate_show(self) -> None:
         self._stop_window_animation()
         duration = int(self.config.get("appearance.animation_duration", 150) or 0)
-        target_opacity = float(self.config.get("appearance.opacity", 0.98))
-        target_opacity = max(0.65, min(1.0, target_opacity))
         target = getattr(self, "_target_position", self.pos())
         if not self.config.get("appearance.animations", True) or duration <= 0:
-            self.setWindowOpacity(target_opacity)
             self.move(target)
             return
 
-        # Run opacity and position together. Keeping one transition object lets
-        # a rapid hide/show interrupt cleanly instead of leaving two animations
-        # fighting over the same native window properties.
+        # Animate position only. Window-opacity animation creates a layered
+        # native window on Windows and can leave the visible surface stale.
         group = QParallelAnimationGroup(self)
-        opacity = QPropertyAnimation(self, b"windowOpacity", group)
-        opacity.setDuration(duration)
-        opacity.setStartValue(max(0.0, min(target_opacity, float(getattr(self, "_show_start_opacity", 0.0)))))
-        self._show_start_opacity = 0.0
-        opacity.setEndValue(target_opacity)
-        opacity.setEasingCurve(QEasingCurve.Type.OutCubic)
         slide = QPropertyAnimation(self, b"pos", group)
         slide.setDuration(duration)
-        # Enter from above the screen edge, like a native dropdown panel.
         slide.setStartValue(QPoint(target.x(), target.y() - self.height() + _DROPDOWN_REVEAL))
         slide.setEndValue(target)
         slide.setEasingCurve(QEasingCurve.Type.OutCubic)
@@ -434,17 +414,11 @@ class LauncherWindow(QWidget):
         if not self.config.get("appearance.animations", True) or duration <= 0:
             self._hide_timer.stop()
             self.hide()
-            self.setWindowOpacity(float(self.config.get("appearance.opacity", 0.98)))
             return
         self._hiding = True
         self._hide_generation += 1
         generation = self._hide_generation
         group = QParallelAnimationGroup(self)
-        opacity = QPropertyAnimation(self, b"windowOpacity", group)
-        opacity.setDuration(max(60, duration // 2))
-        opacity.setStartValue(self.windowOpacity())
-        opacity.setEndValue(0.0)
-        opacity.setEasingCurve(QEasingCurve.Type.InCubic)
         slide = QPropertyAnimation(self, b"pos", group)
         slide.setDuration(max(80, duration))
         slide.setStartValue(self.pos())
@@ -460,7 +434,6 @@ class LauncherWindow(QWidget):
         if animation is not None and self._window_animation is animation:
             self._window_animation = None
         self.hide()
-        self.setWindowOpacity(float(self.config.get("appearance.opacity", 0.98)))
         self._hiding = False
         self.closed.emit()
 
