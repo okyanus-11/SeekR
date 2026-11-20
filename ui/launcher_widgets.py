@@ -317,9 +317,38 @@ class WeatherWidget(WidgetCard):
         self._has_data = False
         self._busy = False
         self._fetch_task = None
+        self._cache_path = self._get_cache_path()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._refresh_periodic)
         self.timer.start(30 * 60 * 1000)
+        self._restore_cache()
+
+    @staticmethod
+    def _get_cache_path() -> Path:
+        try:
+            from core.paths import app_data_dir
+            return Path(app_data_dir()) / "weather_cache.json"
+        except Exception:
+            return Path.home() / ".seekr_weather_cache.json"
+
+    def _restore_cache(self) -> None:
+        location = str(self.config.get("widgets.weather_location", "") or "").strip()
+        if not location:
+            return
+        try:
+            cached = json.loads(self._cache_path.read_text(encoding="utf-8"))
+            if not isinstance(cached, dict) or cached.get("location") != location:
+                return
+            data = cached.get("data")
+            if not isinstance(data, dict) or not isinstance(data.get("current"), dict):
+                return
+            self._last_location = location
+            self.set_weather("weather", data)
+            # Keep the cache visible but allow the first active refresh to
+            # request newer conditions immediately.
+            self._last_location = ""
+        except (OSError, ValueError, TypeError):
+            log.debug("Could not restore cached weather", exc_info=True)
 
     def _refresh_periodic(self):
         self._last_location = ""
@@ -371,6 +400,14 @@ class WeatherWidget(WidgetCard):
         )
         self._has_data = True
         self.details.setText(self._last_good_details + "\nUpdated just now")
+        try:
+            self._cache_path.parent.mkdir(parents=True, exist_ok=True)
+            self._cache_path.write_text(json.dumps({
+                "location": self._last_location,
+                "data": data,
+            }), encoding="utf-8")
+        except OSError:
+            log.debug("Could not cache weather data", exc_info=True)
 
     @Slot(str, str)
     def set_error(self, kind, message):
