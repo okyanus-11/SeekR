@@ -518,16 +518,15 @@ def test_tools_clipboard_and_notes(qapp, controller):
     assert notes_page.title_edit.text() == "Smoke note"
 
 
-def test_launcher_respects_configured_opacity(qapp, controller):
+def test_launcher_remains_opaque_when_legacy_opacity_is_configured(qapp, controller):
     launcher = controller.launcher
     controller.config.set("appearance.animations", False)
     controller.config.set("appearance.opacity", 0.73)
     launcher.show_launcher()
     qapp.processEvents()
-    # Qt exposes top-level opacity as an 8-bit alpha value on supported
-    # platforms, so compare against the representable value rather than the
-    # unquantized float supplied to setWindowOpacity().
-    assert launcher.windowOpacity() == pytest.approx(round(0.73 * 255) / 255)
+    # Legacy opacity values must not turn the launcher into a layered window.
+    assert launcher.windowOpacity() == 1.0
+    assert not launcher.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
     controller.config.set("appearance.opacity", 0.91)
     qapp.processEvents()
     assert launcher.windowOpacity() == pytest.approx(round(0.91 * 255) / 255)
