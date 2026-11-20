@@ -1035,11 +1035,26 @@ class Database:
                 if not {"kv", "apps", "files", "clipboard", "notes", "history"}.issubset(tables):
                     return False
                 with self._lock:
-                    backup.backup(self.connection())
-                    self.connection().commit()
-                    self._init_schema()
-                    restored = self.connection().execute("PRAGMA integrity_check").fetchone()
-                return bool(restored and restored[0] == "ok")
+                    target = self.connection()
+                    safety = sqlite3.connect(":memory:")
+                    try:
+                        target.backup(safety)
+                        try:
+                            backup.backup(target)
+                            target.commit()
+                            self._init_schema()
+                            restored = target.execute("PRAGMA integrity_check").fetchone()
+                            if restored and restored[0] == "ok":
+                                return True
+                        except sqlite3.Error:
+                            log.exception("Database restore failed; restoring pre-operation snapshot")
+                        # A failed or incomplete restore must not leave the live
+                        # database in a partially replaced state.
+                        safety.backup(target)
+                        target.commit()
+                        return False
+                    finally:
+                        safety.close()
             finally:
                 backup.close()
         except (OSError, sqlite3.Error) as exc:
