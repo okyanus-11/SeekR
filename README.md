@@ -18,7 +18,6 @@ Search apps and files, calculate, run commands, manage local tasks, and reach a 
 
 [![Latest release](https://img.shields.io/github/v/release/okyanus-11/SeekR?display_name=tag&style=for-the-badge&color=7c83ff)](https://github.com/okyanus-11/SeekR/releases/latest)
 [![License](https://img.shields.io/github/license/okyanus-11/SeekR?style=for-the-badge)](LICENSE)
-[![CI](https://img.shields.io/github/actions/workflow/status/okyanus-11/SeekR/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/okyanus-11/SeekR/actions)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-357ec7?style=for-the-badge&logo=windows)](#requirements)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab?style=for-the-badge&logo=python&logoColor=white)](#development)
 
