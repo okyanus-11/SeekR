@@ -926,10 +926,55 @@ def test_workflow_and_snippet_tools_pages_are_constructible(qapp, controller, tm
 def test_system_widget_includes_storage_battery_and_network(qapp, controller):
     system = controller.launcher.launcher_widgets.system
     system.refresh()
+    deadline = time.monotonic() + 3.0
+    while system._busy and time.monotonic() < deadline:
+        qapp.processEvents()
+        time.sleep(0.005)
+    assert not system._busy, "system metrics worker did not finish"
     assert system.disk_label.text().startswith("Storage")
     assert system.battery_label.text().startswith("Battery")
     assert system.network_label.text().startswith("Network")
     assert system.disk_bar.value() >= 0
+
+
+def test_system_widget_collects_metrics_off_the_gui_thread(qapp, controller, monkeypatch):
+    import psutil
+
+    system = controller.launcher.launcher_widgets.system
+    deadline = time.monotonic() + 3.0
+    while system._busy and time.monotonic() < deadline:
+        qapp.processEvents()
+        time.sleep(0.005)
+    assert not system._busy
+
+    main_thread = threading.get_ident()
+    worker_thread = []
+    started = threading.Event()
+    release = threading.Event()
+    original = psutil.cpu_percent
+
+    def slow_cpu_probe(interval=None):
+        worker_thread.append(threading.get_ident())
+        started.set()
+        release.wait(2.0)
+        return original(interval=interval)
+
+    monkeypatch.setattr(psutil, "cpu_percent", slow_cpu_probe)
+    try:
+        system.refresh()
+        assert started.wait(1.0), "system metrics probe did not start"
+        # A deliberately stalled OS metrics call must not stall Qt's event loop.
+        qapp.processEvents()
+        assert system._busy
+        assert worker_thread and worker_thread[0] != main_thread
+    finally:
+        release.set()
+
+    deadline = time.monotonic() + 3.0
+    while system._busy and time.monotonic() < deadline:
+        qapp.processEvents()
+        time.sleep(0.005)
+    assert not system._busy, "system metrics worker did not recover after the probe returned"
 
 def test_clock_widget_focus_timer_starts_pauses_and_resets(controller):
     clock = controller.launcher.launcher_widgets.clock
