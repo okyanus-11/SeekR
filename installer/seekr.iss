@@ -19,7 +19,6 @@ AppUpdatesURL={#MyAppURL}/releases
 DefaultDirName={localappdata}\Programs\{#MyAppName}
 DefaultGroupName={#MyAppName}
 UninstallDisplayName={#MyAppName}
-UninstallDisplayVersion={#MyAppVersion}
 UninstallDisplayIcon={app}\{#MyAppExeName}
 SetupIconFile=..\assets\icons\seekr.ico
 LicenseFile=..\LICENSE
