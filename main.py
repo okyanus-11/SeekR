@@ -143,7 +143,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                     snapshot = card.grab()
                     if snapshot.isNull() or snapshot.width() <= 0 or snapshot.height() <= 0:
                         failures.append(f"{name} widget produced an empty render snapshot")
-                for name in ("clock", "system", "weather", "meme", "media"):
+                for name in ("clock", "system", "weather", "cat", "media"):
                     if not bool(config.get(f"widgets.{name}_enabled", True)):
                         continue
                     card = widgets._cards[name]
