@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="390" viewBox="0 0 1200 390" role="img" aria-labelledby="title desc">
+  <title id="title">SeekR — Find it. Launch it. Get things done.</title>
+  <desc id="desc">A dark purple gradient banner with the SeekR wordmark and a stylized top-dropdown search panel.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#111326"/>
+      <stop offset=".55" stop-color="#211b43"/>
+      <stop offset="1" stop-color="#34245f"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a78bfa"/>
+      <stop offset="1" stop-color="#60a5fa"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#fff" stroke-opacity=".045" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="390" rx="28" fill="url(#bg)"/>
+  <rect width="1200" height="390" rx="28" fill="url(#grid)"/>
+  <circle cx="1010" cy="80" r="180" fill="#8b5cf6" opacity=".12" filter="url(#shadow)"/>
+  <circle cx="870" cy="360" r="160" fill="#60a5fa" opacity=".10" filter="url(#shadow)"/>
+  <g transform="translate(74 86)">
+    <rect x="0" y="0" width="58" height="58" rx="17" fill="url(#accent)"/>
+    <path d="M16 18h27M16 29h19M16 40h24" stroke="#111326" stroke-width="5" stroke-linecap="round"/>
+    <text x="78" y="44" fill="#fff" font-family="Segoe UI,Arial,sans-serif" font-size="54" font-weight="750" letter-spacing="-2">SeekR</text>
+    <text x="0" y="115" fill="#fff" font-family="Segoe UI,Arial,sans-serif" font-size="30" font-weight="650">Find it. Launch it. Get things done.</text>
+    <text x="0" y="157" fill="#c7c6dd" font-family="Segoe UI,Arial,sans-serif" font-size="19">A fast, keyboard-first launcher for Windows.</text>
+    <g transform="translate(0 205)">
+      <rect width="172" height="40" rx="20" fill="#fff" fill-opacity=".10" stroke="#fff" stroke-opacity=".18"/>
+      <text x="86" y="26" text-anchor="middle" fill="#e9e7ff" font-family="Segoe UI,Arial,sans-serif" font-size="15" font-weight="600">WINDOWS 10 / 11</text>
+      <rect x="184" width="142" height="40" rx="20" fill="#fff" fill-opacity=".10" stroke="#fff" stroke-opacity=".18"/>
+      <text x="255" y="26" text-anchor="middle" fill="#e9e7ff" font-family="Segoe UI,Arial,sans-serif" font-size="15" font-weight="600">PYTHON + QT</text>
+    </g>
+  </g>
+  <g transform="translate(660 52)">
+    <rect x="18" y="18" width="470" height="276" rx="20" fill="#000" opacity=".28" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="470" height="276" rx="18" fill="#171827" stroke="#aaa2df" stroke-opacity=".34"/>
+    <rect x="0" y="0" width="470" height="8" rx="4" fill="url(#accent)"/>
+    <circle cx="28" cy="31" r="5" fill="#a78bfa"/>
+    <circle cx="46" cy="31" r="5" fill="#818cf8"/>
+    <circle cx="64" cy="31" r="5" fill="#60a5fa"/>
+    <rect x="22" y="58" width="426" height="56" rx="12" fill="#24263a" stroke="#8b82ca" stroke-opacity=".6"/>
+    <circle cx="48" cy="86" r="9" fill="none" stroke="#c4b5fd" stroke-width="2.5"/>
+    <path d="m55 93 7 7" stroke="#c4b5fd" stroke-width="2.5" stroke-linecap="round"/>
+    <text x="78" y="92" fill="#f3f0ff" font-family="Segoe UI,Arial,sans-serif" font-size="17">Search apps, files, tools...</text>
+    <rect x="22" y="130" width="426" height="42" rx="10" fill="#39345f"/>
+    <rect x="36" y="143" width="16" height="16" rx="4" fill="url(#accent)"/>
+    <text x="66" y="157" fill="#fff" font-family="Segoe UI,Arial,sans-serif" font-size="15" font-weight="600">Visual Studio Code</text>
+    <text x="418" y="157" text-anchor="end" fill="#c7c6dd" font-family="Segoe UI,Arial,sans-serif" font-size="12">APP</text>
+    <rect x="22" y="182" width="426" height="38" rx="10" fill="#222438"/>
+    <circle cx="44" cy="201" r="8" fill="#60a5fa" opacity=".9"/>
+    <text x="66" y="206" fill="#d8d7e8" font-family="Segoe UI,Arial,sans-serif" font-size="14">Calculator</text>
+    <rect x="22" y="230" width="426" height="28" rx="8" fill="#222438" opacity=".72"/>
+    <text x="36" y="249" fill="#aaa9c2" font-family="Segoe UI,Arial,sans-serif" font-size="12">Alt + Space</text>
+    <text x="430" y="249" text-anchor="end" fill="#aaa9c2" font-family="Segoe UI,Arial,sans-serif" font-size="12">Concept preview</text>
+  </g>
+</svg>
