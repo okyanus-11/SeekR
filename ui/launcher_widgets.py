@@ -938,8 +938,7 @@ class LauncherWidgets(QObject):
                 interval = int(self.config.get("widgets.weather_refresh_minutes", 30)) * 60 * 1000
                 card.timer.start(interval) if running else card.timer.stop()
             elif key == "cat":
-                interval = int(self.config.get("widgets.cat_refresh_minutes", 60)) * 60 * 1000
-                card.day_timer.start(interval) if running else card.day_timer.stop()
+                card.day_timer.start(60_000) if running else card.day_timer.stop()
                 if not running:
                     card.retry_timer.stop()
             elif key == "media":
