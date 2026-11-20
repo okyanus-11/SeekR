@@ -128,10 +128,11 @@ earlier SeekR build is available and record it as N/A.
 | ID | Test | Steps | Expected | Result | Notes |
 |---|---|---|---|---|---|
 | B01 | Clipboard capture | Enable clipboard history, copy several text snippets in another app, open SeekR and search for them. | Copied entries appear and can be pasted/reused. | | |
-| B02 | Clipboard controls | Pin, delete and clear entries. | Each action works and survives a restart. | | |
-| B03 | Notes autosave | Create a note, type text, wait for autosave, close SeekR. | Note is saved. | | |
-| B04 | Notes persistence | Restart SeekR and open Tools → Quick notes. | Note and its text are still present. | | |
-| B05 | Notes search | Search for note text from the launcher. | Matching notes appear. | | |
+| B02 | Clipboard controls | Pin, delete, clear unpinned, pause monitoring, then clear all including pinned entries. | Each action works; paused monitoring captures nothing; clear-all removes text and image entries. | | |
+| B03 | Clipboard privacy | Confirm capture is off by default; opt in, copy multiline text, HTML-formatted text, and representative test strings matching common credential formats. | No capture occurs before opt-in; multiline text remains readable; rich formatting is reduced to plain text; common credential-shaped samples are skipped. This filter is best-effort, not a security guarantee. | | |
+| B04 | Notes autosave | Create a note, type text, wait for autosave, close SeekR. | Note is saved. | | |
+| B05 | Notes persistence | Restart SeekR and open Tools → Quick notes. | Note and its text are still present. | | |
+| B06 | Notes search | Search for note text from the launcher. | Matching notes appear. | | |
 
 ### Settings, themes and tools
 
@@ -148,7 +149,8 @@ earlier SeekR build is available and record it as N/A.
 | S09 | Theme: Dracula | Select Dracula. | Theme applies consistently. | | |
 | S10 | Theme: Nord | Select Nord. | Theme applies consistently. | | |
 | S11 | Accent and transparency | Change accent, transparency, font family/size, width and animation toggle. | Changes apply live, remain readable, and persist after restart. | | |
-| S12 | Tools pages | Open Tools and visit all 14 pages: Calculator, Developer tools, Date & time, Color, Dictionary, Screenshots, System, Processes, Power, Clipboard, Quick notes, Bookmarks, Quick Connect, Quick actions. | Every page opens and its visible controls respond; unavailable data says so instead of inventing values. | | |
+| S12 | Tools pages | Open Tools and visit all 18 pages: Calculator, Developer tools, Date & time, Color, Dictionary, Screenshots, System, Processes, Power, Clipboard, Quick notes, Bookmarks, Quick Connect, Quick actions, Workflows, Text snippets, Tasks, Database & backups. | Every page opens and its visible controls respond; unavailable data says so instead of inventing values. | | |
+| S13 | Database backup and restore | Tools → Database & backups: create a backup, add a test note, restore the backup, then verify the note state. Repeat with a non-SeekR SQLite file and a corrupted file. | Backup is created and integrity-checked; restore returns the database to the backed-up state; invalid backups are rejected without losing current data. | | |
 | S13 | Developer tools | Exercise a few utilities: UUID, Base64 encode/decode, JSON format/validate, hash, regex, timestamp, case/count/hex. | Results are correct; invalid input produces a clear error. | | |
 | S14 | System information | Open Tools → System. | CPU, memory, disks, OS and other available values populate without freezing the UI; GPU shows driver utilisation where GPU Engine counters or vendor telemetry are available, or an honest unavailable state. | | |
 | S15 | Processes | Search processes and open details. Try terminating a harmless test process and a protected system process. | Harmless process can be terminated after confirmation; critical/system process is refused with an explanation. | | |
