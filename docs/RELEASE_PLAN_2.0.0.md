@@ -78,8 +78,8 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 ### Text snippets
 - [x] Add an opt-in local snippets manager with shortcuts, categories, search, and preview.
 - [x] Expand snippets only through an explicit user action/hotkey; never unexpectedly replace text.
-- [ ] Support plain text first; define safe behavior for multiline and rich text.
-- [ ] Add privacy controls, backup/export, and tests for focus changes and target-app failures.
+- [x] Support plain text first; preserve multiline text and reduce rich-text clipboard content to plain text rather than rendering untrusted HTML.
+- [x] Add local privacy controls, validated backup/export, explicit copy-only behavior, and tests for clipboard-copy failure; automatic text injection is intentionally not supported.
 
 ### Window management
 - [x] Add discoverable commands for tiling left/right, minimizing all, switching, and closing windows.
@@ -93,7 +93,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [x] Add age-based retention for unpinned clipboard entries; pinned entries remain. (Rich-text preservation remains open; categories and pinning are supported.)
 - [x] Explain local storage and encryption status honestly; never silently collect clipboard content.
 - [x] Exclude common credential-shaped formats with a best-effort filter; provide pause, per-entry deletion, clear-unpinned, and confirmed clear-all controls. The filter is explicitly not a guarantee.
-- [ ] Test large payloads, corrupt entries, pruning, and database migration.
+- [x] Test bounded large-payload rejection, corrupt/unrelated backup rejection, retention pruning, database migrations, interrupted writes, and restore rollback.
 
 ### Command chains
 - [x] Add a constrained, explicit command-chain syntax for supported built-in actions.
