@@ -817,7 +817,7 @@ def test_daily_cat_widget_displays_an_image_without_external_link_metadata(qapp,
     monkeypatch.setattr(CatWidget, "_get_cache_path", staticmethod(lambda: cache))
     widget = CatWidget(QThreadPool())
     png = base64.b64decode(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
     )
     widget.set_cat("cat", {"_image_bytes": png})
     assert widget.preview.pixmap() is not None
@@ -1024,7 +1024,7 @@ def test_cat_keeps_last_good_image_when_refresh_fails(qapp, monkeypatch, tmp_pat
     monkeypatch.setattr(CatWidget, "_get_cache_path", staticmethod(lambda: cache))
     widget = CatWidget(QThreadPool())
     png = base64.b64decode(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
     )
     widget.set_cat("cat", {"_image_bytes": png})
     widget.set_error("cat", "network unavailable")
