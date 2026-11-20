@@ -1,11 +1,15 @@
 """Opt-in GitHub release checks; updates are downloaded only after user action."""
 from __future__ import annotations
 
+import hashlib
+import hmac
 import re
 import time
 import urllib.error
 import urllib.request
 import json
+from pathlib import Path
+from urllib.parse import urlsplit
 from typing import Any
 
 from core.config_manager import ConfigManager
@@ -54,6 +58,37 @@ class UpdateService:
         except (TypeError, ValueError):
             last = 0
         return time.time() - last >= CHECK_INTERVAL_SECONDS
+
+    @staticmethod
+    def verify_asset_file(asset: dict[str, Any], file_path: str | Path) -> tuple[bool, str]:
+        """Verify a user-downloaded file against trusted GitHub release metadata."""
+        if not isinstance(asset, dict):
+            return False, "Invalid release asset metadata"
+        name = str(asset.get("name", "")).strip()
+        url = str(asset.get("url", "")).strip()
+        expected = str(asset.get("sha256", "")).strip().lower()
+        if (not name
+                or not url.startswith("https://github.com/okyanus-11/SeekR/releases/download/")
+                or not re.fullmatch(r"[0-9a-f]{64}", expected)):
+            return False, "The release asset does not include trusted SHA-256 metadata"
+        path = Path(file_path).expanduser()
+        try:
+            if not path.is_file():
+                return False, "The selected file does not exist"
+            actual_size = path.stat().st_size
+            expected_size = int(asset.get("size", 0) or 0)
+            if expected_size > 0 and actual_size != expected_size:
+                return False, f"File size mismatch for {name}"
+            digest = hashlib.sha256()
+            with path.open("rb") as stream:
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            if not hmac.compare_digest(digest.hexdigest(), expected):
+                return False, f"SHA-256 mismatch for {name}"
+            return True, f"SHA-256 verified for {name}"
+        except (OSError, TypeError, ValueError) as exc:
+            log.warning("Could not verify downloaded update asset: %s", exc)
+            return False, f"Could not verify the selected file: {exc}"
 
     def check_latest(self) -> dict[str, Any]:
         request = urllib.request.Request(
@@ -144,6 +179,10 @@ class UpdateProvider(SearchProvider):
                     actions.append(ResultAction(
                         f"Copy SHA-256 · {name}",
                         lambda digest=digest: self.hooks.copy_text(digest),
+                    ))
+                    actions.append(ResultAction(
+                        f"Verify downloaded {name}…",
+                        lambda asset=asset: self.hooks.verify_update_asset(asset),
                     ))
                 if info.get("assets"):
                     subtitle += f" SHA-256 hashes are available for {len(info['assets'])} verified official asset metadata entr{'y' if len(info['assets']) == 1 else 'ies'}."
