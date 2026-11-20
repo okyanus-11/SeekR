@@ -271,7 +271,7 @@ See [the detailed limitations and Windows audit](docs/WINDOWS_AUDIT.md) for curr
 
 ## Roadmap
 
-**2.0.1** replaces the former daily meme card with a daily cat photo rendered directly in the launcher. The image is downloaded, cached locally, and displayed without opening an external link.
+**2.0.1** adds a daily cat photo rendered directly in the launcher. The image is downloaded, cached locally, and displayed without opening an external link.
 
 A plugin marketplace is planned for **3.0.0**. Plugins are **not included in 2.0.0**: the Settings → Plugins page is a Coming Soon placeholder, and this release does not load or execute plugin code.
 
