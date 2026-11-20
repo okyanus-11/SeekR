@@ -56,7 +56,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 - Recent and frequently used applications influence ranking.
 - Context menu for secondary actions, action cycling with `Tab`, and numbered actions with `Ctrl+1…9`.
 - Subtle open/close/selection animations that can be disabled in Settings.
-- Five optional live widgets around the results: clock, system usage and local task summary on the left; weather and a daily wholesome meme on the right. Each can be enabled independently, and refresh intervals are configurable in Settings → Widgets.
+- Five optional live widgets around the results: clock, system usage and local task summary on the left; weather and a daily wholesome meme on the right. Each can be enabled independently, refresh intervals, rail width, card height, and left/right card order are configurable in Settings → Widgets.
 - Weather uses a city or town entered in Settings (no location permission); the current conditions refresh every 30 minutes. The daily meme is cached locally and refreshes on the next calendar day.
 - Optional "hide when focus is lost", tray icon, and start-with-Windows support.
 - Single-instance enforcement: launching SeekR again brings the existing window forward.
