@@ -1003,3 +1003,21 @@ def test_weather_cache_restores_last_good_data_across_instances(qapp, monkeypatc
     second.timer.stop()
     first.deleteLater()
     second.deleteLater()
+
+ 
+def test_widget_json_rejects_non_object_provider_response(monkeypatch):
+    import urllib.request
+    from ui.launcher_widgets import _FetchTask
+
+    class Response:
+        def __enter__(self):
+            return self
+        def __exit__(self, *_args):
+            return False
+        def read(self, _limit):
+            return b"[]"
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *_args, **_kwargs: Response())
+    import pytest
+    with pytest.raises(ValueError, match="invalid response"):
+        _FetchTask._get_json("https://example.test/widget")
