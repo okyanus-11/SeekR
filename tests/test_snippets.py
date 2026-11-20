@@ -75,3 +75,11 @@ def test_snippet_import_validates_all_entries_before_writing(config, db, hooks):
     assert not ok
     assert count == 0
     assert service.snippets() == []
+
+
+def test_snippet_copy_reports_target_clipboard_failure(config, db, hooks, monkeypatch):
+    service = SnippetService(config, db, hooks)
+    service.save({"title": "No paste", "content": "copy only on request"})
+    snippet = service.snippets()[0]
+    monkeypatch.setattr(hooks, "copy_text", lambda _text: False)
+    assert service.copy(snippet) is False
