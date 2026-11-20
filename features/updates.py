@@ -114,6 +114,20 @@ class UpdateProvider(SearchProvider):
             if info["update_available"]:
                 subtitle = f"Version {info['latest_version']} is available (current {APP_VERSION})."
                 actions.append(ResultAction("Open official release", lambda: self.hooks.open_url(info["release_url"])))
+                for asset in info.get("assets", []):
+                    name = asset["name"]
+                    url = asset["url"]
+                    digest = asset["sha256"]
+                    actions.append(ResultAction(
+                        f"Download {name}",
+                        lambda url=url: self.hooks.open_url(url),
+                    ))
+                    actions.append(ResultAction(
+                        f"Copy SHA-256 · {name}",
+                        lambda digest=digest: self.hooks.copy_text(digest),
+                    ))
+                if info.get("assets"):
+                    subtitle += f" SHA-256 hashes are available for {len(info['assets'])} verified official asset metadata entr{'y' if len(info['assets']) == 1 else 'ies'}."
             else:
                 subtitle = f"SeekR {APP_VERSION} is up to date (checked {time.strftime('%Y-%m-%d %H:%M', time.localtime(info['checked_at']))})."
         return [self.make_result(
