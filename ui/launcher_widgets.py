@@ -341,6 +341,8 @@ class WeatherWidget(WidgetCard):
         try:
             if self._cache_path.stat().st_size > 64_000:
                 return
+            if self._cache_path.stat().st_size > 64_000:
+                return
             cached = json.loads(self._cache_path.read_text(encoding="utf-8"))
             if not isinstance(cached, dict) or cached.get("location") != location:
                 return
