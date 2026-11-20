@@ -44,12 +44,12 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [ ] Prefer exact and high-confidence matches without making typo tolerance worse.
 - [ ] Improve abbreviation and common-alias handling without keyword collisions.
 - [x] Add bounded recent/frequent application ranking behind the existing privacy usage-tracking setting; existing settings allow disabling and clearing usage data.
-- [ ] Ensure recent activity has bounded retention and never leaks private query content.
+- [x] Ensure recent activity has bounded retention and never leaks private query content; search history is opt-out, keyword queries are excluded, age retention is applied, and the configured row limit is enforced with an indexed delete. Tests cover opt-out, keyword exclusion and pruning beyond the previous fetch window.
 - [x] Add natural-language file filters for supported metadata (type, modified date, and size).
 - [x] Add indexed document-content search only for explicitly configured file types and folders.
 - [ ] Make indexing status, supported formats, exclusions, and privacy implications clear.
 - [ ] Add tests for ambiguous natural-language filters, time zones, locale parsing, and large indexes.
-- [ ] Preserve explicit keyword routing and existing aliases as backwards-compatible behavior.
+- [x] Preserve explicit keyword routing and existing aliases as backwards-compatible behavior; keyword resolution, aliases and cache invalidation have regression coverage.
 
 ## 4. Widgets and their lifecycle
 
@@ -196,6 +196,16 @@ These entries are not a substitute for the release gates below. The remaining ch
 - Corrected README release-candidate wording so the download link is not mistaken for a published 2.0.0 installer, and corrected the widget count to six.
 
 The automated run for the current branch must pass after these changes. CI runner checks are evidence for source tests and packaging only; they do not replace real desktop, display, sleep/resume, multi-monitor, upgrade-from-1.x, or long-duration testing. Do not check those manual items without actual recorded results.
+
+
+
+## Latest verified branch head — 2026-11-20
+
+- Head: `560c0449284a125216f3cd738c95ded418ece2f6`.
+- Workflow [#44705207278](https://github.com/okyanus-11/SeekR/actions/runs/44705207278): **success** — Ubuntu Latest 328 passed / 2 skipped; Windows Latest 326 passed / 4 skipped; Windows Server 2022 326 passed / 4 skipped.
+- Windows packaging job passed PowerShell script parsing, portable and onedir builds, packaged UI/widget verification, Inno Setup compilation, install/launch/UI verification, uninstall, checksum generation and artifact upload.
+- Artifact: `SeekR-Windows-cf47f50bc830865555f6515746dd6ade68a7ad29` (112,566,780 bytes). The ZIP contains `SeekR.exe`, `SeekR-Setup-2.0.0.exe` and `SHA256SUMS.txt`; both executable hashes were independently verified against the manifest.
+- Release publishing is skipped on this draft PR by design. No release tag has been created.
 
 ## Explicitly deferred to 3.0.0
 
