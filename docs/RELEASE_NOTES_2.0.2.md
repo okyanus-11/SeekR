@@ -10,7 +10,7 @@ SeekR 2.0.2 introduces the top-anchored dropdown launcher. Instead of appearing 
 
 - **Top dropdown layout:** the launcher is horizontally centered on the active screen and anchored close to its top edge.
 - **Slide-down opening:** the window reveals itself by sliding down from above the screen.
-- **Slide-up dismissal:** hiding the launcher retracts it above the top edge while retaining the existing opacity transition.
+- **Slide-up dismissal:** hiding the launcher retracts it above the top edge. Opening and closing use position-only animation; the launcher remains opaque to avoid Windows layered-window repaint issues.
 - **Daily cat widget:** the daily cat photo continues to render directly inside the launcher, with local caching rather than opening an external link.
 - **Existing launcher features:** search, widgets, productivity tools, and settings remain part of the application.
 
