@@ -486,6 +486,8 @@ class WidgetsPage(SettingsPage):
         self.row(cards, "Daily meme", "A daily pick cached locally until the next day · right rail.", bind_switch(self.config, "widgets.meme_enabled", self._widgets_changed))
         self.row(cards, "Tasks", "Show your next local tasks and overdue count · left rail.", bind_switch(self.config, "widgets.tasks_enabled", self._widgets_changed))
         self.row(cards, "Task refresh", "How often the local task summary updates.", bind_spin(self.config, "widgets.tasks_refresh_minutes", 1, 60, " minutes"))
+        self.row(cards, "Widget rail width", "Width of both side rails; larger values give cards more room.", bind_spin(self.config, "widgets.rail_width", 160, 280, " px"))
+        self.row(cards, "Widget card height", "Base height for each widget card; taller cards reduce clipping on dense layouts.", bind_spin(self.config, "widgets.card_height", 124, 240, " px"))
         self.row(cards, "Clock refresh", "Update interval for the local clock.", bind_spin(self.config, "widgets.clock_refresh_ms", 250, 5000, " ms"))
         self.row(cards, "System refresh", "Update interval for CPU, memory and network readings.", bind_spin(self.config, "widgets.system_refresh_ms", 1000, 30000, " ms"))
         self.row(cards, "Weather refresh", "How often SeekR checks for updated weather.", bind_spin(self.config, "widgets.weather_refresh_minutes", 5, 180, " minutes"))
