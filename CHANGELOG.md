@@ -16,6 +16,13 @@
   plus opt-in local content search for configured roots and text extensions.
 - Configurable refresh intervals for launcher widgets and reduced-motion support
   in shared animated controls.
+- Clipboard privacy controls for pausing monitoring, clearing all entries (including
+  pinned items), and best-effort filtering of common credential-shaped strings.
+- Explicit clipboard privacy disclosures and a plain-text-only policy for rich-text
+  clipboard content; optional PNG capture remains separate and unencrypted.
+- Update checks validate semantic release tags and official asset URLs, expose
+  GitHub-published SHA-256 digests, and let users open downloads or copy hashes
+  explicitly without silently downloading or installing updates.
 
 ### Changed
 
@@ -41,11 +48,12 @@
 
 ### Validation
 
-- Linux and Windows CI runner matrix tests pass.
-- Windows portable and onedir builds pass; packaged UI verification, installer
-  build, install, launch, UI smoke test and uninstall pass.
-- CI publishes the portable executable, installer and SHA-256 manifest as
-  downloadable workflow artifacts.
+- A prior full CI run passed the Linux and Windows test matrix (281 passed, 4 skipped
+  on each runner) and Windows portable/onedir build, packaged UI, installer,
+  installation, launch, and uninstall checks. The latest clipboard/update changes
+  require a fresh full CI run before these statements can be treated as current.
+- CI stages the portable executable, installer and SHA-256 manifest as workflow
+  artifacts; publication of a 2.0.0 GitHub release remains a final release gate.
 
 ## [Unreleased]
 
