@@ -92,3 +92,27 @@ def test_update_check_ignores_untrusted_or_unhashed_assets(config, monkeypatch):
     monkeypatch.setattr("urllib.request.urlopen", lambda *_args, **_kwargs: FakeResponse(payload))
     info = UpdateService(config).check_latest()
     assert info["assets"] == []
+
+
+def test_update_provider_exposes_official_asset_and_hash_actions(config, db, hooks):
+    provider = UpdateProvider(config, db, hooks)
+    provider.service.last_info = {
+        "update_available": True,
+        "latest_version": "2.1.0",
+        "release_url": RELEASE_PAGE + "/tag/v2.1.0",
+        "checked_at": time.time(),
+        "assets": [{
+            "name": "SeekR-Setup.exe",
+            "url": "https://github.com/okyanus-11/SeekR/releases/download/v2.1.0/SeekR-Setup.exe",
+            "sha256": "f" * 64,
+            "size": 123,
+        }],
+    }
+    result = provider.search("check", 1)[0]
+    assert len(result.actions) == 3
+    result.actions[1].callback()
+    result.actions[2].callback()
+    assert hooks.calls[-2:] == [
+        ("open_url", (provider.service.last_info["assets"][0]["url"],)),
+        ("copy_text", ("f" * 64,)),
+    ]
