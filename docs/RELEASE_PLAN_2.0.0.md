@@ -62,7 +62,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [x] Persist widget configuration and restore it safely after upgrades; enabled states, refresh intervals, rail dimensions, and card order are migrated through config defaults.
 - [ ] Persist widget configuration and restore it safely after upgrades.
 - [ ] Add battery, network throughput, storage, media playback, focus timer, tasks, and expanded performance-monitor widgets where reliable data sources are available.
-- [ ] Keep all optional network widgets non-blocking and cache last-good data.
+- [x] Keep weather and daily meme network requests off the GUI thread and cache last-good data locally; weather cache is location-scoped and restored on startup.
 - [x] Document widget data sources, refresh behavior, and location/permission behavior in the README and settings descriptions.
 
 ## 5. Productivity features
