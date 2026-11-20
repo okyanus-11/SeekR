@@ -194,7 +194,7 @@ Linux is used in CI for source-mode testing and development; it is not currently
 git clone https://github.com/okyanus-11/SeekR.git
 cd SeekR
 py -3.12 -m venv .venv
-.\\.venv\\Scripts\\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements-dev.txt
 python main.py
 ```
@@ -221,7 +221,7 @@ See [Architecture](docs/ARCHITECTURE.md) for the codebase overview and [Installa
 
 ## Release status
 
-**Latest published release: v2.0.2.** The main-branch workflow currently runs the test suite on Windows and Ubuntu, builds the portable and installer versions, verifies a fresh Windows installation, and publishes checksums and release assets.
+**Latest published release: v2.0.2.** The main branch contains post-release maintenance changes that are not included in the v2.0.2 installer or portable download. The main-branch workflow runs the test suite on Windows and Ubuntu, builds the Windows packages, and verifies a fresh installation; those checks do not retroactively change the published v2.0.2 assets.
 
 Automated checks are not a substitute for testing on a real desktop. Mixed-DPI and multi-monitor behavior, sleep/resume, upgrading from an older installer while preserving user data, accessibility, and long-duration interactive stability still require hands-on validation. Follow the open [Windows post-release checklist](https://github.com/okyanus-11/SeekR/issues/1) for what remains. Windows executables are currently unsigned and may trigger a SmartScreen warning.
 
