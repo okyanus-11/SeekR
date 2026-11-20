@@ -291,7 +291,7 @@ else {
 # ------------------------------------------------------------- byte compilation
 if ($venvOk) {
     $compile = Invoke-Native "Byte-compile sources" $venvPython @(
-        "-m", "compileall", "-q", "core", "features", "ui", "main.py", "build.py", "tests"
+        "-m", "compileall", "-q", "core", "features", "ui", "main.py", "build.py", "tests", "tools"
     )
     if ($compile.ExitCode -eq 0) {
         Add-Result "Byte-compilation" "PASS" "No syntax errors"
@@ -337,13 +337,29 @@ else {
 }
 
 # -------------------------------------------------------------------- version
+$appVersion = $null
 if ($venvOk -and $depsOk) {
-    $versionCheck = Invoke-Native "Check SeekR --version" $venvPython @("main.py", "--version")
-    if ($versionCheck.ExitCode -eq 0 -and $versionCheck.Output -match "SeekR\s+1\.0\.0") {
-        Add-Result "Version command" "PASS" "main.py --version reports SeekR 1.0.0"
+    $versionSource = Invoke-Native "Read application version" $venvPython @(
+        "-c", "from core.version import APP_VERSION; print(APP_VERSION)"
+    )
+    if ($versionSource.ExitCode -eq 0 -and $versionSource.Output -match "^\\d+\\.\\d+\\.\\d+$") {
+        $appVersion = $versionSource.Output
+        Add-Result "Application version metadata" "PASS" "core.version reports $appVersion"
     }
     else {
-        Add-Result "Version command" "FAIL" "main.py --version failed or did not print SeekR 1.0.0"
+        Add-Result "Application version metadata" "FAIL" "Could not read a valid APP_VERSION from core.version.py."
+    }
+}
+else {
+    Add-Result "Application version metadata" "SKIPPED" "Dependencies or the virtual environment are unavailable."
+}
+if ($venvOk -and $depsOk) {
+    $versionCheck = Invoke-Native "Check SeekR --version" $venvPython @("main.py", "--version")
+    if ($versionCheck.ExitCode -eq 0 -and $appVersion -and $versionCheck.Output -match ("^SeekR\s+" + [regex]::Escape($appVersion) + "$")) {
+        Add-Result "Version command" "PASS" ("main.py --version reports SeekR {0}" -f $appVersion)
+    }
+    else {
+        Add-Result "Version command" "FAIL" ("main.py --version failed or did not print SeekR {0}" -f $appVersion)
     }
 }
 else {
@@ -385,7 +401,7 @@ if (Test-Path -LiteralPath $exePath) {
     try {
         $versionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($exePath)
         $productOk = ($versionInfo.ProductName -eq "SeekR")
-        $versionOk = ($versionInfo.ProductVersion -match "^1\.0\.0")
+        $versionOk = ($appVersion -and $versionInfo.ProductVersion -like "$appVersion*")
         if ($productOk -and $versionOk) {
             Add-Result "Executable version metadata" "PASS" ("ProductName={0}; ProductVersion={1}" -f $versionInfo.ProductName, $versionInfo.ProductVersion)
         }
