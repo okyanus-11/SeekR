@@ -371,6 +371,7 @@ class WeatherWidget(WidgetCard):
         )
         self._has_data = True
         self.details.setText(self._last_good_details + "\nUpdated just now")
+
     @Slot(str, str)
     def set_error(self, kind, message):
         if kind == "weather":
