@@ -201,13 +201,13 @@ The automated run for the current branch must pass after these changes. CI runne
 
 ## Latest verified branch head — 2026-11-20
 
-- Head: `566d3bce86568fbd478576b4a51b8a687ffae420`.
-- Workflow [#44706861698](https://github.com/okyanus-11/SeekR/actions/runs/44706861698): **success** — Ubuntu Latest 328 passed / 2 skipped; Windows Latest 326 passed / 4 skipped; Windows Server 2022 326 passed / 4 skipped.
+- Head: `ea9be619346b882e9020999f72ed17be1fe662bb`.
+- Workflow [#44708986130](https://github.com/okyanus-11/SeekR/actions/runs/44708986130): **success** — Ubuntu Latest 328 passed / 2 skipped; Windows Latest 326 passed / 4 skipped; Windows Server 2022 326 passed / 4 skipped.
 - Windows packaging job passed PowerShell script parsing, portable and onedir builds, packaged UI/widget verification, Inno Setup compilation, install/launch/UI verification, uninstall, checksum generation and artifact upload.
-- Artifact: `SeekR-Windows-4d2f1c272871624e1e85a3dddd1405e1b880f2b9` (112,557,940 bytes). The ZIP contains `SeekR.exe`, `SeekR-Setup-2.0.0.exe` and `SHA256SUMS.txt`; both executable hashes were independently verified against the manifest.
-- Installer SHA-256: `6AB9144296C04111E60A835B45A8AEC0AF7E78C72A91478070A2B59FDA235E13`.
-- Portable executable SHA-256: `3BE9FF9ACB3A70C9C3CCF97404E9B74FC8A47B5B10C42568A48307C8EAA77487`.
-- The 2.0.0 release pipeline runs on the main-branch push after merge. The PR-head build itself does not publish a release.
+- Artifact: `SeekR-Windows-df8409c17e3d12e398fed03c9ccdd0aa8ca08238` (112,556,730 bytes). The ZIP contains `SeekR.exe`, `SeekR-Setup-2.0.0.exe` and `SHA256SUMS.txt`; both executable hashes were independently verified against the manifest.
+- Installer SHA-256: `755E73C9D4CDFF14CD3CBD8FDE75EAEF2B8194018167A25CB480E1D1883602F7`.
+- Portable executable SHA-256: `1DE4212C179F80DE516624BCD3D0930D3532ED243A8215F135AAD974C7DEA8DE`.
+- The 2.0.0 release pipeline runs on the main-branch push after merge. The PR-head build itself does not publish a release. The final PR-head workflow passed all four test/build jobs; its release-publish job was skipped as expected for a pull-request event.
 
 ## Explicitly deferred to 3.0.0
 
