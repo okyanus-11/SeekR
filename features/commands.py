@@ -218,7 +218,7 @@ class CommandService:
                 return False, f"Step {index}: unknown command '{segment.split()[0]}'", []
             _length, entry, matched_name = max(matches, key=lambda item: item[0])
             args_text = segment[len(matched_name):].strip()
-            marker = " (confirmation required)" if entry.confirmation else ""
+            marker = " (confirmation required)" if self.needs_confirmation(entry) else ""
             lines.append(f"{index}. {entry.title} {args_text}{marker}".rstrip())
             resolved.append((entry, args_text))
         return True, "", (lines, resolved)
@@ -231,7 +231,7 @@ class CommandService:
         _lines, resolved = plan
         completed: list[str] = []
         for index, (entry, args_text) in enumerate(resolved, 1):
-            if entry.confirmation:
+            if self.needs_confirmation(entry):
                 if not self.hooks.confirm(
                     f"Confirm chain step: {entry.title}",
                     f"Run this step?\n\n{entry.description}\n\n"
@@ -573,7 +573,7 @@ class CommandChainProvider(SearchProvider):
             self.hooks.show_error("Command chain", message)
             return
         lines, resolved = plan
-        if any(entry.confirmation for entry, _args in resolved):
+        if any(self.service.needs_confirmation(entry) for entry, _args in resolved):
             if not self.hooks.confirm(
                 "Review command chain",
                 "The following actions will run in order:\n\n" + "\n".join(lines),
