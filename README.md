@@ -97,7 +97,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 
 ### Tools window
 
-A single window with 14 pages: **Calculator**, **Developer tools**, **Date & time**, **Color**, **Dictionary**, **Screenshots**, **System**, **Processes**, **Power**, **Clipboard**, **Quick notes**, **Bookmarks**, **Quick Connect**, **Quick actions**.
+A single window with 19 pages: **Calculator**, **Developer tools**, **Date & time**, **Color**, **Dictionary**, **Screenshots**, **System**, **Processes**, **Power**, **Clipboard**, **Quick notes**, **Bookmarks**, **Quick Connect**, **Quick actions**, **Workflows**, **Text snippets**, **Tasks**, **Database & backups**, and **Diagnostics**.
 
 The Developer tools page implements all 15 utilities:
 
