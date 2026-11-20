@@ -169,6 +169,7 @@ class UpdateService:
             "release_url": release_url,
             "update_available": version_key(latest) > version_key(APP_VERSION),
             "assets": assets,
+            "release_notes": str(payload.get("body", "") or "")[:6000],
             "checked_at": time.time(),
         }
         self.config.set("updates.last_check", info["checked_at"])
@@ -194,6 +195,10 @@ class UpdateProvider(SearchProvider):
         if info:
             if info["update_available"]:
                 subtitle = f"Version {info['latest_version']} is available (current {APP_VERSION})."
+                notes = str(info.get("release_notes", "") or "").strip()
+                if notes:
+                    actions.append(ResultAction("View release notes", lambda notes=notes: self.hooks.show_info("SeekR release notes", notes)))
+                actions.append(ResultAction("Remind me later", lambda version=info["latest_version"]: self._dismiss(version)))
                 actions.append(ResultAction("Open official release", lambda: self.hooks.open_url(info["release_url"])))
                 for asset in info.get("assets", []):
                     name = asset["name"]
@@ -232,8 +237,14 @@ class UpdateProvider(SearchProvider):
             on_failed=self._failed,
         )
 
+    def _dismiss(self, version: str) -> None:
+        self.config.set("updates.dismissed_version", str(version))
+        self.hooks.notify(f"Update {version} snoozed until a newer version is available.")
+
     def _completed(self, info: dict[str, Any]) -> None:
         if info["update_available"]:
+            if self.config.get("updates.dismissed_version", "") == info["latest_version"]:
+                return
             self.hooks.notify(
                 f"SeekR {info['latest_version']} is available. Search update: to open the release.",
                 "info",
