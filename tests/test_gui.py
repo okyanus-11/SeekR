@@ -955,3 +955,23 @@ def test_weather_keeps_last_good_data_when_refresh_fails(qapp, controller):
     assert "last successful update" in widget.details.text().lower()
     widget.timer.stop()
     widget.deleteLater()
+
+ 
+def test_meme_keeps_last_good_item_when_refresh_fails(qapp, monkeypatch, tmp_path):
+    from PySide6.QtCore import QThreadPool
+    from ui.launcher_widgets import MemeWidget
+
+    cache = tmp_path / "daily_meme.json"
+    monkeypatch.setattr(MemeWidget, "_get_cache_path", staticmethod(lambda: cache))
+    widget = MemeWidget(QThreadPool())
+    widget.set_meme("meme", {
+        "title": "Cached good meme",
+        "subreddit": "wholesomememes",
+        "postLink": "https://reddit.com/r/test/comments/123/",
+    })
+    widget.set_error("meme", "network unavailable")
+    assert widget.title.text() == "Cached good meme"
+    assert "cached offline copy" in widget.subreddit.text().lower()
+    widget.retry_timer.stop()
+    widget.day_timer.stop()
+    widget.deleteLater()
