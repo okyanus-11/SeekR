@@ -886,5 +886,5 @@ def test_database_tools_page_backup_and_restore(qapp, controller, tmp_path, monk
     monkeypatch.setattr(data_tools.dialogs, "ask_confirm", lambda *_args, **_kwargs: True)
     page._restore()
     assert controller.notes_service.get(original_id)["body"] == "restored content"
-    assert controller.notes_service.search("Later note") == []
+    assert controller.notes_service.list("Later note") == []
     assert "Database restored" in page.status.text()
