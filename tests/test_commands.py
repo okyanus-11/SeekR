@@ -216,3 +216,15 @@ def test_command_chain_respects_disabled_global_confirmation(service, hooks, set
     assert outcome.success
     assert calls == ["empty", "taskmgr"]
     assert not any(name == "confirm" for name, _args in hooks.calls)
+
+
+def test_command_chain_reports_completed_steps_after_failure(service):
+    from features.commands import CommandOutcome
+
+    service._handlers["taskmgr"] = lambda _args: CommandOutcome(True, "Task Manager opened")
+    service._handlers["explorer"] = lambda _args: CommandOutcome(False, "Explorer unavailable")
+    outcome = service.run_chain("taskmgr then explorer")
+
+    assert not outcome.success
+    assert "step 2" in outcome.message.lower()
+    assert "Task Manager opened" in outcome.output
