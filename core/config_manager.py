@@ -68,7 +68,6 @@ def default_config() -> dict[str, Any]:
             "clock_refresh_ms": 1000,
             "system_refresh_ms": 2000,
             "weather_refresh_minutes": 30,
-            "cat_refresh_minutes": 60,
             "tasks_enabled": True,
             "tasks_refresh_minutes": 5,
             "rail_width": 196,
@@ -305,7 +304,6 @@ _VALIDATORS: dict[str, Callable[[Any], Any]] = {
     "widgets.clock_refresh_ms": _clamp_int(250, 5000),
     "widgets.system_refresh_ms": _clamp_int(1000, 30000),
     "widgets.weather_refresh_minutes": _clamp_int(5, 180),
-    "widgets.cat_refresh_minutes": _clamp_int(15, 360),
     "widgets.tasks_refresh_minutes": _clamp_int(1, 60),
     "widgets.rail_width": _clamp_int(160, 280),
     "widgets.card_height": _clamp_int(124, 240),
@@ -438,8 +436,6 @@ class ConfigManager:
                 if isinstance(widgets, dict):
                     if "cat_enabled" not in widgets and isinstance(widgets.get("meme_enabled"), bool):
                         widgets["cat_enabled"] = widgets["meme_enabled"]
-                    if "cat_refresh_minutes" not in widgets and "meme_refresh_minutes" in widgets:
-                        widgets["cat_refresh_minutes"] = widgets["meme_refresh_minutes"]
                     widgets.pop("meme_enabled", None)
                     widgets.pop("meme_refresh_minutes", None)
                     for rail in ("left_order", "right_order"):
