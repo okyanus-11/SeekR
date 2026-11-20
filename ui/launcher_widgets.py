@@ -91,7 +91,7 @@ class _FetchTask(QRunnable):
                     raise ValueError("The cat service returned no image.")
                 image_url = str(items[0].get("url", ""))
                 parsed = urlparse(image_url)
-                if parsed.scheme != "https" or not parsed.hostname or not parsed.hostname.endswith(".thecatapi.com"):
+                if parsed.scheme != "https" or not parsed.hostname or parsed.hostname not in {"cdn.thecatapi.com", "cdn2.thecatapi.com"}:
                     raise ValueError("The cat service returned an untrusted image address.")
                 request = urllib.request.Request(
                     image_url, headers={"User-Agent": f"SeekR/{APP_VERSION} (daily cat widget)"}
@@ -103,7 +103,7 @@ class _FetchTask(QRunnable):
                         if (
                             target.scheme != "https"
                             or not target.hostname
-                            or not target.hostname.endswith(".thecatapi.com")
+                            or target.hostname not in {"cdn.thecatapi.com", "cdn2.thecatapi.com"}
                         ):
                             raise ValueError("The cat image redirected to an untrusted host.")
                         return super().redirect_request(req, fp, code, msg, headers, new_url)
