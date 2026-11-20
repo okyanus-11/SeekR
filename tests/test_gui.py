@@ -650,6 +650,49 @@ def test_hotkey_reopens_launcher_during_hide_animation(qapp, controller):
         assert not launcher._hiding
     finally:
         controller.config.set("appearance.animations", False)
+def test_hotkey_reopens_launcher_during_hide_animation(qapp, controller):
+    """A second hotkey press must reverse an in-progress dropdown dismissal."""
+    launcher = controller.launcher
+    controller.config.set("appearance.animations", True)
+    controller.config.set("appearance.animation_duration", 400)
+    try:
+        launcher.show_launcher()
+        qapp.processEvents()
+        assert launcher.isVisible()
+
+        launcher.hide_launcher()
+        assert launcher._hiding
+        launcher.toggle()  # same path used by the global hotkey
+        _pump(qapp, 0.6)
+
+        assert launcher.isVisible(), "the second hotkey press was swallowed by the hide animation"
+        assert not launcher._hiding
+    finally:
+        controller.config.set("appearance.animations", False)
+
+
+def test_stale_window_deactivate_does_not_hide_reopened_launcher(qapp, controller, monkeypatch):
+    """A delayed deactivate event from the prior hide must not close a fresh show."""
+    from PySide6.QtCore import QEvent
+
+    launcher = controller.launcher
+    controller.config.set("general.hide_on_focus_loss", True)
+    launcher.show_launcher()
+    qapp.processEvents()
+    try:
+        # Model Qt delivering an old WindowDeactivate after the new show has
+        # already been activated. This is the race that the grace guard covers.
+        launcher._activation_confirmed = True
+        launcher._activation_deadline = time.monotonic() + 2.0
+        event = QEvent(QEvent.Type.WindowDeactivate)
+        qapp.sendEvent(launcher, event)
+        assert not launcher._hide_timer.isActive()
+        _pump(qapp, 0.2)
+        assert launcher.isVisible()
+    finally:
+        launcher._activation_deadline = 0.0
+        launcher.hide_launcher()
+        controller.config.set("general.hide_on_focus_loss", False)
 
 
 def test_controller_quit_stops_the_event_loop(tmp_path):
