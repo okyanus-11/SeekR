@@ -997,6 +997,55 @@ class Database:
             raise DatabaseError(f"Could not compact the database: {exc}") from exc
 
     # ------------------------------------------------------------------ close
+    def backup_to(self, destination: str | Path) -> bool:
+        """Create a consistent SQLite backup at destination."""
+        target_path = Path(destination).expanduser()
+        try:
+            if target_path.resolve() == Path(self.path).expanduser().resolve():
+                return False
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            target = sqlite3.connect(str(target_path), timeout=8.0)
+            try:
+                with self._lock:
+                    self.connection().backup(target)
+                check = target.execute("PRAGMA integrity_check").fetchone()
+                return bool(check and check[0] == "ok")
+            finally:
+                target.close()
+        except (OSError, sqlite3.Error) as exc:
+            log.error("Database backup failed: %s", exc)
+            return False
+
+    def restore_from(self, source: str | Path) -> bool:
+        """Restore a verified SeekR SQLite backup; call while the app is quiescent."""
+        source_path = Path(source).expanduser()
+        try:
+            if not source_path.is_file() or source_path.resolve() == Path(self.path).expanduser().resolve():
+                return False
+            backup = sqlite3.connect(str(source_path), timeout=8.0)
+            try:
+                check = backup.execute("PRAGMA integrity_check").fetchone()
+                if not check or check[0] != "ok":
+                    return False
+                tables = {
+                    row[0] for row in backup.execute(
+                        "SELECT name FROM sqlite_master WHERE type = 'table'"
+                    )
+                }
+                if not {"kv", "apps", "files", "clipboard", "notes", "history"}.issubset(tables):
+                    return False
+                with self._lock:
+                    backup.backup(self.connection())
+                    self.connection().commit()
+                    self._init_schema()
+                    restored = self.connection().execute("PRAGMA integrity_check").fetchone()
+                return bool(restored and restored[0] == "ok")
+            finally:
+                backup.close()
+        except (OSError, sqlite3.Error) as exc:
+            log.error("Database restore failed: %s", exc)
+            return False
+
     def close_thread_connection(self) -> None:
         """Close the current thread's connection before a pooled worker is reused."""
         if self._is_memory:
