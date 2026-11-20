@@ -276,7 +276,7 @@ def test_launcher_widgets_survive_settings_and_theme_refresh(qapp, controller):
             assert not widgets.left_column.isVisible()
             assert not widgets.right_column.isVisible()
 
-            for key in ("clock", "weather", "system", "meme", "tasks"):
+            for key in ("clock", "weather", "system", "meme", "tasks", "media"):
                 controller.config.set(f"widgets.{key}_enabled", True)
             widgets.refresh_settings()
             qapp.processEvents()
