@@ -446,7 +446,6 @@ class AppearancePage(SettingsPage):
         for key in (
             "appearance.theme",
             "appearance.accent",
-            "appearance.opacity",
             "appearance.font_family",
             "appearance.font_size",
             "appearance.window_width",
