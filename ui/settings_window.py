@@ -408,22 +408,13 @@ class AppearancePage(SettingsPage):
         accent = ColorButton(str(self.config.get("appearance.accent", "#68a9ff")))
         accent.colorChanged.connect(lambda value: self.config.set("appearance.accent", value))
         self.row(theme_card, "Accent colour", "Used for selection, focus rings and highlights.", accent)
-        opacity_row = QHBoxLayout()
-        self.opacity_value = label(f"{int(float(self.config.get('appearance.opacity', 0.98)) * 100)}%", "Muted")
-        opacity_slider = QSlider(Qt.Orientation.Horizontal)
-        opacity_slider.setRange(65, 100)
-        opacity_slider.setValue(int(float(self.config.get("appearance.opacity", 0.98)) * 100))
-        opacity_slider.setFixedWidth(170)
-        def _opacity(value: int) -> None:
-            self.opacity_value.setText(f"{value}%")
-            self.config.set("appearance.opacity", value / 100.0)
-        opacity_slider.valueChanged.connect(_opacity)
-        opacity_row.addWidget(opacity_slider)
-        opacity_row.addWidget(self.opacity_value)
-        opacity_container = QWidget()
-        opacity_container.setLayout(opacity_row)
-        opacity_row.setContentsMargins(0, 0, 0, 0)
-        self.row(theme_card, "Window opacity", "Lower values make the launcher slightly translucent.", opacity_container)
+        surface_note = label("100% · opaque for stable Windows rendering", "Muted")
+        self.row(
+            theme_card,
+            "Window surface",
+            "The launcher uses an opaque native surface to prevent Windows compositor repaint stalls.",
+            surface_note,
+        )
 
         text_card = self.section("Typography")
         font_combo = QFontComboBox()
