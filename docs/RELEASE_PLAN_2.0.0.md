@@ -58,7 +58,8 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [ ] Give every widget isolated error handling, loading, stale-data, offline, and disabled states.
 - [x] Make refresh intervals configurable within safe minimum/maximum bounds.
 - [x] Pause or slow polling when hidden or when the relevant widget is disabled.
-- [ ] Add configurable widget sizes/layouts without reparenting fragile live widgets.
+- [x] Add configurable widget sizes/layouts without reparenting fragile live widgets; rail width and card height are persisted in validated settings.
+- [x] Persist widget configuration and restore it safely after upgrades; enabled states, refresh intervals, rail dimensions, and card order are migrated through config defaults.
 - [ ] Persist widget configuration and restore it safely after upgrades.
 - [ ] Add battery, network throughput, storage, media playback, focus timer, tasks, and expanded performance-monitor widgets where reliable data sources are available.
 - [ ] Keep all optional network widgets non-blocking and cache last-good data.
