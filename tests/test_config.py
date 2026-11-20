@@ -12,7 +12,7 @@ def test_defaults_are_complete(config):
     assert config.get("widgets.clock_enabled") is True
     assert config.get("widgets.weather_enabled") is True
     assert config.get("widgets.system_enabled") is True
-    assert config.get("widgets.meme_enabled") is True
+    assert config.get("widgets.cat_enabled") is True
     assert config.get("widgets.weather_location") == ""
     assert config.get("appearance.window_width") == 1180
     assert config.get("files.directories") == default_config()["files"]["directories"]
@@ -154,8 +154,8 @@ def test_widget_layout_settings_are_bounded_and_normalized(config):
     assert config.get("widgets.card_height") == 124
     config.set("widgets.left_order", ["tasks", "clock", "tasks", "unknown"])
     assert config.get("widgets.left_order") == ["tasks", "clock", "system"]
-    config.set("widgets.right_order", ["meme", "meme", "invalid"])
-    assert config.get("widgets.right_order") == ["meme", "weather", "media"]
+    config.set("widgets.right_order", ["cat", "cat", "invalid"])
+    assert config.get("widgets.right_order") == ["cat", "weather", "media"]
 
 
 def test_widget_layout_settings_survive_config_reload(tmp_path):
@@ -168,3 +168,21 @@ def test_widget_layout_settings_survive_config_reload(tmp_path):
     assert loaded.get("widgets.rail_width") == 224
     assert loaded.get("widgets.card_height") == 180
     assert loaded.get("widgets.left_order") == ["tasks", "system", "clock"]
+
+
+def test_legacy_daily_widget_settings_migrate_to_cat(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({
+        "schema_version": 2,
+        "widgets": {
+            "meme_enabled": False,
+            "meme_refresh_minutes": 120,
+            "right_order": ["meme", "weather", "media"],
+        },
+    }), encoding="utf-8")
+    config = ConfigManager(path)
+    assert config.get("widgets.cat_enabled") is False
+    assert config.get("widgets.cat_refresh_minutes") == 120
+    assert config.get("widgets.right_order") == ["cat", "weather", "media"]
+    assert "meme_enabled" not in config.data["widgets"]
+    assert "meme_refresh_minutes" not in config.data["widgets"]
