@@ -788,3 +788,22 @@ def test_file_search_modified_yesterday_excludes_today_files(config, db, tmp_pat
     assert names == {"invoice-yesterday-morning.pdf", "invoice-yesterday-evening.pdf"}
 
 
+
+
+@pytest.mark.parametrize("secret", [
+    "AWS key AKIA1234567890ABCDEF",
+    "github_pat_" + "A" * 30,
+    "ghp_" + "B" * 36,
+    "xoxb-" + "C" * 24,
+    "AIza" + "D" * 35,
+    "sk_live_" + "E" * 24,
+    "-----BEGIN RSA PRIVATE KEY-----",
+])
+def test_clipboard_sensitive_filter_rejects_common_credentials(secret):
+    assert ClipboardService._looks_sensitive(secret)
+
+
+def test_clipboard_sensitive_filter_keeps_ordinary_text():
+    assert not ClipboardService._looks_sensitive(
+        "Please review the API documentation and send the report tomorrow."
+    )
