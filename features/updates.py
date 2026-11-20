@@ -30,6 +30,17 @@ _VERSION_RE = re.compile(
 )
 
 
+def _is_official_asset_url(value: str) -> bool:
+    parsed = urlsplit(str(value).strip())
+    return (
+        parsed.scheme == "https"
+        and parsed.netloc == "github.com"
+        and parsed.path.startswith("/okyanus-11/SeekR/releases/download/")
+        and not parsed.query
+        and not parsed.fragment
+    )
+
+
 def version_key(value: str) -> tuple:
     """Return a SemVer-like key; a final release sorts after its prereleases."""
     match = _VERSION_RE.fullmatch(str(value).strip())
@@ -68,7 +79,7 @@ class UpdateService:
         url = str(asset.get("url", "")).strip()
         expected = str(asset.get("sha256", "")).strip().lower()
         if (not name
-                or not url.startswith("https://github.com/okyanus-11/SeekR/releases/download/")
+                or not _is_official_asset_url(url)
                 or not re.fullmatch(r"[0-9a-f]{64}", expected)):
             return False, "The release asset does not include trusted SHA-256 metadata"
         path = Path(file_path).expanduser()
