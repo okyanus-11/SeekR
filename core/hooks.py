@@ -25,6 +25,9 @@ class UIHooks:
     def copy_text(self, text: str) -> bool:
         return False
 
+    def verify_update_asset(self, asset: dict) -> bool:
+        return False
+
     def show_info(self, title: str, text: str) -> None:
         return None
 
@@ -94,6 +97,10 @@ class NullHooks(UIHooks):
 
     def copy_text(self, text: str) -> bool:
         self._record("copy_text", text)
+        return True
+
+    def verify_update_asset(self, asset: dict) -> bool:
+        self._record("verify_update_asset", asset)
         return True
 
     def show_info(self, title: str, text: str) -> None:
