@@ -55,12 +55,9 @@
 
 ### Validation
 
-- A prior full CI run passed the Linux and Windows test matrix (281 passed, 4 skipped
-  on each runner) and Windows portable/onedir build, packaged UI, installer,
-  installation, launch, and uninstall checks. The latest clipboard/update changes
-  require a fresh full CI run before these statements can be treated as current.
-- CI stages the portable executable, installer and SHA-256 manifest as workflow
-  artifacts; publication of a 2.0.0 GitHub release remains a final release gate.
+- Latest full CI run [44706861698](https://github.com/okyanus-11/SeekR/actions/runs/44706861698) passed: Ubuntu 328 passed / 2 skipped; Windows Latest 326 passed / 4 skipped; Windows Server 2022 326 passed / 4 skipped.
+- The Windows packaging job passed portable and onedir builds, packaged UI verification, Inno Setup compilation, fresh install, launch, installed UI verification, uninstall, SHA-256 manifest generation and artifact upload.
+- Physical Windows 10/11 desktop checks (mixed DPI, multi-monitor, sleep/resume, real 1.x upgrade, long-duration stability and accessibility review) have not been performed. The release is not described as manually Windows-verified. Builds are unsigned.
 
 ## [Unreleased]
 
