@@ -30,6 +30,17 @@ _VERSION_RE = re.compile(
 )
 
 
+def _is_official_release_page_url(value: str) -> bool:
+    parsed = urlsplit(str(value).strip())
+    return (
+        parsed.scheme == "https"
+        and parsed.netloc == "github.com"
+        and parsed.path.startswith("/okyanus-11/SeekR/releases/")
+        and not parsed.query
+        and not parsed.fragment
+    )
+
+
 def _is_official_asset_url(value: str) -> bool:
     parsed = urlsplit(str(value).strip())
     return (
@@ -125,7 +136,7 @@ class UpdateService:
         if not _VERSION_RE.fullmatch(latest):
             raise RuntimeError("GitHub returned an invalid SeekR release version")
         release_url = str(payload.get("html_url", RELEASE_PAGE))
-        if not latest or not release_url.startswith("https://github.com/okyanus-11/SeekR/releases/"):
+        if not latest or not _is_official_release_page_url(release_url):
             raise RuntimeError("GitHub release metadata did not match the expected SeekR repository")
         assets = []
         for asset in payload.get("assets", []) or []:
@@ -136,7 +147,7 @@ class UpdateService:
             digest = str(asset.get("digest", "")).strip().lower()
             # Only expose assets hosted by the official repository and hashes
             # supplied by GitHub in its documented sha256:<hex> format.
-            if (not name or not url.startswith("https://github.com/okyanus-11/SeekR/releases/download/")
+            if (not name or not _is_official_asset_url(url)
                     or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest)):
                 continue
             try:
