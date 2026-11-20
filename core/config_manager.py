@@ -71,6 +71,8 @@ def default_config() -> dict[str, Any]:
             "tasks_refresh_minutes": 5,
             "rail_width": 196,
             "card_height": 140,
+            "left_order": ["clock", "system", "tasks"],
+            "right_order": ["weather", "meme"],
         },
         "search": {
             "max_results": 12,
@@ -261,6 +263,16 @@ def _validate_str_list(value: Any) -> list[str]:
     return [str(item) for item in value if str(item).strip()]
 
 
+def _validate_widget_order(value: Any, allowed: tuple[str, ...]) -> list[str]:
+    supplied = value if isinstance(value, (list, tuple)) else []
+    order = []
+    for item in supplied:
+        key = str(item).strip().lower()
+        if key in allowed and key not in order:
+            order.append(key)
+    return order + [key for key in allowed if key not in order]
+
+
 #: Dotted-path validators applied after generic coercion.
 _VALIDATORS: dict[str, Callable[[Any], Any]] = {
     "general.hotkey": _validate_hotkey,
@@ -294,6 +306,8 @@ _VALIDATORS: dict[str, Callable[[Any], Any]] = {
     "widgets.tasks_refresh_minutes": _clamp_int(1, 60),
     "widgets.rail_width": _clamp_int(160, 280),
     "widgets.card_height": _clamp_int(124, 240),
+    "widgets.left_order": lambda value: _validate_widget_order(value, ("clock", "system", "tasks")),
+    "widgets.right_order": lambda value: _validate_widget_order(value, ("weather", "meme")),
     "clipboard.limit": _clamp_int(10, 2000),
     "clipboard.poll_interval_ms": _clamp_int(200, 5000),
     "privacy.retention_days": _clamp_int(1, 3650),
