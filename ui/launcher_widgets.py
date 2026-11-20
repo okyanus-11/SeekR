@@ -830,7 +830,8 @@ class LauncherWidgets(QObject):
         self.tasks = TasksWidget(task_service, hooks, self.left_column)
         self.weather = WeatherWidget(config, self.pool, self.right_column)
         self.meme = MemeWidget(self.pool, self.right_column)
-        self._cards = {"clock": self.clock, "weather": self.weather, "system": self.system, "meme": self.meme, "tasks": self.tasks}
+        self.media = MediaWidget(self.pool, self.right_column)
+        self._cards = {"clock": self.clock, "weather": self.weather, "system": self.system, "meme": self.meme, "tasks": self.tasks, "media": self.media}
         self._apply_order()
         for key, card in self._cards.items():
             card.setMinimumHeight(int(self.config.get("widgets.card_height", 140)))
@@ -843,7 +844,7 @@ class LauncherWidgets(QObject):
         """Reorder persistent cards inside their existing rails without reparenting."""
         for layout, keys, stretch in (
             (self._left_layout, self.config.get("widgets.left_order", ["clock", "system", "tasks"]), ("clock", "system", "tasks")),
-            (self._right_layout, self.config.get("widgets.right_order", ["weather", "meme"]), ("weather", "meme")),
+            (self._right_layout, self.config.get("widgets.right_order", ["weather", "meme", "media"]), ("weather", "meme", "media")),
         ):
             while layout.count():
                 item = layout.takeAt(0)
@@ -910,7 +911,7 @@ class LauncherWidgets(QObject):
             card.setMaximumHeight(card_height + (72 if key == "system" else 56 if key == "clock" else 20 if key == "tasks" else 28))
         # Cards may move between layout positions, but remain permanent children
         # of their original rail. No refresh recreates or reparents a live widget.
-        for key in ("clock", "system", "tasks", "weather", "meme"):
+        for key in ("clock", "system", "tasks", "weather", "meme", "media"):
             card = self._cards[key]
             enabled = bool(self.config.get(f"widgets.{key}_enabled", True))
             card.setVisible(enabled)
@@ -921,7 +922,7 @@ class LauncherWidgets(QObject):
             any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("clock", "system", "tasks"))
         )
         self.right_column.setVisible(
-            any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("weather", "meme"))
+            any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("weather", "meme", "media"))
         )
 
     def _sync_timers(self):
@@ -945,11 +946,14 @@ class LauncherWidgets(QObject):
             elif key == "weather":
                 interval = int(self.config.get("widgets.weather_refresh_minutes", 30)) * 60 * 1000
                 card.timer.start(interval) if running else card.timer.stop()
-            else:
+            elif key == "meme":
                 interval = int(self.config.get("widgets.meme_refresh_minutes", 60)) * 60 * 1000
                 card.day_timer.start(interval) if running else card.day_timer.stop()
                 if not running:
                     card.retry_timer.stop()
+            elif key == "media":
+                interval = int(self.config.get("widgets.media_refresh_seconds", 10)) * 1000
+                card.timer.start(interval) if running else card.timer.stop()
 
     def set_active(self, active: bool):
         active = bool(active)
@@ -962,6 +966,8 @@ class LauncherWidgets(QObject):
                 self.weather.refresh()
             if self.config.get("widgets.meme_enabled", True):
                 self.meme._load_daily()
+            if self.config.get("widgets.media_enabled", False):
+                self.media.refresh()
 
         self.left_column.setVisible(
             any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("clock", "system", "tasks"))
@@ -978,6 +984,8 @@ class LauncherWidgets(QObject):
             self.weather.refresh()
         if self._active and self.config.get("widgets.meme_enabled", True):
             self.meme._load_daily()
+        if self._active and self.config.get("widgets.media_enabled", False):
+            self.media.refresh()
         if animate:
             for card in self._cards.values():
                 if card.isVisible():
