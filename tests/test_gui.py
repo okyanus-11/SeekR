@@ -862,3 +862,29 @@ def test_clock_widget_focus_timer_starts_pauses_and_resets(controller):
     finally:
         controller.config.set("widgets.focus_duration_minutes", original)
         clock._reset_focus()
+
+
+def test_database_tools_page_backup_and_restore(qapp, controller, tmp_path, monkeypatch):
+    from ui.tools import data as data_tools
+
+    page = data_tools.DatabaseTab(controller, None)
+    original_id = controller.notes_service.create("Backup note", "restored content")
+    backup_path = tmp_path / "SeekR-backup.db"
+    monkeypatch.setattr(
+        data_tools.QFileDialog, "getSaveFileName",
+        lambda *_args, **_kwargs: (str(backup_path), "SQLite database (*.db)"),
+    )
+    page._backup()
+    assert backup_path.is_file()
+    assert "Verified backup" in page.status.text()
+
+    controller.notes_service.create("Later note", "must be removed by restore")
+    monkeypatch.setattr(
+        data_tools.QFileDialog, "getOpenFileName",
+        lambda *_args, **_kwargs: (str(backup_path), "SQLite database (*.db)"),
+    )
+    monkeypatch.setattr(data_tools.dialogs, "ask_confirm", lambda *_args, **_kwargs: True)
+    page._restore()
+    assert controller.notes_service.get(original_id)["body"] == "restored content"
+    assert controller.notes_service.search("Later note") == []
+    assert "Database restored" in page.status.text()
