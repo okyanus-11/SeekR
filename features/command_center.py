@@ -64,7 +64,7 @@ class CommandCenterProvider(SearchProvider):
             CenterAction("Toggle clock widget", "Show or hide the launcher clock widget", "Widgets", toggle_widget("clock")),
             CenterAction("Toggle system widget", "Show or hide the system widget", "Widgets", toggle_widget("system")),
             CenterAction("Toggle weather widget", "Show or hide the weather widget", "Widgets", toggle_widget("weather")),
-            CenterAction("Toggle daily widget", "Show or hide the daily widget", "Widgets", toggle_widget("meme")),
+            CenterAction("Toggle daily cat", "Show or hide the daily cat photo", "Widgets", toggle_widget("cat")),
             CenterAction("Search files", "Jump to indexed file search", "Search", lambda: self._fill("file: ")),
             CenterAction("Search file contents", "Jump to opt-in local content search", "Search", lambda: self._fill("content: ")),
             CenterAction("Search open windows", "Find and arrange open application windows", "Search", lambda: self._fill("win: ")),
