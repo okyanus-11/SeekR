@@ -735,7 +735,7 @@ class LauncherWidgets(QObject):
         card_height = int(self.config.get("widgets.card_height", 140))
         for key, card in self._cards.items():
             card.setMinimumHeight(card_height)
-            card.setMaximumHeight(card_height + (24 if key == "system" else 16 if key == "clock" else 12))
+            card.setMaximumHeight(card_height + (72 if key == "system" else 56 if key == "clock" else 20 if key == "tasks" else 28))
         # Cards may move between layout positions, but remain permanent children
         # of their original rail. No refresh recreates or reparents a live widget.
         for key in ("clock", "system", "tasks", "weather", "meme"):
