@@ -58,7 +58,8 @@ class ClipboardTab(QWidget):
             label(
                 "Clipboard text is stored unencrypted in SeekR’s local SQLite database. "
                 "Images are saved as unencrypted local PNG files only when image capture is separately enabled. "
-                "Capture is off until you opt in. Pin entries to keep them when the limit is reached.",
+                "Capture is off until you opt in. Multiline text is preserved; rich-text formatting is reduced to plain text. "
+                "Pin entries to keep them when the limit is reached.",
                 "Muted", wrap=True,
             )
         )
@@ -101,6 +102,7 @@ class ClipboardTab(QWidget):
         buttons.addWidget(secondary_button("Pin / Unpin", self._toggle_pin))
         buttons.addWidget(danger_button("Delete entry", self._delete))
         buttons.addWidget(danger_button("Clear unpinned", self._clear))
+        buttons.addWidget(danger_button("Clear all", self._clear_all))
         buttons.addStretch(1)
         self.status = label("", "Muted")
         buttons.addWidget(self.status)
@@ -201,6 +203,15 @@ class ClipboardTab(QWidget):
         if not dialogs.ask_confirm(self, "Clear clipboard history", "Delete all unpinned clipboard entries?"):
             return
         self.service.clear(keep_pinned=True)
+        self.reload()
+
+    def _clear_all(self) -> None:
+        if not dialogs.ask_confirm(
+            self, "Clear all clipboard history",
+            "Permanently delete every clipboard entry, including pinned entries and saved image previews?",
+        ):
+            return
+        self.service.clear(keep_pinned=False)
         self.reload()
 
     def on_show(self) -> None:
