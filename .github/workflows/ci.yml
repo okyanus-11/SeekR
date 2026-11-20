@@ -216,5 +216,9 @@ jobs:
 
           # Keep the public release page's notes authoritative and explicit
           # about hardware-dependent checks that CI cannot perform.
+          notes_file="docs/RELEASE_NOTES_${version//./_}.md"
+          if [[ ! -f "$notes_file" ]]; then
+            notes_file="docs/RELEASE_NOTES_2.0.0.md"
+          fi
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "SeekR $TAG" \
-            --notes-file docs/RELEASE_NOTES_2.0.0.md
+            --notes-file "$notes_file"
