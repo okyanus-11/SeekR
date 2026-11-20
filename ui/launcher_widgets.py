@@ -313,6 +313,8 @@ class WeatherWidget(WidgetCard):
         self.content.addWidget(self.details)
         self.content.addWidget(self.attribution)
         self._last_location = ""
+        self._last_good_details = ""
+        self._has_data = False
         self._busy = False
         self._fetch_task = None
         self.timer = QTimer(self)
@@ -362,12 +364,13 @@ class WeatherWidget(WidgetCard):
         }
         condition = conditions.get(code, "Current conditions")
         self.value.setText(f"{current.get('temperature_2m', '—')}°  ·  {condition}")
-        self.details.setText(
+        self._last_good_details = (
             f"{data.get('place_name', self._last_location)}\n"
             f"Feels like {current.get('apparent_temperature', '—')}°  ·  "
             f"Humidity {current.get('relative_humidity_2m', '—')}%"
         )
-
+        self._has_data = True
+        self.details.setText(self._last_good_details + "\nUpdated just now")
     @Slot(str, str)
     def set_error(self, kind, message):
         if kind == "weather":
@@ -377,8 +380,11 @@ class WeatherWidget(WidgetCard):
                 self._last_location = ""
                 self.refresh()
                 return
-            self.value.setText("Weather unavailable")
-            self.details.setText(message[:90])
+            if self._has_data:
+                self.details.setText(self._last_good_details + "\nOffline · showing last successful update")
+            else:
+                self.value.setText("Weather unavailable")
+                self.details.setText(("Offline · " + message)[:110])
 
 
 class MemeWidget(WidgetCard):
