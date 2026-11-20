@@ -77,7 +77,9 @@ class UpdateService:
                 return False, "The selected file does not exist"
             actual_size = path.stat().st_size
             expected_size = int(asset.get("size", 0) or 0)
-            if expected_size > 0 and actual_size != expected_size:
+            if expected_size <= 0:
+                return False, f"Missing expected file size for {name}"
+            if actual_size != expected_size:
                 return False, f"File size mismatch for {name}"
             digest = hashlib.sha256()
             with path.open("rb") as stream:
@@ -130,6 +132,8 @@ class UpdateService:
                 size = max(0, int(asset.get("size", 0)))
             except (TypeError, ValueError):
                 size = 0
+            if size <= 0:
+                continue
             assets.append({
                 "name": name,
                 "url": url,
