@@ -32,6 +32,7 @@ SeekR is a native desktop application built with Python and PySide6. It searches
 - [Keyword reference](#keyword-reference)
 - [Configuration](#configuration)
 - [Database](#database)
+- [Privacy and local data](#privacy-and-local-data)
 - [Themes](#themes)
 - [Project structure](#project-structure)
 - [Architecture](#architecture)
@@ -119,7 +120,15 @@ The Developer tools page implements all 15 utilities:
 
 Fourteen pages — General, Appearance, Widgets, Search, Applications, Files, Web, Calculator, Commands, Clipboard, Privacy, Advanced, Plugins, About — all bound to the persisted JSON configuration. Every control writes through validation and takes effect immediately (theme changes repaint all windows). The launcher, shared controls, common headings and Tools navigation are available in nine languages: English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese and Simplified Chinese. Longer settings descriptions, tool content, dialogs and dynamic status messages remain English.
 
-### Themes
+### Privacy and local data
+
+SeekR is designed to keep its working data on the local PC. Clipboard history is disabled until the user opts in through the privacy and clipboard settings. When enabled, multiline clipboard text is retained as plain text; rich-text formatting is not preserved. Image capture is a separate opt-in and stores bounded PNG files locally. The clipboard page provides pause, per-entry deletion, clearing unpinned entries, and a separately confirmed clear-all action.
+
+**Storage is not encrypted.** Clipboard text is stored in the local SQLite database, and optional clipboard images are stored as PNG files in the SeekR data directory. Anyone with access to the same Windows account and its files may be able to read them. Do not enable clipboard capture on a shared or untrusted Windows account if that storage model is unsuitable. Disabling monitoring stops future capture; it does not automatically erase existing history. Use the clear controls to remove saved entries.
+
+The default sensitive-content filter skips several common credential-shaped strings, but it is only a heuristic and cannot identify every password, token, or secret. Do not treat it as a guarantee. Usage-based application ranking is separately opt-in and can be disabled with its stored usage data cleared in Settings.
+
+## Themes
 
 Graphite (default), Light, AMOLED, Catppuccin Mocha, Dracula and Nord, with a custom accent colour picker, transparency, font family/size, window width, result spacing and animation toggle. The launcher now defaults to a wider layout so its widget rails have room without squeezing search results. Keyword routing is cached and invalidated when aliases or providers change. The theme stylesheet is applied application-wide, not just to the launcher.
 
