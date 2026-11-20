@@ -21,6 +21,7 @@ def test_all_nine_languages_have_launcher_and_tools_navigation_strings():
         assert i18n.tr(config, "tools.page.workflows") != "tools.page.workflows"
         assert i18n.tr(config, "tools.page.snippets") != "tools.page.snippets"
         assert i18n.tr(config, "tools.page.tasks") != "tools.page.tasks"
+        assert i18n.tr(config, "tools.page.database") != "tools.page.database"
 
 
 def test_common_locale_aliases_are_normalized():
