@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 
 from PySide6.QtCore import QBuffer, QIODevice, QObject, QTimer, Signal
 from PySide6.QtGui import QGuiApplication, QImage
@@ -23,6 +24,14 @@ _MAX_ENTRY_CHARS = 200_000
 _MAX_IMAGE_BYTES = 5_000_000
 _MAX_IMAGE_PIXELS = 16_000_000
 _MAX_IMAGE_DIMENSION = 4096
+_SENSITIVE_PATTERNS = tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
+    r"\\bAKIA[0-9A-Z]{16}\\b",                         # AWS access key ID
+    r"\\bgithub_pat_[A-Z0-9_]{20,}\\b",               # GitHub fine-grained token
+    r"\\bgh[pousr]_[A-Z0-9]{20,}\\b",                 # GitHub token families
+    r"\\bxox[baprs]-[A-Z0-9-]{10,}\\b",               # Slack token families
+    r"\\bAIza[0-9A-Z_-]{30,}\\b",                     # Google API key
+    r"\\b(?:sk|rk)_live_[A-Z0-9]{16,}\\b",            # Stripe live keys
+))
 
 
 class ClipboardService:
@@ -141,7 +150,7 @@ class ClipboardService:
         lowered = text.lower()
         if "-----begin" in lowered and "private key" in lowered:
             return True
-        return False
+        return any(pattern.search(text) for pattern in _SENSITIVE_PATTERNS)
 
     def items(self, search: str = "", limit: int = 100) -> list[dict]:
         return self.db.clipboard_items(search, limit)
