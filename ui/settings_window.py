@@ -484,6 +484,7 @@ class WidgetsPage(SettingsPage):
         self.row(cards, "System usage", "Live CPU, memory, storage, battery and network throughput · left rail.", bind_switch(self.config, "widgets.system_enabled", self._widgets_changed))
         self.row(cards, "Weather", "Current conditions for your chosen location · right rail.", bind_switch(self.config, "widgets.weather_enabled", self._widgets_changed))
         self.row(cards, "Daily meme", "A daily pick cached locally until the next day · right rail.", bind_switch(self.config, "widgets.meme_enabled", self._widgets_changed))
+        self.row(cards, "Media playback", "Optional Windows system-media controls for the current track · right rail.", bind_switch(self.config, "widgets.media_enabled", self._widgets_changed))
         self.row(cards, "Tasks", "Show your next local tasks and overdue count · left rail.", bind_switch(self.config, "widgets.tasks_enabled", self._widgets_changed))
         self.row(cards, "Task refresh", "How often the local task summary updates.", bind_spin(self.config, "widgets.tasks_refresh_minutes", 1, 60, " minutes"))
         self.row(cards, "Widget rail width", "Width of both side rails; larger values give cards more room.", bind_spin(self.config, "widgets.rail_width", 160, 280, " px"))
