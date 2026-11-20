@@ -662,7 +662,7 @@ class LauncherWidgets(QObject):
         self._apply_order()
         for key, card in self._cards.items():
             card.setMinimumHeight(int(self.config.get("widgets.card_height", 140)))
-            card.setMaximumHeight(int(self.config.get("widgets.card_height", 140)) + (24 if key == "system" else 16 if key == "clock" else 12))
+            card.setMaximumHeight(int(self.config.get("widgets.card_height", 140)) + (72 if key == "system" else 56 if key == "clock" else 20 if key == "tasks" else 28))
             card.setContentsMargins(0, 0, 0, 0)
         self._apply_card_theme()
         self._rebuild()
