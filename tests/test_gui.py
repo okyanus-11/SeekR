@@ -722,6 +722,40 @@ def test_widget_http_user_agent_tracks_application_version(monkeypatch):
     }
 
 
+def test_cat_json_endpoint_requires_a_list_response(monkeypatch):
+    import json
+    import urllib.request
+
+    from ui.launcher_widgets import _FetchTask
+
+    class Response:
+        def __init__(self, payload):
+            self.payload = payload
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, _limit):
+            return self.payload
+
+    monkeypatch.setattr(
+        urllib.request, "urlopen",
+        lambda request, timeout: Response(json.dumps([{"url": "https://cdn2.thecatapi.com/images/cat.jpg"}]).encode()),
+    )
+    assert _FetchTask._get_json_list("https://api.thecatapi.com/v1/images/search") == [
+        {"url": "https://cdn2.thecatapi.com/images/cat.jpg"}
+    ]
+
+    monkeypatch.setattr(
+        urllib.request, "urlopen",
+        lambda request, timeout: Response(json.dumps({"url": "https://cdn2.thecatapi.com/images/cat.jpg"}).encode()),
+    )
+    with pytest.raises(ValueError, match="invalid response"):
+        _FetchTask._get_json_list("https://api.thecatapi.com/v1/images/search")
+
 def test_launcher_widget_coordinator_does_not_create_an_overlay(qapp, controller):
     from PySide6.QtCore import QObject
     from PySide6.QtWidgets import QWidget
