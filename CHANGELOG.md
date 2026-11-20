@@ -29,6 +29,7 @@
 
 ### Changed
 
+- Weather and daily meme widgets retain last-good data during network outages and clearly label cached/stale content instead of replacing useful information with an empty error state.
 - File-content search now has strict candidate and aggregate read budgets.
 - File indexing preserves the last complete snapshot on cancellation, inaccessible
   folders and index-limit exits.
