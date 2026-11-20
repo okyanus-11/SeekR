@@ -465,7 +465,13 @@ class LauncherWindow(QWidget):
         self.closed.emit()
 
     def toggle(self) -> None:
-        if self.isVisible() and self.isActiveWindow():
+        # A dropdown remains technically visible and can still report itself
+        # active during its short hide animation. Treat that state as a pending
+        # dismissal, not as an already-open launcher: the next hotkey press
+        # must cancel the stale hide and bring the window back immediately.
+        if self._hiding:
+            self.show_launcher()
+        elif self.isVisible() and self.isActiveWindow():
             self.hide_launcher()
         else:
             self.show_launcher()
