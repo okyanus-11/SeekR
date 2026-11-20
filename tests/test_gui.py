@@ -657,6 +657,7 @@ def test_stale_window_deactivate_does_not_hide_reopened_launcher(qapp, controlle
     from PySide6.QtCore import QEvent
 
     launcher = controller.launcher
+    previous_hide_setting = controller.config.get("general.hide_on_focus_loss", True)
     controller.config.set("general.hide_on_focus_loss", True)
     launcher.show_launcher()
     qapp.processEvents()
@@ -673,7 +674,7 @@ def test_stale_window_deactivate_does_not_hide_reopened_launcher(qapp, controlle
     finally:
         launcher._activation_deadline = 0.0
         launcher.hide_launcher()
-        controller.config.set("general.hide_on_focus_loss", False)
+        controller.config.set("general.hide_on_focus_loss", previous_hide_setting)
 
 
 def test_controller_quit_stops_the_event_loop(tmp_path):
