@@ -1023,3 +1023,70 @@ def test_widget_json_rejects_non_object_provider_response(monkeypatch):
     import pytest
     with pytest.raises(ValueError, match="invalid response"):
         _FetchTask._get_json("https://example.test/widget")
+
+
+
+def test_widget_json_reports_network_errors_without_swallowing_them(monkeypatch):
+    import urllib.error
+    import urllib.request
+    import pytest
+    from ui.launcher_widgets import _FetchTask
+
+    for error in (urllib.error.URLError("DNS lookup failed"), TimeoutError("request timed out")):
+        monkeypatch.setattr(
+            urllib.request, "urlopen",
+            lambda *_args, _error=error, **_kwargs: (_ for _ in ()).throw(_error),
+        )
+        with pytest.raises(type(error)):
+            _FetchTask._get_json("https://example.test/data")
+
+
+def test_widget_json_rejects_malformed_payload(monkeypatch):
+    import urllib.request
+    import pytest
+    from ui.launcher_widgets import _FetchTask
+
+    class Response:
+        def __enter__(self):
+            return self
+        def __exit__(self, *_args):
+            return False
+        def read(self, _limit):
+            return b'{"weather":'
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *_args, **_kwargs: Response())
+    with pytest.raises(ValueError):
+        _FetchTask._get_json("https://example.test/data")
+
+
+def test_widget_json_rejects_oversized_payload(monkeypatch):
+    import urllib.request
+    import pytest
+    from ui.launcher_widgets import _FetchTask
+
+    class Response:
+        def __enter__(self):
+            return self
+        def __exit__(self, *_args):
+            return False
+        def read(self, limit):
+            return b"x" * limit
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *_args, **_kwargs: Response())
+    with pytest.raises(ValueError, match="oversized"):
+        _FetchTask._get_json("https://example.test/data")
+
+
+def test_widget_fetch_task_emits_failure_for_network_errors(monkeypatch):
+    from ui.launcher_widgets import _FetchTask
+
+    def fail(_url):
+        raise OSError("simulated offline network")
+
+    monkeypatch.setattr(_FetchTask, "_get_json", staticmethod(fail))
+    task = _FetchTask("weather", "Izmir")
+    failures = []
+    task.signals.failed.connect(lambda kind, message: failures.append((kind, message)))
+    task.run()
+
+    assert failures == [("weather", "simulated offline network")]
