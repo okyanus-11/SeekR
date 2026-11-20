@@ -4,6 +4,7 @@
 
 ### Added
 
+- Added a Diagnostics tools page for user-initiated local report export. Logs are excluded by default; optional log inclusion applies best-effort redaction and clearly warns users to review the file. Reports are never uploaded.
 - Update checks now show official release notes and include a per-version “Remind me later” action; update notifications stay quiet for a version the user has deferred.
 - Configurable launcher widget rail width, card height, and persistent left/right card ordering; settings changes reorder existing cards without recreating or reparenting them.
 - Local multi-step workflows with validated steps, preview, cancellation, progress,
