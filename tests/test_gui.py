@@ -529,7 +529,7 @@ def test_launcher_remains_opaque_when_legacy_opacity_is_configured(qapp, control
     assert not launcher.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
     controller.config.set("appearance.opacity", 0.91)
     qapp.processEvents()
-    assert launcher.windowOpacity() == pytest.approx(round(0.91 * 255) / 255)
+    assert launcher.windowOpacity() == 1.0
     controller.config.set("appearance.opacity", 0.98)
 
 
