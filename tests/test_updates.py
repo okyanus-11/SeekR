@@ -111,10 +111,10 @@ def test_update_provider_exposes_official_asset_and_hash_actions(config, db, hoo
         }],
     }
     result = provider.search("check", 1)[0]
-    assert len(result.actions) == 4
-    result.actions[1].callback()
+    assert len(result.actions) == 5
     result.actions[2].callback()
     result.actions[3].callback()
+    result.actions[4].callback()
     assert hooks.calls[-3:] == [
         ("open_url", (provider.service.last_info["assets"][0]["url"],)),
         ("copy_text", ("f" * 64,)),
@@ -184,3 +184,31 @@ def test_update_asset_verification_rejects_spoofed_official_host_and_size(tmp_pa
     valid, message = UpdateService.verify_asset_file(asset, file_path)
     assert not valid
     assert "trusted" in message.lower()
+
+
+
+def test_update_release_notes_and_reminder_actions(config, db, hooks):
+    provider = UpdateProvider(config, db, hooks)
+    provider.service.last_info = {
+        "update_available": True,
+        "latest_version": "2.1.0",
+        "release_url": RELEASE_PAGE + "/tag/v2.1.0",
+        "release_notes": "A useful improvement.",
+        "checked_at": time.time(),
+        "assets": [],
+    }
+    result = provider.search("check", 1)[0]
+    labels = [action.label for action in result.actions]
+    assert "View release notes" in labels
+    assert "Remind me later" in labels
+    result.actions[0].callback()
+    assert hooks.calls[-1] == ("show_info", ("SeekR release notes", "A useful improvement."))
+    result.actions[1].callback()
+    assert config.get("updates.dismissed_version") == "2.1.0"
+
+
+def test_dismissed_update_does_not_repeat_notification(config, db, hooks):
+    provider = UpdateProvider(config, db, hooks)
+    config.set("updates.dismissed_version", "2.1.0")
+    provider._completed({"update_available": True, "latest_version": "2.1.0"})
+    assert hooks.calls == []
