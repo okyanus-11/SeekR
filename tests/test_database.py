@@ -329,3 +329,41 @@ os._exit(0)
     assert recovered.note_count() == 0
     assert recovered.connection().execute("PRAGMA integrity_check").fetchone()[0] == "ok"
     recovered.close()
+
+
+def test_database_backup_and_restore_round_trip(tmp_path):
+    database_path = tmp_path / "main.db"
+    backup_path = tmp_path / "backups" / "seekr.db"
+    db = Database(database_path)
+    original_id = db.create_note("Important", "preserve this note")
+    assert original_id > 0
+    assert db.backup_to(backup_path) is True
+
+    db.delete_note(original_id)
+    assert db.note_count() == 0
+    assert db.restore_from(backup_path) is True
+    restored = db.notes("Important")
+    assert len(restored) == 1
+    assert restored[0]["body"] == "preserve this note"
+    assert db.connection().execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    db.close()
+
+
+def test_database_restore_rejects_corrupt_or_unrelated_files(tmp_path):
+    db = Database(tmp_path / "main.db")
+    corrupt = tmp_path / "corrupt.db"
+    corrupt.write_bytes(b"not a sqlite database")
+    unrelated = tmp_path / "unrelated.db"
+    connection = sqlite3.connect(unrelated)
+    connection.execute("CREATE TABLE unrelated (value TEXT)")
+    connection.commit()
+    connection.close()
+
+    assert db.restore_from(corrupt) is False
+    assert db.restore_from(unrelated) is False
+    assert db.note_count() == 0
+    db.close()
+
+
+def test_database_backup_rejects_overwriting_live_database(db, tmp_path):
+    assert db.backup_to(db.path) is False
