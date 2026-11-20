@@ -16,8 +16,7 @@ import psutil
 from PySide6.QtCore import (
     QObject, QRunnable, QThreadPool, QTimer, Qt, Signal, Slot,
 )
-from PySide6.QtGui import QDesktopServices, QPixmap
-from PySide6.QtCore import QUrl
+from PySide6.QtGui import QPixmap
 from core.version import APP_VERSION
 from ui.themes import palette_for
 from PySide6.QtWidgets import (
@@ -55,6 +54,20 @@ class _FetchTask(QRunnable):
                 raise ValueError("The widget service returned an invalid response.")
             return parsed
 
+    @staticmethod
+    def _get_json_list(url: str) -> list:
+        request = urllib.request.Request(
+            url, headers={"User-Agent": f"SeekR/{APP_VERSION} (desktop launcher)"}
+        )
+        with urllib.request.urlopen(request, timeout=8) as response:
+            payload = response.read(100_001)
+            if len(payload) > 100_000:
+                raise ValueError("The widget service returned an oversized response.")
+            parsed = json.loads(payload.decode("utf-8"))
+            if not isinstance(parsed, list):
+                raise ValueError("The cat service returned an invalid response.")
+            return parsed
+
     def run(self) -> None:
         try:
             if self.kind == "weather":
@@ -72,22 +85,27 @@ class _FetchTask(QRunnable):
                 data = self._get_json("https://api.open-meteo.com/v1/forecast?" + params)
                 data["place_name"] = ", ".join(filter(None, [place.get("name"), place.get("country")]))
                 self.signals.finished.emit(self.kind, data)
-            elif self.kind == "meme":
-                data = self._get_json("https://meme-api.com/gimme/wholesomememes")
-                image_url = str(data.get("url", ""))
-                if image_url.startswith("https://"):
-                    try:
-                        request = urllib.request.Request(image_url, headers={"User-Agent": f"SeekR/{APP_VERSION}"})
-                        with urllib.request.urlopen(request, timeout=8) as response:
-                            if response.headers.get_content_type().startswith("image/"):
-                                image_bytes = response.read(1_500_001)
-                                if len(image_bytes) <= 1_500_000:
-                                    data["_image_bytes"] = image_bytes
-                    except Exception:
-                        # The meme itself is still useful if its preview host
-                        # is down or rejects the image request.
-                        log.debug("Could not fetch daily meme preview", exc_info=True)
-                self.signals.finished.emit(self.kind, data)
+            elif self.kind == "cat":
+                items = self._get_json_list("https://api.thecatapi.com/v1/images/search?limit=1&size=med")
+                if not items or not isinstance(items[0], dict):
+                    raise ValueError("The cat service returned no image.")
+                image_url = str(items[0].get("url", ""))
+                parsed = urlparse(image_url)
+                if parsed.scheme != "https" or not parsed.hostname or not parsed.hostname.endswith(".thecatapi.com"):
+                    raise ValueError("The cat service returned an untrusted image address.")
+                request = urllib.request.Request(
+                    image_url, headers={"User-Agent": f"SeekR/{APP_VERSION} (daily cat widget)"}
+                )
+                with urllib.request.urlopen(request, timeout=10) as response:
+                    final_host = urlparse(response.geturl()).hostname or ""
+                    if not final_host.endswith(".thecatapi.com"):
+                        raise ValueError("The cat image redirected to an untrusted host.")
+                    if not response.headers.get_content_type().startswith("image/"):
+                        raise ValueError("The cat service did not return an image.")
+                    image_bytes = response.read(4_000_001)
+                    if not image_bytes or len(image_bytes) > 4_000_000:
+                        raise ValueError("The cat image is empty or exceeds the 4 MB limit.")
+                self.signals.finished.emit(self.kind, {"_image_bytes": image_bytes})
         except Exception as exc:
             self.signals.failed.emit(self.kind, str(exc))
 
@@ -441,35 +459,32 @@ class WeatherWidget(WidgetCard):
                 self.details.setText(("Offline · " + message)[:110])
 
 
-class MemeWidget(WidgetCard):
+class CatWidget(WidgetCard):
+    """Daily cat photo displayed directly in the launcher and cached locally."""
+
     def __init__(self, pool: QThreadPool, parent=None):
-        super().__init__("Daily meme", parent)
+        super().__init__("Daily cat", parent)
         self.pool = pool
-        self.title = QLabel("Today's internet moment")
-        self.title.setObjectName("WidgetValue")
-        self.title.setTextFormat(Qt.TextFormat.PlainText)
-        self.title.setWordWrap(True)
-        self.title.setMaximumHeight(34)
-        self.title.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.preview = QLabel()
+        self.preview.setObjectName("WidgetCatImage")
         self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview.setFixedHeight(54)
+        self.preview.setFixedHeight(104)
         self.preview.setMinimumWidth(150)
         self.preview.setScaledContents(False)
         self.preview.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self.content.addWidget(self.preview)
-        self.subreddit = QLabel("A fresh meme, once per day")
-        self.subreddit.setObjectName("WidgetSecondary")
-        self.subreddit.setTextFormat(Qt.TextFormat.PlainText)
-        self.subreddit.setWordWrap(True)
-        self.subreddit.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self.content.addWidget(self.title)
-        self.content.addWidget(self.subreddit)
+        self.content.addWidget(self.preview, 1)
+        self.status = QLabel("A new cat every day")
+        self.status.setObjectName("WidgetSecondary")
+        self.status.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status.setWordWrap(True)
+        self.status.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.content.addWidget(self.status)
         self._busy = False
         self._fetch_task = None
         self._cache_path = self._get_cache_path()
+        self._image_path = self._cache_path.with_name("daily_cat.png")
         self._cached_date = ""
-        self._last_good_item = None
+        self._last_good_pixmap = QPixmap()
         self.day_timer = QTimer(self)
         self.day_timer.timeout.connect(self._check_new_day)
         self.day_timer.start(60_000)
@@ -481,26 +496,24 @@ class MemeWidget(WidgetCard):
     def _get_cache_path() -> Path:
         try:
             from core.paths import app_data_dir
-            return Path(app_data_dir()) / "daily_meme.json"
+            return Path(app_data_dir()) / "daily_cat.json"
         except Exception:
-            return Path.home() / ".seekr_daily_meme.json"
+            return Path.home() / ".seekr_daily_cat.json"
 
     def _load_daily(self):
         today = datetime.now().date().isoformat()
         try:
             cached = json.loads(self._cache_path.read_text(encoding="utf-8"))
-            if (
-                isinstance(cached, dict)
-                and cached.get("date") == today
-                and isinstance(cached.get("title"), str)
-                and cached.get("title")
-            ):
-                self._cached_date = today
-                self._last_good_item = cached
-                self._show_meme(cached)
-                return
-            if isinstance(cached, dict) and isinstance(cached.get("title"), str) and cached.get("title"):
-                self._last_good_item = cached
+            if isinstance(cached, dict) and isinstance(cached.get("date"), str):
+                if cached.get("image_file") == self._image_path.name and self._image_path.is_file():
+                    pixmap = QPixmap(str(self._image_path))
+                    if not pixmap.isNull():
+                        self._last_good_pixmap = pixmap
+                        self._show_cat(pixmap)
+                        if cached.get("date") == today:
+                            self._cached_date = today
+                            self.status.setText("Today's cat · saved on this device")
+                            return
         except (OSError, ValueError, TypeError):
             pass
         self.refresh()
@@ -517,111 +530,75 @@ class MemeWidget(WidgetCard):
         if self._busy:
             return
         self._busy = True
-        self.title.setText("Finding today's meme…")
-        task = _FetchTask("meme")
+        self.status.setText("Finding today's cat…")
+        task = _FetchTask("cat")
         self._fetch_task = task
-        task.signals.finished.connect(self.set_meme)
+        task.signals.finished.connect(self.set_cat)
         task.signals.failed.connect(self.set_error)
         self.pool.start(task)
 
     @Slot(str, object)
-    def set_meme(self, kind, data):
-        if kind != "meme":
+    def set_cat(self, kind, data):
+        if kind != "cat":
             return
         self._busy = False
         self._fetch_task = None
-        item = {
-            "date": datetime.now().date().isoformat(),
-            "title": str(data.get("title", "Today's meme"))[:180],
-            "subreddit": str(data.get("subreddit", "reddit"))[:60],
-            "url": self._safe_post_url(data.get("postLink", "")),
-        }
-        image_bytes = data.get("_image_bytes")
-        if image_bytes:
-            image_path = self._cache_path.with_name("daily_meme_preview.jpg")
-            try:
-                image_path.parent.mkdir(parents=True, exist_ok=True)
-                image_path.write_bytes(image_bytes)
-                item["image_file"] = str(image_path)
-            except OSError:
-                pass
-        self._cached_date = item["date"]
-        self._last_good_item = item
-        self.retry_timer.stop()
-        self._show_meme(item)
+        image_bytes = data.get("_image_bytes") if isinstance(data, dict) else None
+        if not isinstance(image_bytes, (bytes, bytearray)) or not image_bytes or len(image_bytes) > 4_000_000:
+            self.set_error("cat", "The cat service returned an invalid image.")
+            return
+        pixmap = QPixmap()
+        if not pixmap.loadFromData(bytes(image_bytes)):
+            self.set_error("cat", "The cat service returned an unsupported image.")
+            return
         try:
             self._cache_path.parent.mkdir(parents=True, exist_ok=True)
-            self._cache_path.write_text(json.dumps(item), encoding="utf-8")
+            if not pixmap.save(str(self._image_path), "PNG"):
+                raise OSError("Could not save the cat image cache.")
+            self._cache_path.write_text(json.dumps({
+                "date": datetime.now().date().isoformat(),
+                "image_file": self._image_path.name,
+            }), encoding="utf-8")
         except OSError:
-            log.debug("Could not cache daily meme", exc_info=True)
+            log.debug("Could not persist daily cat image", exc_info=True)
+        self._cached_date = datetime.now().date().isoformat()
+        self._last_good_pixmap = pixmap
+        self.retry_timer.stop()
+        self._show_cat(pixmap)
+        self.status.setText("A new cat · see you tomorrow")
 
     @Slot(str, str)
     def set_error(self, kind, message):
-        if kind != "meme":
+        if kind != "cat":
             return
         self._busy = False
         self._fetch_task = None
         self._cached_date = datetime.now().date().isoformat()
-        # A request may finish after the user disables this card. Do not
-        # restart its retry timer while it is explicitly hidden.
         if not self.isHidden():
             self.retry_timer.start(15 * 60 * 1000)
-        if self._last_good_item:
-            self._show_meme(self._last_good_item)
-            subreddit = self._last_good_item.get("subreddit", "reddit")
-            self.subreddit.setText("r/" + str(subreddit) + "  ·  cached offline copy")
+        if not self._last_good_pixmap.isNull():
+            self._show_cat(self._last_good_pixmap)
+            self.status.setText("Offline · showing your saved cat")
         else:
-            self.title.setText("Meme unavailable")
-            self.subreddit.setText("Offline · no cached meme available")
+            self.preview.clear()
+            self.status.setText("No cat available · check your connection")
+        log.debug("Daily cat refresh failed: %s", message)
 
-    @staticmethod
-    def _safe_post_url(value) -> str:
-        url = str(value or "")
-        try:
-            parsed = urlparse(url)
-        except ValueError:
-            return ""
-        if parsed.scheme == "https" and parsed.hostname in {
-            "reddit.com", "www.reddit.com", "old.reddit.com", "redd.it"
-        }:
-            return url
-        return ""
+    def _show_cat(self, pixmap: QPixmap):
+        if pixmap.isNull():
+            self.preview.clear()
+            return
+        self._last_good_pixmap = pixmap
+        self.preview.setPixmap(pixmap.scaled(
+            max(1, self.preview.width()), max(1, self.preview.height()),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        ))
 
-    def _show_meme(self, item):
-        image_path = None
-        image_file = item.get("image_file")
-        if isinstance(image_file, str) and image_file:
-            try:
-                candidate = Path(image_file).resolve()
-                cache_dir = self._cache_path.parent.resolve()
-                if candidate.parent == cache_dir:
-                    image_path = candidate
-            except (OSError, RuntimeError):
-                image_path = None
-        if image_path and image_path.is_file():
-            pixmap = QPixmap(str(image_path))
-            if not pixmap.isNull():
-                self.preview.setPixmap(pixmap.scaled(168, 54, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-                self.preview.show()
-            else:
-                self.preview.hide()
-        else:
-            self.preview.hide()
-        title = item.get("title")
-        subreddit = item.get("subreddit")
-        self.title.setText(title[:180] if isinstance(title, str) and title else "Today's meme")
-        subreddit = subreddit[:60] if isinstance(subreddit, str) and subreddit else "reddit"
-        self.subreddit.setText("r/" + subreddit + "  ·  Open meme ↗")
-        self._meme_url = self._safe_post_url(item.get("url", ""))
-        self.setToolTip(self._meme_url)
-        self.setCursor(
-            Qt.CursorShape.PointingHandCursor if self._meme_url else Qt.CursorShape.ArrowCursor
-        )
-
-    def mouseReleaseEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton and getattr(self, "_meme_url", ""):
-            QDesktopServices.openUrl(QUrl(self._meme_url))
-        super().mouseReleaseEvent(event)
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if not self._last_good_pixmap.isNull():
+            self._show_cat(self._last_good_pixmap)
 
 
 class TasksWidget(WidgetCard):
@@ -833,9 +810,9 @@ class LauncherWidgets(QObject):
         self.system = SystemWidget(self.left_column)
         self.tasks = TasksWidget(task_service, hooks, self.left_column)
         self.weather = WeatherWidget(config, self.pool, self.right_column)
-        self.meme = MemeWidget(self.pool, self.right_column)
+        self.cat = CatWidget(self.pool, self.right_column)
         self.media = MediaWidget(self.pool, self.right_column)
-        self._cards = {"clock": self.clock, "weather": self.weather, "system": self.system, "meme": self.meme, "tasks": self.tasks, "media": self.media}
+        self._cards = {"clock": self.clock, "weather": self.weather, "system": self.system, "cat": self.cat, "tasks": self.tasks, "media": self.media}
         self._apply_order()
         for key, card in self._cards.items():
             card.setMinimumHeight(int(self.config.get("widgets.card_height", 140)))
@@ -848,7 +825,7 @@ class LauncherWidgets(QObject):
         """Reorder persistent cards inside their existing rails without reparenting."""
         for layout, keys, stretch in (
             (self._left_layout, self.config.get("widgets.left_order", ["clock", "system", "tasks"]), ("clock", "system", "tasks")),
-            (self._right_layout, self.config.get("widgets.right_order", ["weather", "meme", "media"]), ("weather", "meme", "media")),
+            (self._right_layout, self.config.get("widgets.right_order", ["weather", "cat", "media"]), ("weather", "cat", "media")),
         ):
             while layout.count():
                 item = layout.takeAt(0)
@@ -915,7 +892,7 @@ class LauncherWidgets(QObject):
             card.setMaximumHeight(card_height + (72 if key == "system" else 56 if key == "clock" else 20 if key == "tasks" else 28))
         # Cards may move between layout positions, but remain permanent children
         # of their original rail. No refresh recreates or reparents a live widget.
-        for key in ("clock", "system", "tasks", "weather", "meme", "media"):
+        for key in ("clock", "system", "tasks", "weather", "cat", "media"):
             card = self._cards[key]
             enabled = bool(self.config.get(f"widgets.{key}_enabled", True))
             card.setVisible(enabled)
@@ -926,7 +903,7 @@ class LauncherWidgets(QObject):
             any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("clock", "system", "tasks"))
         )
         self.right_column.setVisible(
-            any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("weather", "meme", "media"))
+            any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("weather", "cat", "media"))
         )
 
     def _sync_timers(self):
@@ -950,8 +927,8 @@ class LauncherWidgets(QObject):
             elif key == "weather":
                 interval = int(self.config.get("widgets.weather_refresh_minutes", 30)) * 60 * 1000
                 card.timer.start(interval) if running else card.timer.stop()
-            elif key == "meme":
-                interval = int(self.config.get("widgets.meme_refresh_minutes", 60)) * 60 * 1000
+            elif key == "cat":
+                interval = int(self.config.get("widgets.cat_refresh_minutes", 60)) * 60 * 1000
                 card.day_timer.start(interval) if running else card.day_timer.stop()
                 if not running:
                     card.retry_timer.stop()
@@ -968,8 +945,8 @@ class LauncherWidgets(QObject):
         if active:
             if self.config.get("widgets.weather_enabled", True):
                 self.weather.refresh()
-            if self.config.get("widgets.meme_enabled", True):
-                self.meme._load_daily()
+            if self.config.get("widgets.cat_enabled", True):
+                self.cat._load_daily()
             if self.config.get("widgets.media_enabled", False):
                 self.media.refresh()
 
@@ -977,7 +954,7 @@ class LauncherWidgets(QObject):
             any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("clock", "system", "tasks"))
         )
         self.right_column.setVisible(
-            any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("weather", "meme", "media"))
+            any(bool(self.config.get(f"widgets.{key}_enabled", True)) for key in ("weather", "cat", "media"))
         )
 
     def refresh_settings(self, animate=False):
@@ -986,8 +963,8 @@ class LauncherWidgets(QObject):
         if self._active and self.config.get("widgets.weather_enabled", True):
             self.weather._last_location = ""
             self.weather.refresh()
-        if self._active and self.config.get("widgets.meme_enabled", True):
-            self.meme._load_daily()
+        if self._active and self.config.get("widgets.cat_enabled", True):
+            self.cat._load_daily()
         if self._active and self.config.get("widgets.media_enabled", False):
             self.media.refresh()
         if animate:
