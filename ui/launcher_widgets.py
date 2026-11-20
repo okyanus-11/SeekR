@@ -416,6 +416,7 @@ class MemeWidget(WidgetCard):
         self._fetch_task = None
         self._cache_path = self._get_cache_path()
         self._cached_date = ""
+        self._last_good_item = None
         self.day_timer = QTimer(self)
         self.day_timer.timeout.connect(self._check_new_day)
         self.day_timer.start(60_000)
@@ -442,8 +443,11 @@ class MemeWidget(WidgetCard):
                 and cached.get("title")
             ):
                 self._cached_date = today
+                self._last_good_item = cached
                 self._show_meme(cached)
                 return
+            if isinstance(cached, dict) and isinstance(cached.get("title"), str) and cached.get("title"):
+                self._last_good_item = cached
         except (OSError, ValueError, TypeError):
             pass
         self.refresh()
@@ -489,6 +493,7 @@ class MemeWidget(WidgetCard):
             except OSError:
                 pass
         self._cached_date = item["date"]
+        self._last_good_item = item
         self.retry_timer.stop()
         self._show_meme(item)
         try:
@@ -499,16 +504,22 @@ class MemeWidget(WidgetCard):
 
     @Slot(str, str)
     def set_error(self, kind, message):
-        if kind == "meme":
-            self._busy = False
-            self._fetch_task = None
-            self._cached_date = datetime.now().date().isoformat()
-            # A request may finish after the user disables this card. Do not
-            # restart its retry timer while it is explicitly hidden.
-            if not self.isHidden():
-                self.retry_timer.start(15 * 60 * 1000)
+        if kind != "meme":
+            return
+        self._busy = False
+        self._fetch_task = None
+        self._cached_date = datetime.now().date().isoformat()
+        # A request may finish after the user disables this card. Do not
+        # restart its retry timer while it is explicitly hidden.
+        if not self.isHidden():
+            self.retry_timer.start(15 * 60 * 1000)
+        if self._last_good_item:
+            self._show_meme(self._last_good_item)
+            subreddit = self._last_good_item.get("subreddit", "reddit")
+            self.subreddit.setText("r/" + str(subreddit) + "  ·  cached offline copy")
+        else:
             self.title.setText("Meme unavailable")
-            self.subreddit.setText("Could not load today's meme")
+            self.subreddit.setText("Offline · no cached meme available")
 
     @staticmethod
     def _safe_post_url(value) -> str:
