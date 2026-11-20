@@ -1046,7 +1046,7 @@ class Database:
                             restored = target.execute("PRAGMA integrity_check").fetchone()
                             if restored and restored[0] == "ok":
                                 return True
-                        except sqlite3.Error:
+                        except (sqlite3.Error, DatabaseError):
                             log.exception("Database restore failed; restoring pre-operation snapshot")
                         # A failed or incomplete restore must not leave the live
                         # database in a partially replaced state.
@@ -1057,7 +1057,7 @@ class Database:
                         safety.close()
             finally:
                 backup.close()
-        except (OSError, sqlite3.Error) as exc:
+        except (OSError, sqlite3.Error, DatabaseError) as exc:
             log.error("Database restore failed: %s", exc)
             return False
 
