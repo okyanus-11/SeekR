@@ -60,7 +60,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [x] Pause or slow polling when hidden or when the relevant widget is disabled.
 - [x] Add configurable widget sizes/layouts without reparenting fragile live widgets; rail width and card height are persisted in validated settings.
 - [x] Persist widget configuration and restore it safely after upgrades; enabled states, refresh intervals, rail dimensions, and card order are migrated through config defaults.
-- [ ] Persist widget configuration and restore it safely after upgrades.
+- [x] Persist widget configuration and restore it safely after upgrades; settings are validated and older configs receive safe defaults.
 - [ ] Add battery, network throughput, storage, media playback, focus timer, tasks, and expanded performance-monitor widgets where reliable data sources are available.
 - [x] Keep weather and daily meme network requests off the GUI thread and cache last-good data locally; weather cache is location-scoped and restored on startup.
 - [x] Document widget data sources, refresh behavior, and location/permission behavior in the README and settings descriptions.
@@ -124,7 +124,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [ ] Verify cold launch, warm launch, upgrade from the previous public version, reinstall, rollback, and uninstall.
 - [ ] Preserve user settings/database on normal upgrades and document data removal on uninstall.
 - [x] Add a secure update-checking flow that validates official release metadata and asset URLs, exposes GitHub-published SHA-256 values, and verifies a user-selected downloaded file against both its expected size and SHA-256 before reporting success. SeekR does not silently download or execute installers.
-- [ ] Provide clear in-app update availability, release notes, defer, and restart behavior.
+- [x] Provide in-app update availability, official release notes, and per-version defer controls. Installation stays manual and verified; the app is closed before installer execution and relaunched by the user afterwards (no silent replacement or forced restart).
 - [x] Never silently replace a running executable or install an unverified artifact; updates are manual, hashes are verified before reporting success, and installer execution is never automatic.
 - [ ] Add code-signing support when a valid signing certificate is available; do not claim signed builds otherwise.
 - [x] Publish SHA256 checksums for every release artifact.
