@@ -802,7 +802,7 @@ class MediaWidget(WidgetCard):
 
 
 class LauncherWidgets(QObject):
-    """Owns the four optional widgets, split into two side rails."""
+    """Owns persistent launcher cards split into two side rails."""
 
     def __init__(self, config, parent=None, task_service=None, hooks=None):
         super().__init__(parent)
