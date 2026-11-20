@@ -19,11 +19,28 @@ log = get_logger(__name__)
 RELEASE_API = "https://api.github.com/repos/okyanus-11/SeekR/releases/latest"
 RELEASE_PAGE = "https://github.com/okyanus-11/SeekR/releases/latest"
 CHECK_INTERVAL_SECONDS = 24 * 60 * 60
+_VERSION_RE = re.compile(
+    r"^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+    r"(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$",
+    re.IGNORECASE,
+)
 
 
-def version_key(value: str) -> tuple[int, ...]:
-    numbers = [int(part) for part in re.findall(r"\d+", str(value))]
-    return tuple(numbers or [0])
+def version_key(value: str) -> tuple:
+    """Return a SemVer-like key; a final release sorts after its prereleases."""
+    match = _VERSION_RE.fullmatch(str(value).strip())
+    if not match:
+        numbers = [int(part) for part in re.findall(r"\d+", str(value))]
+        return tuple(numbers or [0])
+    base = tuple(int(match.group(index)) for index in (1, 2, 3))
+    prerelease = match.group(4)
+    if prerelease is None:
+        return base + (1,)
+    identifiers = tuple(
+        (0, int(part)) if part.isdigit() else (1, part.lower())
+        for part in prerelease.split(".")
+    )
+    return base + (0, identifiers)
 
 
 class UpdateService:
@@ -57,6 +74,8 @@ class UpdateService:
             raise RuntimeError("GitHub returned an invalid release response")
         tag = str(payload.get("tag_name", "")).strip()
         latest = tag[1:] if tag.lower().startswith("v") else tag
+        if not _VERSION_RE.fullmatch(latest):
+            raise RuntimeError("GitHub returned an invalid SeekR release version")
         release_url = str(payload.get("html_url", RELEASE_PAGE))
         if not latest or not release_url.startswith("https://github.com/okyanus-11/SeekR/releases/"):
             raise RuntimeError("GitHub release metadata did not match the expected SeekR repository")
