@@ -144,3 +144,27 @@ def test_v1_config_migrates_numeric_string_default_dimensions(tmp_path):
     config = ConfigManager(path)
     assert config.get("appearance.window_width") == 1180
     assert config.get("appearance.window_height") == 620
+
+
+
+def test_widget_layout_settings_are_bounded_and_normalized(config):
+    config.set("widgets.rail_width", 999)
+    assert config.get("widgets.rail_width") == 280
+    config.set("widgets.card_height", 1)
+    assert config.get("widgets.card_height") == 124
+    config.set("widgets.left_order", ["tasks", "clock", "tasks", "unknown"])
+    assert config.get("widgets.left_order") == ["tasks", "clock", "system"]
+    config.set("widgets.right_order", ["meme", "meme", "invalid"])
+    assert config.get("widgets.right_order") == ["meme", "weather"]
+
+
+def test_widget_layout_settings_survive_config_reload(tmp_path):
+    path = tmp_path / "config.json"
+    config = ConfigManager(path)
+    config.set("widgets.rail_width", 224)
+    config.set("widgets.card_height", 180)
+    config.set("widgets.left_order", ["tasks", "system", "clock"])
+    loaded = ConfigManager(path)
+    assert loaded.get("widgets.rail_width") == 224
+    assert loaded.get("widgets.card_height") == 180
+    assert loaded.get("widgets.left_order") == ["tasks", "system", "clock"]
