@@ -641,19 +641,29 @@ class LauncherWidgets(QObject):
         self.weather = WeatherWidget(config, self.pool, self.right_column)
         self.meme = MemeWidget(self.pool, self.right_column)
         self._cards = {"clock": self.clock, "weather": self.weather, "system": self.system, "meme": self.meme, "tasks": self.tasks}
-        self._left_layout.addWidget(self.clock)
-        self._left_layout.addWidget(self.system)
-        self._left_layout.addWidget(self.tasks)
-        self._left_layout.addStretch(1)
-        self._right_layout.addWidget(self.weather)
-        self._right_layout.addWidget(self.meme)
-        self._right_layout.addStretch(1)
+        self._apply_order()
         for key, card in self._cards.items():
             card.setMinimumHeight(int(self.config.get("widgets.card_height", 140)))
             card.setMaximumHeight(int(self.config.get("widgets.card_height", 140)) + (24 if key == "system" else 16 if key == "clock" else 12))
             card.setContentsMargins(0, 0, 0, 0)
         self._apply_card_theme()
         self._rebuild()
+
+    def _apply_order(self):
+        """Reorder persistent cards inside their existing rails without reparenting."""
+        for layout, keys, stretch in (
+            (self._left_layout, self.config.get("widgets.left_order", ["clock", "system", "tasks"]), ("clock", "system", "tasks")),
+            (self._right_layout, self.config.get("widgets.right_order", ["weather", "meme"]), ("weather", "meme")),
+        ):
+            while layout.count():
+                item = layout.takeAt(0)
+                if item.widget() is not None:
+                    layout.removeWidget(item.widget())
+            order = [key for key in keys if key in stretch]
+            order.extend(key for key in stretch if key not in order)
+            for key in order:
+                layout.addWidget(self._cards[key])
+            layout.addStretch(1)
 
     def _apply_card_theme(self):
         """Apply current semantic theme tokens to every persistent widget card."""
@@ -700,6 +710,7 @@ class LauncherWidgets(QObject):
             )
 
     def _rebuild(self):
+        self._apply_order()
         width = int(self.config.get("widgets.rail_width", 196))
         self.left_column.setFixedWidth(width)
         self.right_column.setFixedWidth(width)
