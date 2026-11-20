@@ -13,7 +13,7 @@ SeekR 2.0.1 replaces the former daily meme widget with a daily cat photo display
 - Validates the returned image host and content type, rejects oversized image downloads above 4 MB, and lets Qt validate the image data before display.
 - Caches the photo locally for the current calendar day and restores it when SeekR starts again.
 - Keeps the last successful photo visible during network outages and retries failed requests in the background.
-- Preserves existing users' daily-widget enabled state, refresh interval, and right-rail ordering when migrating from the former meme widget settings.
+- Preserves existing users' daily-widget enabled state and right-rail ordering when migrating from the previous widget settings.
 
 ## Validation
 
