@@ -1,4 +1,6 @@
-# Windows compatibility audit — SeekR 1.0.0
+# Historical Windows compatibility audit — SeekR 1.0.0
+
+> This report records the 1.0.0 audit and its 2026-11-15 follow-up. It is historical evidence, not a validation report for SeekR 2.0.0. For the current release candidate, use [RELEASE_PLAN_2.0.0.md](RELEASE_PLAN_2.0.0.md) and [WINDOWS_MANUAL_TEST.md](WINDOWS_MANUAL_TEST.md).
 
 Initial audit: 2026-11-14
 
