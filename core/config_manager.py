@@ -144,6 +144,7 @@ def default_config() -> dict[str, Any]:
         "updates": {
             "check_automatically": False,
             "last_check": 0.0,
+            "dismissed_version": "",
         },
         "advanced": {
             "debug": False,
