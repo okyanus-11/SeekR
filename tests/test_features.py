@@ -229,6 +229,11 @@ def test_file_search_understands_natural_language_filters(config, db):
     large = service.search("invoice larger than 1 MB")
     assert {row["name"] for _, row in large} == {"invoice-large.pdf"}
 
+    bounded = service.search("invoice larger than 1 KB smaller than 2 MB")
+    assert {row["name"] for _, row in bounded} == {
+        "invoice-old.pdf", "invoice-new.pdf", "invoice-new.txt",
+    }
+
 
 
 def test_application_index_upsert_skips_unchanged_rows(db):
