@@ -682,6 +682,125 @@ class TasksWidget(WidgetCard):
                 label_widget.clear()
 
 
+class _MediaSignals(QObject):
+    finished = Signal(str, object)
+    failed = Signal(str, str)
+
+
+class _MediaTask(QRunnable):
+    def __init__(self, action: str):
+        super().__init__()
+        self.setAutoDelete(False)
+        self.action = action
+        self.signals = _MediaSignals()
+
+    def run(self) -> None:
+        try:
+            if self.action == "refresh":
+                from features.media import get_current_media
+                result = get_current_media()
+            else:
+                from features.media import control_current_media
+                result = control_current_media(self.action)
+            self.signals.finished.emit(self.action, result)
+        except Exception as exc:
+            self.signals.failed.emit(self.action, str(exc))
+
+
+class MediaWidget(WidgetCard):
+    """Optional Windows system-media widget; WinRT work stays off the GUI thread."""
+
+    def __init__(self, pool: QThreadPool, parent=None):
+        super().__init__("Now playing", parent)
+        self.pool = pool
+        self._task = None
+        self._busy = False
+        self.title = QLabel("No active media session")
+        self.title.setObjectName("WidgetValue")
+        self.title.setWordWrap(True)
+        self.artist = QLabel("Play media in a supported Windows app")
+        self.artist.setObjectName("WidgetSecondary")
+        self.status = QLabel("Media controls are optional")
+        self.status.setObjectName("WidgetSecondary")
+        self.content.addWidget(self.title)
+        self.content.addWidget(self.artist)
+        self.content.addWidget(self.status)
+        controls = QHBoxLayout()
+        self.previous_button = QPushButton("Previous")
+        self.play_pause_button = QPushButton("Play")
+        self.next_button = QPushButton("Next")
+        for button in (self.previous_button, self.play_pause_button, self.next_button):
+            button.setFixedHeight(25)
+            controls.addWidget(button)
+        self.previous_button.clicked.connect(lambda: self._run("previous"))
+        self.play_pause_button.clicked.connect(self._toggle_play_pause)
+        self.next_button.clicked.connect(lambda: self._run("next"))
+        self.content.addLayout(controls)
+        self._set_controls(False, False, False)
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.refresh)
+        self.timer.setInterval(10_000)
+
+    def _set_controls(self, previous: bool, toggle: bool, next_track: bool) -> None:
+        self.previous_button.setEnabled(previous)
+        self.play_pause_button.setEnabled(toggle)
+        self.next_button.setEnabled(next_track)
+
+    def _toggle_play_pause(self) -> None:
+        self._run("toggle")
+
+    def _run(self, action: str) -> None:
+        if self._busy:
+            return
+        self._busy = True
+        task = _MediaTask(action)
+        self._task = task
+        task.signals.finished.connect(self._finished)
+        task.signals.failed.connect(self._failed)
+        self.pool.start(task)
+
+    def refresh(self) -> None:
+        self._run("refresh")
+
+    @Slot(str, object)
+    def _finished(self, action: str, result) -> None:
+        self._busy = False
+        self._task = None
+        if action == "refresh":
+            self.set_media(result)
+        else:
+            self.status.setText("Playback command sent" if result else "No active media session")
+            QTimer.singleShot(350, self.refresh)
+
+    @Slot(str, str)
+    def _failed(self, action: str, message: str) -> None:
+        self._busy = False
+        self._task = None
+        if action == "refresh":
+            self.title.setText("Media unavailable")
+            self.artist.setText("Windows media-session API is not available")
+            self.status.setText(message[:90])
+            self._set_controls(False, False, False)
+        else:
+            self.status.setText(("Media command failed: " + message)[:100])
+
+    def set_media(self, data) -> None:
+        if not isinstance(data, dict):
+            self.title.setText("No active media session")
+            self.artist.setText("Play media in a supported Windows app")
+            self.status.setText("No current session")
+            self._set_controls(False, False, False)
+            return
+        self.title.setText(data.get("title") or "Unknown track")
+        details = " · ".join(part for part in (data.get("artist", ""), data.get("album", "")) if part)
+        self.artist.setText(details or data.get("source") or "Unknown artist")
+        state = str(data.get("status", "unknown")).replace("_", " ").title()
+        self.status.setText(state + ((" · " + data["source"]) if data.get("source") else ""))
+        toggle = bool(data.get("can_toggle") or data.get("can_play") or data.get("can_pause"))
+        self.play_pause_button.setText("Pause" if data.get("status") == "playing" else "Play")
+        self._set_controls(bool(data.get("can_previous")), toggle, bool(data.get("can_next")))
+
+
 class LauncherWidgets(QObject):
     """Owns the four optional widgets, split into two side rails."""
 
