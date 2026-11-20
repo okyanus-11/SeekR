@@ -87,6 +87,16 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Align the Inno Setup fallback version with the current release and expose the correct installed-app version in Windows Settings.
+- Explicitly retain the existing install directory during upgrades and limit automatic application closing to SeekR.exe.
+
+### Tests
+
+- Strengthen the Windows installer smoke test to verify the registered product version, install location, and Start Menu shortcut target in addition to installation, launch, UI verification, and uninstall.
+
+
 ## [1.1.2] - 2026-11-19
 
 ### Fixed
