@@ -27,4 +27,4 @@ SeekR does not upload clipboard contents, notes, file paths, or search history a
 
 ## User data location and removal
 
-Configuration and the SQLite database are stored under the user's application-data directory. Normal uninstall is intended to preserve user data; remove the remaining SeekR data directory manually only if you deliberately want to erase local settings and history. Back up the directory before reinstalling or troubleshooting database issues.
+Configuration and the SQLite database are stored under the user's application-data directory. Normal uninstall is intended to preserve user data; remove the remaining SeekR data directory manually only if you deliberately want to erase local settings and history. Tools → Database & backups can create a consistent SQLite backup and restore a verified backup with rollback if restoration fails. Backup files contain the same local data and are not encrypted; keep them private. Back up before reinstalling or troubleshooting database issues.
