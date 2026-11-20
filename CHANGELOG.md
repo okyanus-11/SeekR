@@ -89,7 +89,7 @@
 
 ### Fixed
 
-- Align the Inno Setup fallback version with the current release and expose the correct installed-app version in Windows Settings.
+- Align the Inno Setup fallback version with the current release and make the existing install-directory behavior explicit.
 - Explicitly retain the existing install directory during upgrades and limit automatic application closing to SeekR.exe.
 
 ### Tests
