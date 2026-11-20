@@ -5,8 +5,8 @@ it from here so a release only needs one edit.
 """
 
 APP_NAME = "SeekR"
-APP_VERSION = "2.0.1"
-APP_VERSION_INFO = (2, 0, 1, 0)
+APP_VERSION = "2.0.2"
+APP_VERSION_INFO = (2, 0, 2, 0)
 APP_DESCRIPTION = "A fast, keyboard-driven Windows launcher."
 APP_AUTHOR = "Okyanus Bora Şevik"
 APP_REPO_URL = "https://github.com/okyanus-11/SeekR"
