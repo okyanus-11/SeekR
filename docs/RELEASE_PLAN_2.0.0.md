@@ -1,6 +1,6 @@
 # SeekR 2.0.0 — release implementation plan
 
-**Status:** implementation and automated validation; real-desktop release gates remain  
+**Status:** 2.0.0 feature implementation and automated validation; real-desktop release gates remain. This branch is not a published stable release.  
 **Target:** Windows 10/11, Python + PySide6 retained  
 **Release policy:** 2.0.0 is not releasable until every required item below is implemented, tested, documented, and verified on a real Windows desktop. Automated CI success does not replace manual Windows 10/11, DPI, multi-monitor, and long-duration validation.  
 **Plugin system:** explicitly deferred to 3.0.0. Do not add plugin loading, third-party code execution, marketplace installation, or plugin permissions in 2.0.0.
@@ -100,7 +100,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [x] Add a constrained, explicit command-chain syntax for supported built-in actions.
 - [x] Parse into structured actions; never use eval or shell=True.
 - [x] Show the complete action plan before execution for saved workflows; destructive/custom commands retain their own confirmation checks.
-- [ ] Add per-step confirmation, cancellation, timeout, and partial-failure reporting.
+- [x] Add per-step confirmation, cancellation at each confirmation point, bounded capture-command timeouts, stop-on-failure behavior, and reporting of steps completed before a failure. The chain does not interrupt an already-running detached application.
 - [x] Ensure command chains cannot bypass existing command safety checks.
 
 ## 6. Reliability, accessibility, and compatibility
@@ -184,6 +184,18 @@ The following 2.0.0 work has been added on the development branch. CI and platfo
 - CI run `44608000793` passed 281 tests on Windows and Linux runners and completed portable/onedir builds, packaged UI verification, installer compilation, install/launch/UI verification, uninstall, and SHA-256 artifact staging. This run predates the final 2.0.0 version-metadata edits; the current head must pass the same gates before release.
 
 These entries are not a substitute for the release gates below. The remaining checklist items still apply.
+
+
+
+## 2026-11-20 follow-up
+
+- Added the optional Windows media-session widget with current-track metadata and playback controls; it is disabled by default and reports unsupported/no-session states without blocking the GUI thread.
+- Fixed command chains to honor both global destructive-confirmation settings and per-command confirmation flags. The preview now reflects the effective policy, and a failed chain reports the steps that completed before the failure.
+- Added regression coverage for both global confirmation switches and partial-failure reporting.
+- Expanded the real-Windows manual checklist to cover all 19 Tools pages and the 2.0.0 additions: widgets/media, Command Center, command chains, workflows, snippets, tasks, database backup/restore, diagnostics, content search, update verification, reduced motion and DPI.
+- Corrected README release-candidate wording so the download link is not mistaken for a published 2.0.0 installer, and corrected the widget count to six.
+
+The automated run for the current branch must pass after these changes. CI runner checks are evidence for source tests and packaging only; they do not replace real desktop, display, sleep/resume, multi-monitor, upgrade-from-1.x, or long-duration testing. Do not check those manual items without actual recorded results.
 
 ## Explicitly deferred to 3.0.0
 
