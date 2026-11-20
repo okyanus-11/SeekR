@@ -820,6 +820,7 @@ def test_workflow_and_snippet_tools_pages_are_constructible(qapp, controller, tm
     assert "snippets" in window.pages
     assert "tasks" in window.pages
     assert "database" in window.pages
+    assert "diagnostics" in window.pages
 
     folder = tmp_path / "workspace"
     folder.mkdir()
