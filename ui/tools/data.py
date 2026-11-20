@@ -963,6 +963,76 @@ class SnippetsTab(QWidget):
 
 
 
+
+class DatabaseTab(QWidget):
+    """Create and restore verified local SQLite backups."""
+
+    def __init__(self, controller, window):
+        super().__init__()
+        self.controller = controller
+        self.database = controller.db
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+        layout.addWidget(label("Database backups", "Heading"))
+        layout.addWidget(label(
+            "Create a consistent backup of SeekR's local database or restore from a verified backup. "
+            "Restoring replaces current indexed data, clipboard history, notes, tasks, workflows, snippets and settings stored in the database.",
+            "Muted", wrap=True,
+        ))
+        layout.addWidget(label(
+            "Backups contain local data and are not encrypted. Store them somewhere private.",
+            "Muted", wrap=True,
+        ))
+        buttons = QHBoxLayout()
+        buttons.addWidget(primary_button("Create backup…", self._backup))
+        buttons.addWidget(danger_button("Restore backup…", self._restore))
+        buttons.addStretch(1)
+        layout.addLayout(buttons)
+        self.status = label("", "Muted")
+        layout.addWidget(self.status)
+        layout.addStretch(1)
+
+    def _backup(self) -> None:
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Create SeekR database backup", "SeekR-backup.db",
+            "SQLite database (*.db)",
+        )
+        if not path:
+            return
+        if Path(path).suffix.lower() != ".db":
+            path += ".db"
+        if not self.database.backup_to(path):
+            dialogs.show_error(self, "Backup failed", "SeekR could not create or verify the database backup.")
+            return
+        self.status.setText(f"Verified backup created: {Path(path).name}")
+
+    def _restore(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Restore SeekR database backup", "",
+            "SQLite database (*.db);;All files (*)",
+        )
+        if not path:
+            return
+        if not dialogs.ask_confirm(
+            self, "Restore database backup",
+            "This replaces the current SeekR database, including notes, clipboard history, tasks and indexes. "
+            "Create a backup of the current database first if you may need it. Continue?",
+        ):
+            return
+        if not self.database.restore_from(path):
+            dialogs.show_error(
+                self, "Restore failed",
+                "The selected file is not a valid SeekR database backup or it could not be restored. "
+                "Your current database was not intentionally cleared.",
+            )
+            return
+        self.status.setText(f"Database restored from: {Path(path).name}")
+
+    def on_show(self) -> None:
+        self.status.setText("Back up regularly before major updates or troubleshooting.")
+
+
 class TasksTab(QWidget):
     """Local task list with optional ISO due dates and completion tracking."""
 
@@ -1102,4 +1172,4 @@ class TasksTab(QWidget):
         self.reload()
 
 
-__all__ = ["ClipboardTab", "NotesTab", "BookmarksTab", "ConnectionsTab", "ActionsTab", "WorkflowsTab", "SnippetsTab", "TasksTab"]
+__all__ = ["ClipboardTab", "NotesTab", "BookmarksTab", "ConnectionsTab", "ActionsTab", "WorkflowsTab", "SnippetsTab", "TasksTab", "DatabaseTab"]
