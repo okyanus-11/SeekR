@@ -718,10 +718,8 @@ class LauncherWidgets(QObject):
         for key, card in self._cards.items():
             card.setMinimumHeight(card_height)
             card.setMaximumHeight(card_height + (24 if key == "system" else 16 if key == "clock" else 12))
-        # Cards are inserted into their layouts exactly once in __init__.
-        # Settings refreshes only toggle visibility; they never remove, hide,
-        # reparent, or recreate a card. This makes widget lifetime independent
-        # of search refreshes, animation state, and asynchronous data replies.
+        # Cards may move between layout positions, but remain permanent children
+        # of their original rail. No refresh recreates or reparents a live widget.
         for key in ("clock", "system", "tasks", "weather", "meme"):
             card = self._cards[key]
             enabled = bool(self.config.get(f"widgets.{key}_enabled", True))
