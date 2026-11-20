@@ -931,3 +931,27 @@ def test_widget_order_settings_reorder_without_reparenting(qapp, controller):
     controller.config.set("widgets.left_order", ["clock", "system", "tasks"])
     controller.config.set("widgets.right_order", ["weather", "meme"])
     widgets.refresh_settings()
+
+ 
+def test_weather_keeps_last_good_data_when_refresh_fails(qapp, controller):
+    from PySide6.QtCore import QThreadPool
+    from ui.launcher_widgets import WeatherWidget
+
+    controller.config.set("widgets.weather_location", "Izmir")
+    widget = WeatherWidget(controller.config, QThreadPool())
+    widget._last_location = "Izmir"
+    widget.set_weather("weather", {
+        "place_name": "Izmir, Türkiye",
+        "current": {
+            "weather_code": 0,
+            "temperature_2m": 22,
+            "apparent_temperature": 21,
+            "relative_humidity_2m": 45,
+        },
+    })
+    previous_value = widget.value.text()
+    widget.set_error("weather", "network unavailable")
+    assert widget.value.text() == previous_value
+    assert "last successful update" in widget.details.text().lower()
+    widget.timer.stop()
+    widget.deleteLater()
