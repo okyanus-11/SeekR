@@ -108,7 +108,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [x] Add widget lifecycle regression tests for every refresh/visibility/theme transition.
 - [ ] Add long-duration stability and memory-growth tests.
 - [x] Add repeated open/close, repeated activation, and single-instance stress tests.
-- [ ] Test database migration, interrupted writes, backup recovery, and corrupted configuration.
+- [x] Test database migration, SQLite recovery after an interrupted uncommitted write, verified backup/restore, restore rollback on failure, and corrupted configuration.
 - [ ] Test offline mode, DNS/network failures, slow endpoints, and malformed provider responses.
 - [ ] Test Windows 10 and Windows 11 on real desktops.
 - [ ] Test mixed-DPI and multi-monitor layouts, scaling changes, sleep/resume, and display hot-plug.
@@ -164,7 +164,8 @@ The following 2.0.0 work has been added on the development branch. CI and platfo
 
 - Natural-language file metadata filters and plural-aware matching, including local-calendar boundaries for today/yesterday and tests proving today is excluded from yesterday results.
 - Clipboard privacy controls now include common credential-pattern filtering, a visible pause switch, per-entry deletion, and a confirmed clear-all action. Plain text and multiline content are retained; rich-text formatting is intentionally reduced to plain text. The sensitive-pattern filter is best-effort, not a guarantee.
-- Update metadata handling now accepts only official SeekR release-download URLs with GitHub-provided SHA-256 digests; no update is silently downloaded or installed.
+- Update metadata handling now accepts only official SeekR release-download URLs with GitHub-provided SHA-256 digests; users can open an asset download or copy its digest explicitly, with no silent download or installation.
+- Added a Tools → Database & backups page with consistent SQLite backup creation, integrity verification, backup restore validation, and rollback to the pre-restore snapshot if restoration fails.
 - Safe file-index snapshot behavior during cancellation, inaccessible roots and complete scans.
 - Persistent widget lifecycle, visibility-aware polling, configurable refresh intervals, reduced-motion behavior for shared controls, theme refresh and regression coverage; the launcher now includes a local task-summary widget. The system card reports CPU, memory, storage, battery and network throughput, and the clock card includes a configurable focus timer.
 - Bounded app usage ranking and recent/frequent suggestions; tracking is off by default and disabling it suppresses personalization.
