@@ -111,12 +111,14 @@ def test_update_provider_exposes_official_asset_and_hash_actions(config, db, hoo
         }],
     }
     result = provider.search("check", 1)[0]
-    assert len(result.actions) == 3
+    assert len(result.actions) == 4
     result.actions[1].callback()
     result.actions[2].callback()
-    assert hooks.calls[-2:] == [
+    result.actions[3].callback()
+    assert hooks.calls[-3:] == [
         ("open_url", (provider.service.last_info["assets"][0]["url"],)),
         ("copy_text", ("f" * 64,)),
+        ("verify_update_asset", (provider.service.last_info["assets"][0],)),
     ]
 
 
@@ -129,3 +131,38 @@ def test_update_check_rejects_invalid_release_version(config, monkeypatch):
         assert "version" in str(exc).lower()
     else:
         raise AssertionError("Invalid release tags must be rejected")
+
+
+def test_update_asset_verification_accepts_matching_file(tmp_path):
+    payload = b"SeekR release artifact test"
+    file_path = tmp_path / "SeekR-Setup.exe"
+    file_path.write_bytes(payload)
+    import hashlib
+
+    asset = {
+        "name": "SeekR-Setup.exe",
+        "url": "https://github.com/okyanus-11/SeekR/releases/download/v2.1.0/SeekR-Setup.exe",
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "size": len(payload),
+    }
+    valid, message = UpdateService.verify_asset_file(asset, file_path)
+    assert valid
+    assert "verified" in message.lower()
+
+
+def test_update_asset_verification_rejects_mismatch_and_untrusted_metadata(tmp_path):
+    file_path = tmp_path / "SeekR-Setup.exe"
+    file_path.write_bytes(b"not the release artifact")
+    asset = {
+        "name": "SeekR-Setup.exe",
+        "url": "https://github.com/okyanus-11/SeekR/releases/download/v2.1.0/SeekR-Setup.exe",
+        "sha256": "0" * 64,
+        "size": file_path.stat().st_size,
+    }
+    valid, message = UpdateService.verify_asset_file(asset, file_path)
+    assert not valid
+    assert "mismatch" in message.lower()
+    asset["url"] = "https://example.com/SeekR-Setup.exe"
+    valid, message = UpdateService.verify_asset_file(asset, file_path)
+    assert not valid
+    assert "trusted" in message.lower()
