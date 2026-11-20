@@ -1,587 +1,294 @@
+<!--
+  SeekR — README
+  Keep this file focused on the product, its real capabilities, and the evidence
+  behind each release. Detailed procedures live in /docs.
+-->
+
+<div align="center">
+
 # SeekR
 
-**A fast, keyboard-driven launcher for Windows 10 and 11.** Press `Alt+Space`, type what you need, press `Enter`.
+### Find it. Launch it. Get things done.
 
-SeekR is a native desktop application built with Python and PySide6. It searches your applications and files, evaluates expressions, opens websites, runs safe commands, previews documents, manages clipboard history and notes, and bundles a set of everyday developer utilities — all from one floating window.
+**A fast, keyboard-first desktop launcher for Windows.**
 
-**Current version:** 2.0.0 · **Next major release:** 3.0.0 (plugins planned) · **License:** MIT
+Search apps and files, calculate, run commands, manage local tasks, and reach a suite of everyday tools — from one focused, floating window.
 
+<br>
 
-<p align="center">
-  <a href="https://github.com/okyanus-11/SeekR/releases/latest"><strong>⬇️ Download for Windows — Installer (.exe)</strong></a>
-  · <a href="https://github.com/okyanus-11/SeekR/releases/latest">All releases</a>
-</p>
+[![Latest release](https://img.shields.io/github/v/release/okyanus-11/SeekR?display_name=tag&style=for-the-badge&color=7c83ff)](https://github.com/okyanus-11/SeekR/releases/latest)
+[![License](https://img.shields.io/github/license/okyanus-11/SeekR?style=for-the-badge)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/okyanus-11/SeekR/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/okyanus-11/SeekR/actions)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-357ec7?style=for-the-badge&logo=windows)](#requirements)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab?style=for-the-badge&logo=python&logoColor=white)](#development)
 
-> **2.0.0 validation note:** The 2.0.0 release passed the Ubuntu, Windows Latest and Windows Server 2022 CI matrix, plus Windows portable/onedir packaging, packaged UI checks, installer installation, launch, UI verification and uninstall. The release has not been manually validated on physical Windows 10/11 desktops; mixed-DPI, multi-monitor, sleep/resume, upgrade-from-1.x and long-duration stability checks remain outstanding. Builds are unsigned. See [the Windows manual checklist](docs/WINDOWS_MANUAL_TEST.md) and [performance notes](docs/WINDOWS_PERFORMANCE.md). The installer requires no Python setup or ZIP extraction.
+<br>
 
+<a href="https://github.com/okyanus-11/SeekR/releases/latest"><strong>⬇ Download SeekR for Windows</strong></a>
+<br>
+<sub>Installer · Portable executable · SHA-256 checksums</sub>
 
-> Plugins are **not** part of 2.0.0 and are planned for 3.0.0. The Settings → Plugins page shows the planned marketplace as *Coming Soon*; no plugin code is loaded or executed.
+<br><br>
 
----
+<sub>Press <kbd>Alt</kbd> + <kbd>Space</kbd> · Type · Press <kbd>Enter</kbd></sub>
 
-## Contents
-
-- [Features](#features)
-- [Screenshots](#screenshots)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Windows validation](#windows-validation)
-- [Running from source](#running-from-source)
-- [Building a standalone executable](#building-a-standalone-executable)
-- [Keyboard shortcuts](#keyboard-shortcuts)
-- [Keyword reference](#keyword-reference)
-- [Configuration](#configuration)
-- [Database](#database)
-- [Privacy and local data](#privacy-and-local-data)
-- [Themes](#themes)
-- [Project structure](#project-structure)
-- [Architecture](#architecture)
-- [Testing](#testing)
-- [Performance](#performance)
-- [Windows compatibility](#windows-compatibility)
-- [Troubleshooting](#troubleshooting)
-- [Known limitations](#known-limitations)
-- [Roadmap: plugins](#roadmap-plugins)
-- [License](#license)
+</div>
 
 ---
 
-## Features
+## What is SeekR?
 
-### Launcher
+SeekR is a keyboard-driven Windows launcher built with **Python and PySide6**. It brings application search, file discovery, calculations, web search, system actions, and productivity utilities into one lightweight workflow.
 
-- Frameless, translucent, always-on-top search window with a keyboard-first workflow.
-- Global hotkey (`Alt+Space` by default, configurable) with conflict detection and a clear error if the combination is already taken.
-- Debounced live search, fuzzy matching with typo tolerance, ranking across providers, and result deduplication.
-- Recent and frequently used applications influence ranking.
-- Context menu for secondary actions, action cycling with `Tab`, and numbered actions with `Ctrl+1…9`.
-- Subtle open/close/selection animations that can be disabled in Settings.
-- Six optional live widgets around the results: clock, system usage and local task summary on the left; weather, a daily wholesome meme and Windows media controls on the right. Each can be enabled independently. Refresh intervals, rail width, card height and left/right card order are configurable in Settings → Widgets.
-- Weather uses a city or town entered in Settings (no location permission); current conditions refresh periodically and the last successful result is cached locally for offline startup. The daily meme is cached locally and refreshes on the next calendar day. Both network widgets retain and label cached data when a refresh fails.
-- Optional "hide when focus is lost", tray icon, and start-with-Windows support.
-- Single-instance enforcement: launching SeekR again brings the existing window forward.
+It is designed to stay out of your way: open it with a global hotkey, type naturally or use a keyword, and choose an action without navigating layers of menus.
 
-### Search providers
+**Current release: 2.0.0** · **License: MIT**
 
-| Area | What it does |
+> **Release transparency:** 2.0.0 passed the published Ubuntu, Windows Latest, and Windows Server 2022 CI matrix, plus portable/onedir packaging and installer install/launch/uninstall smoke checks. It has **not** completed the full manual validation on physical Windows 10/11 desktops. Mixed-DPI and multi-monitor behavior, sleep/resume, a real 1.x upgrade, and long-duration stability still need hands-on verification. Builds are unsigned. See the [Windows audit](docs/WINDOWS_AUDIT.md) and [manual checklist](docs/WINDOWS_MANUAL_TEST.md).
+
+## At a glance
+
+| | |
 |---|---|
-| Applications | Discovers Start Menu shortcuts (`.lnk`), configured Program Files locations and additional user folders, extracts icons, supports aliases, exclusions, launch history and background re-indexing. Executables are launched directly — no shell. |
-| Files & folders | Indexes configured directories in background threads (WAL SQLite index), respects excluded folders/extensions and hidden files, filters by extension (`ext:pdf`), supports opt-in on-demand text-content search (`content:`) for configured folders/extensions and file-size limits, opens files/folders, copies paths, and shows metadata. |
-| Calculator | SymPy-backed parser (no `eval`): arithmetic, powers, roots, trigonometry (degrees or radians), logarithms, factorials, constants (`pi`, `e`, `tau`, `phi`), percentages, scientific notation, unit conversion, configurable precision, calculation history. |
-| Web search | Google, Bing, DuckDuckGo, YouTube, Wikipedia, GitHub, plus custom engines defined by URL templates. Configurable default engine and browser handling. |
-| Translation | `translate: Hello to Turkish` builds a Google Translate URL; supports 20+ language names. |
-| Dictionary | `define: algorithm` opens an in-app definition lookup. Successful lookups are cached locally and can be reopened offline. |
-| Commands | Built-in safe system commands and user-defined commands with confirmation for destructive actions, argument-safe execution, aliases and history. |
-| Clipboard | Opt-in text clipboard history, off by default; copied text is stored unencrypted in the local database with hash-based deduplication, pinning, categories, search, deletion and age/count retention for unpinned entries. A separate opt-in stores bounded, unencrypted PNG image captures locally (maximum 5 MB, 4096 px per side and 16 megapixels); image previews and copy-back are supported. |
-| Notes | Lightweight notes with autosave, pinning, search and timestamps. |
-| System info | Real CPU, memory, disks, GPU, battery, network, IP, uptime and OS data via `psutil` and platform APIs. No invented values. |
-| Date & time | Current time, time-zone lookup and conversion, date differences, countdown timer, configurable formats. |
-| Windows | Lists open windows, switches to the selected one, tiles it left/right on its own monitor, and offers a confirmed normal close request. wm: minimize all minimizes app windows while protecting SeekR and shell processes. |
-| Emoji | Searchable emoji table; copies the selected emoji. |
-| Color | HEX/RGB/HSL/HSV conversion, color picking, copyable values. |
-| Screenshots | Full-screen and built-in region capture save PNGs directly to the configured folder (Settings → Files), including multi-monitor desktops. The Windows Snipping Tool remains an optional external alternative. |
-| Processes | Search running processes with CPU/memory usage, details, and confirmation before termination. |
-| Bookmarks | Reads Chromium bookmarks with a last-good backup fallback and Firefox bookmarks from a consistent SQLite snapshot, including live WAL data. Unreadable profiles are skipped with a status message. |
-| QuickLook | Safe previews for images and text-like documents (never executes previewed files). |
-| Workflows | Local multi-step routines built from validated folder, website, application and copy actions; import/export as versioned JSON; searchable with `flow:`. |
-| Text snippets | Local reusable text with categories and aliases; searchable with `snip:` and copied only after explicit selection. |
-| Tasks | Local tasks with optional due dates, notes, completion tracking and explicit `task:` search. |
-| Database backups | Create and restore integrity-checked local SQLite backups from Tools → Database & backups. Restore validates the backup and rolls back if restoration fails. |
-| Command chains | Explicit `chain:` sequences of existing named commands, with per-step confirmation for destructive actions and stop-on-failure behavior. |
-| Command Center | Press `>` for one searchable palette covering settings, system tools, network, workflows, snippets, clipboard, search shortcuts and widget toggles. |
-| Update checks | Manual `update:` checks and opt-in once-daily background checks against the official GitHub releases API; displays release notes, supports per-version reminder deferral, and lets users verify a manually downloaded asset against its published SHA-256 and expected size. Installation remains explicit; close SeekR before running the verified installer and relaunch it after installation. |
-| Quick Connect | SSH profiles with validation; detects OpenSSH on PATH and in the standard Windows installation folder. Passwords are never stored. |
-| Power | Lists and switches Windows power schemes where `powercfg` supports it. |
-| Quick Actions | Open folders, open websites, launch applications with arguments, copy predefined text. |
-| Smart suggestions | Recent applications/files/searches when the query is empty; can be disabled. |
+| **Launcher** | Frameless, always-on-top search window with fuzzy matching, typo tolerance, recent/frequent ranking, and configurable global hotkey. |
+| **Search** | Applications, indexed files, folders, document content (opt-in), web, Wikipedia, YouTube, GitHub, and custom search engines. |
+| **Everyday tools** | Calculator, dictionary, translation, date/time, unit conversion, emoji search, color conversion, screenshots, and system information. |
+| **Productivity** | Notes, tasks, bookmarks, reusable snippets, multi-step workflows, command chains, and quick actions. |
+| **System controls** | Process inspection, window switching/tiling, power schemes, SSH profiles, clipboard manager, and database backups. |
+| **Personalization** | Six themes, custom accents, typography and layout controls, animations, and optional launcher widgets. |
 
-### Tools window
+## The launcher
 
-A single window with 19 pages: **Calculator**, **Developer tools**, **Date & time**, **Color**, **Dictionary**, **Screenshots**, **System**, **Processes**, **Power**, **Clipboard**, **Quick notes**, **Bookmarks**, **Quick Connect**, **Quick actions**, **Workflows**, **Text snippets**, **Tasks**, **Database & backups**, and **Diagnostics**.
+SeekR is more than a search box. Its launcher can show optional information cards around the results, while keeping the central search workflow uncluttered.
 
-The Developer tools page implements all 15 utilities:
+**Optional widgets**
+- **Clock** — local time at a glance.
+- **System** — CPU and memory usage.
+- **Weather** — current conditions for a city you configure.
+- **Daily meme** — a cached wholesome meme.
+- **Media** — current Windows media-session information and playback controls, where supported.
+- **Task summary** — a compact view of your local tasks.
 
-1. UUID generator
-2. Base64 encoder
-3. Base64 decoder
-4. JSON formatter
-5. JSON validator
-6. URL encoder
-7. URL decoder
-8. Hash generator (MD5, SHA-1, SHA-256, SHA-512)
-9. Color converter
-10. Regex tester
-11. Timestamp converter
-12. Text case converter
-13. Character counter
-14. Word counter
-15. Hexadecimal converter
+Widgets can be enabled individually. Their refresh intervals, rail width, card height, and left/right ordering are configurable. Network-backed cards keep and label their last successful data when a refresh fails; they do not need to block the launcher.
 
-### Settings
+> Weather is provided by Open-Meteo. Network widgets require an internet connection for fresh data; local widgets do not.
 
-Fourteen pages — General, Appearance, Widgets, Search, Applications, Files, Web, Calculator, Commands, Clipboard, Privacy, Advanced, Plugins, About — all bound to the persisted JSON configuration. Every control writes through validation and takes effect immediately (theme changes repaint all windows). The launcher, shared controls, common headings and Tools navigation are available in nine languages: English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese and Simplified Chinese. Longer settings descriptions, tool content, dialogs and dynamic status messages remain English.
+## Search capabilities
 
-## Privacy and local data
-
-SeekR is designed to keep its working data on the local PC. Clipboard history is disabled until the user opts in through the privacy and clipboard settings. When enabled, multiline clipboard text is retained as plain text; rich-text formatting is not preserved. Image capture is a separate opt-in and stores bounded PNG files locally. The clipboard page provides pause, per-entry deletion, clearing unpinned entries, and a separately confirmed clear-all action.
-
-**Storage is not encrypted.** Clipboard text is stored in the local SQLite database, and optional clipboard images are stored as PNG files in the SeekR data directory. Anyone with access to the same Windows account and its files may be able to read them. Do not enable clipboard capture on a shared or untrusted Windows account if that storage model is unsuitable. Disabling monitoring stops future capture; it does not automatically erase existing history. Use the clear controls to remove saved entries. Tools → Database & backups can create and restore integrity-checked SQLite backups. Backup files contain the same unencrypted local data and should be stored privately.
-
-The default sensitive-content filter skips several common credential-shaped strings, but it is only a heuristic and cannot identify every password, token, or secret. Do not treat it as a guarantee. Usage-based application ranking is separately opt-in and can be disabled with its stored usage data cleared in Settings.
-
-## Themes
-
-Graphite (default), Light, AMOLED, Catppuccin Mocha, Dracula and Nord, with a custom accent colour picker, transparency, font family/size, window width, result spacing and animation toggle. The launcher now defaults to a wider layout so its widget rails have room without squeezing search results. Keyword routing is cached and invalidated when aliases or providers change. The theme stylesheet is applied application-wide, not just to the launcher.
-
----
-
-## Screenshots
-
-No screenshots are included. The Qt full-screen capture and Windows Snipping Tool region-capture paths are separate; neither has been manually verified against a real display.
-
----
-
-## Requirements
-
-**End users:** Windows 10 or 11 (64-bit) and the built `SeekR.exe` — no Python installation needed.
-
-**Development:**
-
-- Python 3.10+ (developed and tested with 3.12)
-- PySide6 ≥ 6.6
-- psutil ≥ 5.9
-- sympy ≥ 1.12
-- tzdata ≥ 2024.1 (time zones on systems without a system tz database)
-
----
-
-## Installation
-
-Download the [latest Windows setup installer](https://github.com/okyanus-11/SeekR/releases/latest) for a guided per-user installation (no Python required). The release also provides a portable `SeekR.exe` and `SHA256SUMS.txt`; main-branch builds are available as GitHub Actions artifacts. See [docs/INSTALLATION.md](docs/INSTALLATION.md) for installation, build, upgrade, and user-data details.
-
-### From a local build
-
-A native Windows executable and installer were validated on Windows 11. The
-installer was installed, same-version reinstalled, launched, and uninstalled;
-the Start Menu shortcut targeted the installed executable, and isolated
-`%APPDATA%` test data survived uninstall. The visible launcher returned `4`
-for `calc: 2+2`. The Python 3.12.10 Windows suite passed with two documented
-platform skips.
-
-SeekR 2.0.0 is now a published public release. A true upgrade from an older
-installer, code signing/SmartScreen, and several native shell integrations
-remain unverified.
-`Alt+Space` was already registered by another application on the validation
-PC, so an alternate hotkey was used instead. Repeated packaged launch activation
-was inconsistent in that run: the request was forwarded but the window did not
-reliably appear. The cause was identified and fixed afterwards, but the fix
-still needs re-testing on a Windows desktop. See
-[the Windows audit](docs/WINDOWS_AUDIT.md) for the full checklist. For a build
-from source, see
-[Building a standalone executable](#building-a-standalone-executable), then:
-
-1. After a successful local build, place `SeekR.exe` in a folder you control (for example `%LOCALAPPDATA%\Programs\SeekR`).
-2. Run it. Enable **Start with Windows** in Settings → General if desired.
-
-User data is stored in `%APPDATA%\SeekR`, never next to the executable.
-
-Locally built files are not a published release.
-
-### Development setup
-
-```bash
-git clone https://github.com/okyanus-11/SeekR.git
-cd SeekR
-python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# Linux/macOS:
-source .venv/bin/activate
-
-pip install -r requirements-dev.txt
-```
-
----
-
-## Windows validation
-
-Before calling a build a Windows release, run the automated check on the target
-Windows PC, then complete the manual GUI checklist.
-
-### Prerequisites
-
-- Windows 10 or Windows 11, 64-bit.
-- Python 3.10 or newer, 64-bit. **Python 3.12 is recommended.** Install it from
-  <https://www.python.org/downloads/windows/> and tick either “Add python.exe to
-  PATH” or the Python launcher (`py`).
-- Windows PowerShell 5.1 (built in) or PowerShell 7.
-- An internet connection for the first `pip install`, and about 1 GB of free
-  disk space for the virtual environment and build.
-- No administrator rights are required for the test or build.
-- Run the commands from the repository root (the folder containing `main.py`).
-
-### Run the automated Windows checks
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\windows_test.ps1
-```
-
-In PowerShell 7:
-
-```powershell
-pwsh -NoProfile -File .\tools\windows_test.ps1
-```
-
-The script:
-
-1. Verifies it is running on Windows and checks the Python version.
-2. Creates or reuses `.venv` and installs `requirements-dev.txt`.
-3. Verifies all runtime, test and build dependencies import.
-4. Byte-compiles the source.
-5. Runs the complete pytest suite with the native Windows Qt platform.
-6. Checks `python main.py --version`.
-7. Runs `build.py` and verifies `dist\SeekR.exe` and its Windows version
-   metadata.
-
-Each check is printed and saved as **PASS**, **FAIL** or **SKIPPED**. A full
-report is written to **`windows_test_results.txt` in the repository root**. The
-script exits with code `0` only when every required check passes; any failure
-exits with code `1` and remains visible in the report.
-
-On Windows 11 build 26300, the full suite passed with 169 tests at Python 3.12
-(168 at Python 3.14) and 2 documented skips. The process-isolated
-single-instance forwarding regression test ran as part of that suite. The Linux
-suite passes **176 tests** on Ubuntu 24.04 with offscreen Qt. Automated checks
-do not verify native GUI behavior; the Win32 hotkey, tray, window switching, and
-Snipping Tool experience have not been manually verified. See
-[Windows compatibility](#windows-compatibility).
-
-### Manual GUI checks
-
-Automated checks cannot verify Alt+Space, the tray, DPI, window activation or
-how the app looks. After the automated report says `RESULT: PASS`, work through
-[`docs/WINDOWS_MANUAL_TEST.md`](docs/WINDOWS_MANUAL_TEST.md). Record every row,
-including failures and tests that could not be performed.
-
----
-
-## Running from source
-
-```bash
-python main.py
-```
-
-Useful flags:
-
-| Flag | Meaning |
+| Search area | Examples and capabilities |
 |---|---|
-| `--version` | Print the version and exit. |
-| `--debug` | Verbose logging (also available as a setting). |
-| `--no-hotkey` | Start without registering the global hotkey. |
-| `--hidden` | Start without showing the launcher. |
-| `--settings` | Open Settings on start. |
-| `--tools` | Open the Tools window on start. |
-| `--reset-config` | Reset the configuration to defaults. |
-| `--allow-multiple` | Bypass the single-instance check (development only). |
+| **Applications** | Find Start Menu apps and configured application folders; use aliases, exclusions, and launch history. |
+| **Files & folders** | Search indexed locations, filter by extension/date/size, open or copy paths, and inspect metadata. |
+| **Content search** | Search inside configured text files with `content:`. This is opt-in and applies configured extension, folder, and size limits. |
+| **Calculator** | Safe SymPy-backed expressions, trigonometry, roots, logarithms, percentages, constants, unit conversion, and history. |
+| **Web** | Google, Bing, DuckDuckGo, YouTube, Wikipedia, GitHub, and custom URL-template engines. |
+| **Dictionary & translation** | Look up definitions (cached after a successful lookup) and open Google Translate for 20+ language names. |
+| **Commands** | Built-in and user-defined commands, aliases, history, argument-safe execution, and confirmation for destructive actions. |
+| **Bookmarks** | Read supported Chromium and Firefox browser bookmarks, with recovery/fallback handling. |
+| **QuickLook** | Preview supported images and text-like documents without executing the files. |
 
----
+## Built-in tools
 
-## Building a standalone executable
+The Tools window groups utilities into dedicated pages:
 
-On Windows, from the repository root:
+- **Developer tools:** UUID generation, Base64 encode/decode, JSON format/validation, URL encode/decode, hashes (MD5/SHA-1/SHA-256/SHA-512), color conversion, regex testing, timestamp conversion, text-case conversion, character/word counts, and hexadecimal conversion.
+- **Files & capture:** full-screen and region screenshots, configurable save location, and file indexing controls.
+- **System:** live system information, process inspection, and Windows power schemes.
+- **Personal productivity:** clipboard history, quick notes, bookmarks, workflows, text snippets, tasks, and quick actions.
+- **Connectivity:** SSH profiles through the system OpenSSH client.
+- **Maintenance:** SQLite database backup/restore and local diagnostics report export.
 
-```powershell
-py -3 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-.\.venv\Scripts\python.exe build.py
-```
+The diagnostics export is user-initiated and stays on the device. Logs are excluded by default; if included, redaction is best-effort. Review a report before sharing it.
 
-If you have already activated the virtual environment, `python build.py` is
-equivalent. `build.py` checks for Python 3.10+, PySide6, psutil, sympy, tzdata
-and PyInstaller before invoking PyInstaller, and prints the exact pip command if
-something is missing.
+## Command Center and workflows
 
-The script:
+Press `>` to open the **Command Center**, a searchable palette for settings, tools, network actions, workflows, snippets, clipboard, search shortcuts, and widget toggles.
 
-1. Generates the icon assets if missing (`tools/make_icons.py`).
-2. Writes a Windows version resource (product name, current application version, copyright) to `build/version_info.txt`.
-3. Runs PyInstaller with `--onefile --windowed`, bundling `assets/` and `tzdata`.
+Build local **workflows** from validated application, folder, website, and copy actions. Workflows support preview, progress, cancellation, per-step errors, and versioned JSON import/export. **Command chains** let you sequence existing named commands with stop-on-failure behavior and confirmation for destructive steps.
 
-Output on Windows: **`dist\SeekR.exe`** — a single-file, windowed GUI build with
-the application icon and version resource, requiring no separately installed
-Python. Use `--onedir` for a troubleshooting folder build at
-`dist\SeekR\SeekR.exe`, or `--console` for a debug build that keeps a console
-window and shows startup errors. On Linux the same command produces `dist/SeekR`
-and `dist/SeekR/SeekR`, which are not Windows executables.
+## Quick start
 
-> The [latest release workflow](https://github.com/okyanus-11/SeekR/actions) runs the test suite on
-> Windows Latest, Windows Server 2022 and Ubuntu, then builds both Windows
-> distributions. It also opens the packaged portable and installed executables
-> to verify that all six enabled launcher widgets are visible, and performs
-> installer, startup and uninstallation smoke tests. These automated checks do
-> not replace the [manual Windows GUI checklist](docs/WINDOWS_MANUAL_TEST.md).
+### 1. Install
 
----
+Download the latest **SeekR-Setup** installer from the [GitHub Releases page](https://github.com/okyanus-11/SeekR/releases/latest). It installs per-user, does not require administrator privileges or a separate Python installation, and creates a Start Menu shortcut.
+
+Prefer not to install? Download the portable `SeekR.exe` from the same release.
+
+### 2. Open
+
+Launch SeekR and press `Alt+Space` (the default global hotkey). If another application already owns that shortcut, choose a different combination in **Settings → General**.
+
+### 3. Search
+
+Try a plain query such as `discord`, or use one of the keywords below.
+
+For detailed installation, upgrade, build, and data-location instructions, see [docs/INSTALLATION.md](docs/INSTALLATION.md).
+
+## Keyword reference
+
+Keywords are case-insensitive and are matched at the start of the query.
+
+| Keyword | Example | Action |
+|---|---|---|
+| `>` | `> workflows` | Open Command Center |
+| `app:` | `app: discord` | Search applications |
+| `file:` | `file: invoice` | Search indexed files |
+| `content:` | `content: installation guide` | Search configured text-file contents |
+| `calc:` | `calc: sqrt(144) + 25 * 4` | Calculate an expression |
+| `web:` | `web: Raspberry Pi 5` | Search the configured web engine |
+| `wiki:` | `wiki: ESP32` | Search Wikipedia |
+| `yt:` | `yt: DOOM soundtrack` | Search YouTube |
+| `gh:` | `gh: ESP32 projects` | Search GitHub |
+| `translate:` | `translate: Hello to Turkish` | Open a translation |
+| `define:` | `define: algorithm` | Look up a definition |
+| `unit:` | `unit: 100 km to miles` | Convert units |
+| `time:` | `time: Tokyo` | Look up local time |
+| `sys:` | `sys:` | Show system information |
+| `comm:` | `comm: ipconfig` | Run a built-in command |
+| `flow:` | `flow: prepare work` | Find and run a workflow |
+| `snip:` | `snip: signature` | Find a saved text snippet |
+| `chain:` | `chain: taskmgr then explorer` | Run a command chain |
+| `task:` | `task: installer` | Search local tasks |
+| `wm:` | `wm: minimize all` | Manage application windows |
+| `update:` | `update: check` | Check the official releases page |
+
+Without a keyword, SeekR still recognizes calculator expressions and ranks matching applications and files.
 
 ## Keyboard shortcuts
 
 | Shortcut | Action |
 |---|---|
-| `Alt+Space` | Show/hide the launcher (global, configurable) |
-| `↑` / `↓` | Move selection |
-| `PageUp` / `PageDown` | Move selection by six rows |
-| `Enter` | Run the primary action of the selected result |
-| `Tab` / `Shift+Tab` | Cycle through all actions of the selected result |
-| `Ctrl+1` … `Ctrl+9` | Run the action at that position |
-| `Ctrl+C` | Copy the selected result (when no text is selected) |
+| `Alt+Space` | Show or hide the launcher (configurable global hotkey) |
+| `↑` / `↓` | Move through results |
+| `PageUp` / `PageDown` | Move by six rows |
+| `Enter` | Run the selected result's primary action |
+| `Tab` / `Shift+Tab` | Cycle through available actions |
+| `Ctrl+1…9` | Run an action by its position |
+| `Ctrl+C` | Copy the selected result when no text is selected |
 | `Ctrl+,` | Open Settings |
-| `Ctrl+T` | Open the Tools window |
+| `Ctrl+T` | Open Tools |
 | `Ctrl+R` | Re-index applications and files |
-| `Esc` | Clear the action selection, then hide the launcher |
-| Right-click a result | Context menu with every action |
+| `Esc` | Clear action selection, then hide the launcher |
+| Right-click a result | Open its context menu |
 
----
+## Personalize it
 
-## Keyword reference
+Choose from **Graphite, Light, AMOLED, Catppuccin Mocha, Dracula,** and **Nord**. Adjust accent color, transparency, font family and size, launcher width, result spacing, widget layout, and animation behavior.
 
-Keywords are matched case-insensitively at the start of the query (`web: python`). Press `>` at the start of a query to open the Command Center.
+The launcher shell, shared controls, common headings, and Tools navigation are available in nine languages: English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese, and Simplified Chinese. This is **partial localization**; longer descriptions, tool content, dialogs, and many dynamic messages remain in English.
 
-| Keyword | Example | Result |
-|---|---|---|
-| `>` | `> workflows` | Opens the unified Command Center. |
-| `web:` | `web: Raspberry Pi 5` | Opens the configured search engine |
-| `calc:` | `calc: sqrt(144) + 25 * 4` | `112` |
-| `flow:` | `flow: prepare work` | Search and run saved local workflows. |
-| `snip:` | `snip: signature` | Search and explicitly copy saved text snippets. |
-| `chain:` | `chain: taskmgr then explorer` | Run a bounded chain of existing commands separated by `then`. |
-| `comm:` | `comm: ipconfig` | Runs the built-in command (with confirmation where required) |
-| `file:` | `file: invoice` | Searches the file index |
-| `content:` | `content: installation guide` | Searches inside explicitly configured indexed text files (off by default) |
-| `app:` | `app: discord` | Searches installed applications |
-| `wiki:` | `wiki: ESP32` | Wikipedia search |
-| `yt:` | `yt: DOOM soundtrack` | YouTube search |
-| `gh:` | `gh: ESP32 projects` | GitHub search |
-| `translate:` | `translate: Hello to Turkish` | Google Translate link |
-| `unit:` | `unit: 100 km to miles` | `62.137119 mi` |
-| `time:` | `time: Tokyo` | Current time in Tokyo |
-| `define:` | `define: algorithm` | Dictionary lookup |
-| `sys:` | `sys:` | Live system information entries |
-| `wm:` | `wm: minimize all` | Minimizes visible application windows while protecting SeekR and Windows shell processes |
-| `update:` | `update: check` | Checks the official SeekR GitHub releases page for a newer version |
-| `task:` | `task: installer` | Searches local tasks and offers completion actions |
+## Privacy and local data
 
-Without a keyword SeekR still works: `25 * 48` produces a calculator result automatically, and `discord` ranks matching applications first.
+SeekR is designed to keep its working data on your device. Configuration, database, logs, notes, and optional clipboard history are stored locally.
 
-Custom aliases are configured on Settings → Search (`{"w": "web"}` makes `w:` behave like `web:`). Aliases are validated, stored lowercase, and can never shadow an existing keyword.
+**Important storage details:**
+- Clipboard monitoring is **off by default** and requires opt-in.
+- Clipboard text and optional PNG image captures are stored **unencrypted** on the local device.
+- Disabling clipboard monitoring stops future capture; it does not erase existing entries. Use the clear controls to delete saved history.
+- The sensitive-content filter is heuristic, not a guarantee that every password, token, or secret will be detected.
+- Application usage ranking and file-content search are also opt-in.
+- Diagnostics reports are generated only when requested and are not uploaded by SeekR.
 
----
+On Windows, user data is stored under `%APPDATA%\\SeekR`. Uninstalling the application preserves this data. Backups contain the same local data and should be kept private.
 
-## Configuration
+Read the full [privacy and local-data notes](#privacy-and-local-data) in this README and [installation guide](docs/INSTALLATION.md) before enabling clipboard capture.
 
-- **Location:** `%APPDATA%\SeekR\config.json` on Windows; `$XDG_CONFIG_HOME/SeekR/config.json` (or `~/.config/SeekR`) on Linux; `~/Library/Application Support/SeekR` on macOS.
-- **Override:** set `SEEKR_HOME` to use a portable/test directory for the config, database, logs and cache.
-- **Validation:** on load, every value is coerced and clamped against defaults. A corrupt file is backed up as `config.corrupt.json` and defaults are used, so a bad edit cannot prevent startup.
-- **Writes:** atomic (temporary file + replace), so an interrupted save cannot truncate the configuration.
-- **Live updates:** configuration listeners repaint themes, re-register hotkeys and refresh pages without a restart.
-- **Privacy:** application usage tracking and file-content search are off by default. Content search reads only explicitly configured indexed folders/extensions and respects a per-file size limit. Application usage tracking is off by default. Turning it on enables recent/frequent application ranking; turning it off disables that personalization, and Privacy settings can clear stored usage data.
+## Requirements
 
----
+**For users**
+- 64-bit Windows 10 or Windows 11.
+- The release installer or portable executable.
+- No separate Python installation required.
 
-## Database
+**For development**
+- Python 3.10 or newer (Python 3.12 recommended).
+- PySide6, psutil, SymPy, and tzdata. Install the pinned dependencies from the repository requirements files.
 
-SQLite at `%APPDATA%\SeekR\seekr.db` (WAL mode, busy timeout, per-thread connections).
+Linux is used in CI and supports source-mode development/testing. macOS is not currently a supported or tested platform.
 
-Tables: `apps`, `files`, `clipboard`, `notes`, `history`, `custom_commands`, `ssh_profiles`, `quick_actions`, `workflows`, `snippets`, `tasks`, `meta`.
+## Development
 
-- Clipboard history is off by default. When explicitly enabled, copied text is
-  stored unencrypted in the local database; entries are deduplicated by hash
-  and pruned to the configured limit, with pinned entries exempt.
-- History retention is configurable (Privacy page) and applied at startup.
-- The file index can be cleared/rebuilt from Settings → Files.
-- **Vacuum database** is available on Settings → Advanced.
-- No data leaves the machine; clipboard contents are never transmitted.
-
----
-
-## Themes
-
-| Theme | Character |
-|---|---|
-| Dark | Neutral graphite with blue accent |
-| Light | Soft off-white surfaces |
-| AMOLED | True black, high contrast |
-| Catppuccin Mocha | Muted pastel dark |
-| Dracula | Purple-tinted dark |
-| Nord | Cool arctic blue-grey |
-
-Accent color, transparency, font, window width, result spacing and animations are configurable per user and persisted. Theme switching updates every open window immediately.
-
----
-
-## Project structure
-
-```
-SeekR/
-├── main.py                     # CLI entry point, QApplication bootstrap
-├── build.py                    # PyInstaller build script + Windows metadata
-├── requirements.txt            # Runtime dependencies
-├── requirements-dev.txt        # + pytest, PyInstaller
-├── pytest.ini
-├── assets/icons/               # Generated PNG + multi-size ICO
-├── core/
-│   ├── application.py          # Composition root, providers, tray, hooks
-│   ├── search_engine.py        # SearchProvider contract, keywords, ranking
-│   ├── config_manager.py       # Defaults, validation, atomic persistence
-│   ├── database.py             # Schema and all domain queries
-│   ├── fuzzy.py                # Similarity, scoring, subsequence matching
-│   ├── hotkeys.py              # Win32 RegisterHotKey + native event filter
-│   ├── hotkey_manager.py       # Hotkey parsing/registration facade
-│   ├── startup.py              # Start-with-Windows registration
-│   ├── single_instance.py      # Local socket based single instance
-│   ├── workers.py              # QThreadPool jobs, cancel tokens, debouncer
-│   ├── hooks.py                # UIHooks protocol + NullHooks
-│   ├── logging_setup.py        # Rotating log files
-│   ├── errors.py               # Global exception hook
-│   ├── paths.py                # Per-user directories, SEEKR_HOME
-│   └── models.py               # SearchResult, ResultAction
-├── features/                   # Services + search providers (UI-free)
-│   ├── applications.py  files.py  calculator.py  web_search.py
-│   ├── dictionary.py    commands.py  clipboard.py  notes.py
-│   ├── system_info.py   developer_tools.py  date_time.py
-│   ├── window_search.py emoji_search.py  color_tools.py
-│   ├── screenshots.py   process_manager.py  bookmarks.py
-│   ├── quicklook.py     quick_connect.py  power.py  quick_actions.py
-│   └── util.py
-├── ui/
-│   ├── launcher_window.py      # Frameless launcher, keyboard model
-│   ├── settings_window.py      # 14 settings pages
-│   ├── tools_window.py         # 14 tool pages
-│   ├── tools/basic.py          # Calculator, developer, date/time, color, dictionary
-│   ├── tools/system.py         # System, processes, power, screenshots
-│   ├── tools/data.py           # Clipboard, notes, bookmarks, SSH, actions
-│   ├── components.py  dialogs.py  themes.py  icons.py  i18n.py
-├── docs/                       # Architecture, audit and performance notes
-├── tools/                      # Icon generator, benchmark, Windows test runner
-├── tests/                      # pytest suite, incl. windows compatibility
-├── CHANGELOG.md                # Release notes
-└── README.md
+```powershell
+git clone https://github.com/okyanus-11/SeekR.git
+cd SeekR
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements-dev.txt
+python main.py
 ```
 
----
-
-## Architecture
-
-SeekR is layered so that features never depend on the UI:
-
-1. **Core** — configuration, SQLite, search engine, hotkeys, logging, workers.
-2. **Features** — plain Python services and `SearchProvider` implementations. Providers return `SearchResult` objects whose callbacks do the work; side effects that need the UI (hide the launcher, change theme, show a dialog) go through the `UIHooks` protocol.
-3. **UI** — PySide6 windows and widgets. The composition root (`core/application.py`) wires every service, provider, hook and window together.
-
-**Adding a provider** (the future plugin path): subclass `SearchProvider`, implement `search()`, optionally `suggestions()` and `empty_help()`, and register it with `SearchEngine.register()`. Keywords and aliases are resolved centrally, so a provider cannot introduce keyword conflicts. Errors raised by a provider are contained and surfaced as an "unavailable" result instead of crashing the launcher.
-
-Heavy work (file indexing, application scanning, clipboard polling, process sampling) runs on Qt threads or thread-pool jobs; the GUI thread only renders results. Indexing can be cancelled and reports progress/errors.
-
-More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
----
-
-## Testing
+Run the test suite:
 
 ```bash
 pytest
 ```
 
-The suite covers configuration validation/persistence, database operations, fuzzy matching, calculator expressions and errors, keyword detection/aliases/ranking, provider failures, web URL generation, command parsing and safety, date/time conversion, file indexing, application discovery, clipboard, notes, quick actions, SSH validation, system info, process listing/termination, emoji search, QuickLook, localization, offline dictionary caching, browser bookmark snapshots, GPU counter parsing, and headless GUI integration.
-
-GUI tests require a Qt platform; on a headless machine use:
+For headless Linux environments:
 
 ```bash
 QT_QPA_PLATFORM=offscreen pytest
 ```
 
-The published 2.0.0 release workflow passed on Ubuntu Latest (**328 passed,
-2 skipped**), Windows Latest (**326 passed, 4 skipped**) and Windows Server
-2022 (**326 passed, 4 skipped**). The Windows packaging job also passed
-portable/onedir builds, packaged UI verification, installer compilation,
-install/launch/UI checks, uninstall and checksum staging; GitHub release
-publication succeeded. These CI counts are the release evidence and supersede
-older local test-count snapshots.
+Build a Windows executable:
 
-The Windows suite passed on Windows 11 build 26300; mocked or source-level
-checks do not establish native GUI behavior. In particular, real-display
-capture and the Snipping Tool's save destination are not established by tests.
-The full evidence process is in [docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md).
+```powershell
+python build.py
+```
 
----
+See [docs/INSTALLATION.md](docs/INSTALLATION.md) for build options and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the codebase design.
 
-## Performance
+## Quality and release validation
 
-Windows source-mode performance measurements have been run on a Windows 11
-machine. They cover headless/controller and synthetic workloads, not the
-packaged build or visible-display responsiveness. Results, methodology, and
-limitations are in [docs/WINDOWS_PERFORMANCE.md](docs/WINDOWS_PERFORMANCE.md)
-and [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+The published 2.0.0 workflow completed successfully:
 
----
+| CI environment | Result |
+|---|---:|
+| Ubuntu | 328 passed · 2 skipped |
+| Windows Latest | 326 passed · 4 skipped |
+| Windows Server 2022 | 326 passed · 4 skipped |
 
-## Windows compatibility
+The Windows packaging workflow also passed portable and onedir builds, packaged UI checks, installer compilation, install/launch/uninstall smoke tests, and checksum staging. These automated checks are not a substitute for physical-desktop testing.
 
-Automated tests, a frozen-app startup smoke test, executable packaging,
-installer compilation, and install/reinstall/uninstall ran on Windows 11 build
-26300. The stable 2.0.0 release was published on 2026-11-20 after the automated
-matrix and packaging pipeline passed. Native Win32 hotkey, tray,
-window-switching, and Snipping Tool UX have not been fully manually verified,
-and tests do not establish real-display capture or where Snipping Tool saves
-captures. See
-[docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md) for the evidence and
-[docs/WINDOWS_MANUAL_TEST.md](docs/WINDOWS_MANUAL_TEST.md) for the checklist.
-
----
-
-## Troubleshooting
-
-See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for additional
-troubleshooting guidance.
-
-| Symptom | Fix |
-|---|---|
-| Hotkey does nothing | Another application owns the combination. Settings → General shows the registration error; choose a different hotkey. Run SeekR without elevation conflicts: Windows does not deliver some hotkeys across integrity levels. |
-| Applications missing | Settings → Applications → **Refresh index**. Portable apps can be added under **Additional application folders**; anything else can be launched with Quick Actions. |
-| File results empty | Add at least one directory on Settings → Files and run a re-index (`Ctrl+R`). |
-| Time zones wrong | `tzdata` must be installed (it is bundled in the executable). |
-| Clipboard history not updating | Enable clipboard history in Settings → Clipboard or Privacy. It is off by default and stores copied text unencrypted in the local database. |
-| Settings window empty/odd after an upgrade | Close SeekR, delete `%APPDATA%\SeekR\config.json` (a backup is created automatically when validation fails). |
-| Logs | `%APPDATA%\SeekR\logs\seekr.log` (rotating). Enable debug logging on Settings → Advanced for detail. |
-| PowerShell script is blocked | Run it with `-ExecutionPolicy Bypass` as shown in [Windows validation](#windows-validation). |
-| `py` not found | Reinstall Python with the Python launcher enabled, or run `python --version` and use a Python on `PATH`. |
-| Build says packages are missing | Run `.venv\Scripts\python.exe -m pip install -r requirements-dev.txt`, then `.venv\Scripts\python.exe build.py`. |
-| `dist\SeekR.exe` is missing | Read the build output in the report; fix the first error (usually a missing package or a locked `dist` folder), then rerun. Use `--console` for a diagnostic build. |
-| Reporting a failure | Include `windows_test_results.txt`, the test ID from `docs/WINDOWS_MANUAL_TEST.md`, `%APPDATA%\SeekR\logs\seekr.log`, Windows version, display scaling and steps to reproduce. Open an issue at <https://github.com/okyanus-11/SeekR/issues>. Never include passwords or private clipboard/note content. |
-
----
+Useful engineering documents:
+- [Windows audit and evidence](docs/WINDOWS_AUDIT.md)
+- [Manual Windows test checklist](docs/WINDOWS_MANUAL_TEST.md)
+- [Windows performance notes](docs/WINDOWS_PERFORMANCE.md)
+- [Performance methodology](docs/PERFORMANCE.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Changelog](CHANGELOG.md)
 
 ## Known limitations
 
-- **Windows verification:** CI exercises Windows and Linux, and a native Windows 11 build/installer was previously validated. Manual Windows 10 coverage, real-display behaviour, mixed-DPI multi-monitor capture, and the complete native shell checklist still require testing on physical Windows desktops. Repeated activation also needs a fresh manual re-check after its fix. See [docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md) and [docs/WINDOWS_MANUAL_TEST.md](docs/WINDOWS_MANUAL_TEST.md).
-- **Language coverage:** English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese and Simplified Chinese translate the launcher shell, shared controls, common headings and Tools navigation. Longer settings descriptions, tool content, dialogs and most dynamic status messages are still English; this is not yet full-app localization.
-- **GPU utilisation:** Windows now falls back to GPU Engine performance counters for adapters such as Intel and AMD when available. Some drivers or Windows configurations do not expose usable counters, so utilisation can still be unavailable.
-- **Bookmarks:** Firefox is read through SQLite's consistent backup API, including WAL data, and Chromium can fall back to Bookmarks.bak. Profiles that are missing, corrupt or blocked by OS permissions are skipped.
-- **Dictionary:** Definitions already looked up online are cached locally and remain available offline. A first-time lookup still needs an internet connection; a complete bundled offline dictionary is not included.
-- **Screenshots:** Full-screen and built-in region capture now save directly to SeekR's configured folder across connected displays. The Windows Snipping Tool remains an optional external alternative. Capture quality and mixed-DPI positioning still need real-display verification.
-- **SSH:** SeekR detects the standard Windows OpenSSH installation even when it is not on PATH. OpenSSH Client must still be installed; SSH authentication remains key/agent based and passwords are never stored.
-- **Screenshots in the README:** Product screenshots are not yet shipped. Capture genuine screenshots on a real Windows desktop before presenting them as release imagery.
----
+- Full manual validation on physical Windows 10/11 desktops remains outstanding, including mixed-DPI/multi-monitor behavior, sleep/resume, a real upgrade from 1.x, and long-duration stability.
+- The Windows binaries are unsigned and may trigger a SmartScreen unfamiliar-app warning.
+- Localization covers the launcher shell and shared navigation, not every screen or message.
+- GPU utilization depends on performance counters exposed by the installed driver and Windows configuration.
+- First-time dictionary lookups require an internet connection; previously retrieved definitions are cached locally.
+- Firefox/Chromium bookmarks can be skipped when profiles are unavailable, corrupt, or blocked by permissions.
+- SSH requires the Windows OpenSSH Client; SeekR does not store SSH passwords.
+- Screenshot capture and mixed-DPI positioning still need additional real-display verification.
 
-## Roadmap: plugins
+See [the detailed limitations and Windows audit](docs/WINDOWS_AUDIT.md) for current evidence.
 
-Version 2.0.0 intentionally ships **no plugin loading and no third-party code execution**. The provider interface, centralized keyword resolution and `UIHooks` boundary are the extension points planned for the 3.0.0 plugin system. Settings → Plugins presents the marketplace as *Coming Soon*; no plugin code is loaded or executed.
+## Roadmap
 
----
+**2.0.0** focuses on a broader local productivity toolkit, configurable widgets, workflows, tasks, snippets, and maintenance tools.
+
+A plugin marketplace is planned for **3.0.0**. Plugins are **not included in 2.0.0**: the Settings → Plugins page is a Coming Soon placeholder, and this release does not load or execute plugin code.
+
+## Contributing
+
+Bug reports, reproducible issues, and thoughtful suggestions are welcome. Before opening an issue, check the [existing issues](https://github.com/okyanus-11/SeekR/issues). Please include reproduction steps and relevant environment details, but never attach passwords, private clipboard contents, or personal notes.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+SeekR is released under the [MIT License](LICENSE).
 
-Copyright (c) 2026 Okyanus Bora Şevik.
+Copyright © 2026 Okyanus Bora Şevik.
 
-Built with Python, PySide6, SymPy, psutil and SQLite.
+<div align="center">
+<br>
+<strong>Less searching. More doing.</strong>
+<br>
+<sub>Made with Python, PySide6, SymPy, psutil, and SQLite.</sub>
+</div>
