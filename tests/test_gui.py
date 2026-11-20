@@ -286,6 +286,16 @@ def test_launcher_widgets_survive_settings_and_theme_refresh(qapp, controller):
             assert all(card.parentWidget() in (widgets.left_column, widgets.right_column)
                        for card in widgets._cards.values())
 
+            launcher.resize(980 + cycle * 80, 560 + cycle * 40)
+            qapp.processEvents()
+            launcher.hide_launcher()
+            qapp.processEvents()
+            launcher.show_launcher()
+            qapp.processEvents()
+            launcher.set_query(f"calc: {cycle + 2}*3")
+            wait_for_search(qapp, launcher)
+            assert all(card.isVisible() for card in widgets._cards.values())
+
             theme = "light" if cycle % 2 == 0 else "dark"
             controller.config.set("appearance.theme", theme)
             widgets.refresh_settings()
