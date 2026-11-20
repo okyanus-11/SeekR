@@ -269,7 +269,7 @@ def test_launcher_widgets_survive_settings_and_theme_refresh(qapp, controller):
     original_theme = controller.config.get("appearance.theme", "dark")
     try:
         for cycle in range(3):
-            for key in ("clock", "weather", "system", "meme", "tasks"):
+            for key in ("clock", "weather", "system", "meme", "tasks", "media"):
                 controller.config.set(f"widgets.{key}_enabled", False)
             widgets.refresh_settings()
             qapp.processEvents()
@@ -756,6 +756,7 @@ def test_launcher_shows_all_enabled_widget_cards_in_visible_rails(qapp, controll
     controller.config.set("widgets.system_enabled", True)
     controller.config.set("widgets.weather_enabled", True)
     controller.config.set("widgets.meme_enabled", True)
+    controller.config.set("widgets.media_enabled", True)
     widgets.refresh_settings()
     launcher.show_launcher()
     qapp.processEvents()
