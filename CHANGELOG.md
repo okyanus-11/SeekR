@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.1] - 2026-11-20
+
+### Changed
+
+- Replaced the daily meme card with a daily cat photo displayed directly inside the launcher; no post link or external browser action is involved.
+- Fetch cat photos from TheCatAPI on a background worker, validate the image host and content type, enforce a 4 MB download limit, and cache the rendered image locally for the current calendar day.
+- Preserve the last successful cat photo for offline display and retry failed refreshes without blocking the launcher.
+- Migrate existing daily-widget enabled state, refresh interval, and right-rail order from the former meme setting to the cat setting.
+
+### Validation
+
+- Release validation is performed by the v2.0.1 GitHub Actions pipeline; its result is recorded on the release page and in the repository workflow.
+
+
 ## [2.0.0] - 2026-11-19
 
 ### Added
