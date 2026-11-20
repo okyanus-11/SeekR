@@ -12,6 +12,8 @@
   and a compact launcher task-summary widget.
 - A unified Command Center, explicit command chains, and safer window-management
   actions for switching, tiling and minimizing.
+- A database backup page with consistent SQLite backups, integrity-checked restores,
+  and automatic rollback to the live snapshot if restoration fails.
 - Natural-language file filters for extension, local calendar date and size,
   plus opt-in local content search for configured roots and text extensions.
 - Configurable refresh intervals for launcher widgets and reduced-motion support
