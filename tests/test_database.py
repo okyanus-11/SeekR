@@ -367,3 +367,21 @@ def test_database_restore_rejects_corrupt_or_unrelated_files(tmp_path):
 
 def test_database_backup_rejects_overwriting_live_database(db, tmp_path):
     assert db.backup_to(db.path) is False
+
+
+def test_database_restore_rolls_back_if_migration_fails(tmp_path, monkeypatch):
+    db = Database(tmp_path / "main.db")
+    backup_note = db.create_note("Backup state", "from backup")
+    backup_path = tmp_path / "backup.db"
+    assert db.backup_to(backup_path)
+    db.delete_note(backup_note)
+    live_note = db.create_note("Live state", "keep this if restore fails")
+
+    def fail_migration():
+        raise sqlite3.OperationalError("simulated migration failure")
+
+    monkeypatch.setattr(db, "_init_schema", fail_migration)
+    assert db.restore_from(backup_path) is False
+    assert db.get_note(live_note)["body"] == "keep this if restore fails"
+    assert db.connection().execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    db.close()
