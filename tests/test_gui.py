@@ -120,6 +120,23 @@ def test_run_async_cleanup_precedes_completion_callback(qapp):
     assert events == ["cleanup", "finished"]
 
 
+def test_launcher_is_anchored_to_the_top_of_the_active_screen(qapp, controller):
+    launcher = controller.launcher
+    launcher.show_launcher()
+    qapp.processEvents()
+
+    screen = launcher._screen()
+    available = screen.availableGeometry()
+    expected_x = available.x() + (available.width() - launcher.width()) // 2
+
+    assert launcher.y() == available.y() + 8
+    assert abs(launcher.x() - expected_x) <= 1
+    assert launcher.y() < available.y() + available.height() // 4
+
+    launcher.hide_launcher()
+    qapp.processEvents()
+
+
 def test_launcher_opens_and_searches(qapp, controller):
     controller.show_launcher()
     qapp.processEvents()
