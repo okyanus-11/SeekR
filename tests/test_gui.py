@@ -975,3 +975,31 @@ def test_meme_keeps_last_good_item_when_refresh_fails(qapp, monkeypatch, tmp_pat
     widget.retry_timer.stop()
     widget.day_timer.stop()
     widget.deleteLater()
+
+ 
+def test_weather_cache_restores_last_good_data_across_instances(qapp, monkeypatch, controller, tmp_path):
+    from PySide6.QtCore import QThreadPool
+    from ui.launcher_widgets import WeatherWidget
+
+    cache = tmp_path / "weather_cache.json"
+    monkeypatch.setattr(WeatherWidget, "_get_cache_path", staticmethod(lambda: cache))
+    controller.config.set("widgets.weather_location", "Izmir")
+    first = WeatherWidget(controller.config, QThreadPool())
+    first._last_location = "Izmir"
+    first.set_weather("weather", {
+        "place_name": "Izmir, Türkiye",
+        "current": {
+            "weather_code": 0,
+            "temperature_2m": 22,
+            "apparent_temperature": 21,
+            "relative_humidity_2m": 45,
+        },
+    })
+    first_value = first.value.text()
+    second = WeatherWidget(controller.config, QThreadPool())
+    assert second.value.text() == first_value
+    assert "Izmir" in second.details.text()
+    first.timer.stop()
+    second.timer.stop()
+    first.deleteLater()
+    second.deleteLater()
