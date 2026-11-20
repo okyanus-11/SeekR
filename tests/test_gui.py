@@ -809,6 +809,7 @@ def test_workflow_and_snippet_tools_pages_are_constructible(qapp, controller, tm
     assert "workflows" in window.pages
     assert "snippets" in window.pages
     assert "tasks" in window.pages
+    assert "database" in window.pages
 
     folder = tmp_path / "workspace"
     folder.mkdir()
@@ -826,9 +827,11 @@ def test_workflow_and_snippet_tools_pages_are_constructible(qapp, controller, tm
     workflow_tab = window.pages["workflows"]
     snippet_tab = window.pages["snippets"]
     tasks_tab = window.pages["tasks"]
+    database_tab = window.pages["database"]
     workflow_tab.reload()
     snippet_tab.reload()
     tasks_tab.reload()
+    assert hasattr(database_tab, "_backup") and hasattr(database_tab, "_restore")
     assert workflow_tab.table.rowCount() >= 1
     assert snippet_tab.table.rowCount() >= 1
     window.close()
