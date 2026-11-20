@@ -50,7 +50,10 @@ class _FetchTask(QRunnable):
             payload = response.read(1_500_001)
             if len(payload) > 1_500_000:
                 raise ValueError("The widget service returned an oversized response.")
-            return json.loads(payload.decode("utf-8"))
+            parsed = json.loads(payload.decode("utf-8"))
+            if not isinstance(parsed, dict):
+                raise ValueError("The widget service returned an invalid response.")
+            return parsed
 
     def run(self) -> None:
         try:
@@ -336,6 +339,8 @@ class WeatherWidget(WidgetCard):
         if not location:
             return
         try:
+            if self._cache_path.stat().st_size > 64_000:
+                return
             cached = json.loads(self._cache_path.read_text(encoding="utf-8"))
             if not isinstance(cached, dict) or cached.get("location") != location:
                 return
@@ -344,6 +349,7 @@ class WeatherWidget(WidgetCard):
                 return
             self._last_location = location
             self.set_weather("weather", data)
+            self.details.setText(self._last_good_details + "\nCached · last successful update")
             # Keep the cache visible but allow the first active refresh to
             # request newer conditions immediately.
             self._last_location = ""
@@ -364,7 +370,10 @@ class WeatherWidget(WidgetCard):
             return
         self._busy = True
         self._last_location = location
-        self.value.setText("Loading…")
+        if self._has_data:
+            self.details.setText(self._last_good_details + "\nRefreshing…")
+        else:
+            self.value.setText("Loading…")
         task = _FetchTask("weather", location)
         self._fetch_task = task
         task.signals.finished.connect(self.set_weather)
@@ -381,8 +390,13 @@ class WeatherWidget(WidgetCard):
             self._last_location = ""
             self.refresh()
             return
-        current = data.get("current", {})
+        if not isinstance(data, dict) or not isinstance(data.get("current"), dict):
+            self.set_error("weather", "The weather service returned malformed data.")
+            return
+        current = data["current"]
         code = current.get("weather_code")
+        if not isinstance(code, int):
+            code = None
         conditions = {
             0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
             45: "Fog", 48: "Depositing rime fog", 51: "Light drizzle",
