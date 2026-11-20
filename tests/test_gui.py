@@ -269,14 +269,14 @@ def test_launcher_widgets_survive_settings_and_theme_refresh(qapp, controller):
     original_theme = controller.config.get("appearance.theme", "dark")
     try:
         for cycle in range(3):
-            for key in ("clock", "weather", "system", "meme", "tasks", "media"):
+            for key in ("clock", "weather", "system", "cat", "tasks", "media"):
                 controller.config.set(f"widgets.{key}_enabled", False)
             widgets.refresh_settings()
             qapp.processEvents()
             assert not widgets.left_column.isVisible()
             assert not widgets.right_column.isVisible()
 
-            for key in ("clock", "weather", "system", "meme", "tasks", "media"):
+            for key in ("clock", "weather", "system", "cat", "tasks", "media"):
                 controller.config.set(f"widgets.{key}_enabled", True)
             widgets.refresh_settings()
             qapp.processEvents()
@@ -306,7 +306,7 @@ def test_launcher_widgets_survive_settings_and_theme_refresh(qapp, controller):
     finally:
         controller.config.set("appearance.theme", original_theme)
         widgets.refresh_settings()
-        for key in ("clock", "weather", "system", "meme", "tasks"):
+        for key in ("clock", "weather", "system", "cat", "tasks"):
             controller.config.set(f"widgets.{key}_enabled", True)
         widgets.refresh_settings()
 
@@ -328,7 +328,7 @@ def test_widget_polling_pauses_when_launcher_is_hidden(qapp, controller):
     assert not widgets.clock.timer.isActive()
     assert not widgets.system.timer.isActive()
     assert not widgets.weather.timer.isActive()
-    assert not widgets.meme.day_timer.isActive()
+    assert not widgets.cat.day_timer.isActive()
     assert not widgets.tasks.timer.isActive()
 
     launcher.show_launcher()
@@ -344,10 +344,10 @@ def test_widget_refresh_intervals_are_configurable_and_bounded(qapp, controller)
     controller.config.set("widgets.clock_refresh_ms", 1500)
     controller.config.set("widgets.system_refresh_ms", 5000)
     controller.config.set("widgets.weather_refresh_minutes", 45)
-    controller.config.set("widgets.meme_refresh_minutes", 120)
+    controller.config.set("widgets.cat_refresh_minutes", 120)
     controller.config.set("widgets.tasks_refresh_minutes", 10)
     widgets.weather.refresh = lambda: None
-    widgets.meme._load_daily = lambda: None
+    widgets.cat._load_daily = lambda: None
     widgets.set_active(True)
     widgets.refresh_settings()
     qapp.processEvents()
@@ -355,18 +355,18 @@ def test_widget_refresh_intervals_are_configurable_and_bounded(qapp, controller)
     assert widgets.clock.timer.interval() == 1500
     assert widgets.system.timer.interval() == 5000
     assert widgets.weather.timer.interval() == 45 * 60 * 1000
-    assert widgets.meme.day_timer.interval() == 120 * 60 * 1000
+    assert widgets.cat.day_timer.interval() == 120 * 60 * 1000
     assert widgets.tasks.timer.interval() == 10 * 60 * 1000
 
     controller.config.set("widgets.clock_refresh_ms", 1)
     controller.config.set("widgets.system_refresh_ms", 999999)
     controller.config.set("widgets.weather_refresh_minutes", 1)
-    controller.config.set("widgets.meme_refresh_minutes", 9999)
+    controller.config.set("widgets.cat_refresh_minutes", 9999)
     controller.config.set("widgets.tasks_refresh_minutes", 9999)
     assert controller.config.get("widgets.clock_refresh_ms") == 250
     assert controller.config.get("widgets.system_refresh_ms") == 30000
     assert controller.config.get("widgets.weather_refresh_minutes") == 5
-    assert controller.config.get("widgets.meme_refresh_minutes") == 360
+    assert controller.config.get("widgets.cat_refresh_minutes") == 360
     assert controller.config.get("widgets.tasks_refresh_minutes") == 60
     widgets.set_active(False)
 
@@ -736,7 +736,7 @@ def test_launcher_widget_coordinator_does_not_create_an_overlay(qapp, controller
     assert widgets.clock.parentWidget() is widgets.left_column
     assert widgets.system.parentWidget() is widgets.left_column
     assert widgets.weather.parentWidget() is widgets.right_column
-    assert widgets.meme.parentWidget() is widgets.right_column
+    assert widgets.cat.parentWidget() is widgets.right_column
 
     controller.config.set("widgets.clock_enabled", False)
     widgets.refresh_settings()
@@ -755,7 +755,7 @@ def test_launcher_shows_all_enabled_widget_cards_in_visible_rails(qapp, controll
     controller.config.set("widgets.clock_enabled", True)
     controller.config.set("widgets.system_enabled", True)
     controller.config.set("widgets.weather_enabled", True)
-    controller.config.set("widgets.meme_enabled", True)
+    controller.config.set("widgets.cat_enabled", True)
     controller.config.set("widgets.media_enabled", True)
     widgets.refresh_settings()
     launcher.show_launcher()
@@ -776,23 +776,39 @@ def test_launcher_shows_all_enabled_widget_cards_in_visible_rails(qapp, controll
     qapp.processEvents()
 
 
-def test_daily_meme_only_opens_safe_reddit_links():
-    from ui.launcher_widgets import MemeWidget
-
-    assert MemeWidget._safe_post_url("https://www.reddit.com/r/test/comments/123/") == "https://www.reddit.com/r/test/comments/123/"
-    assert MemeWidget._safe_post_url("https://redd.it/123") == "https://redd.it/123"
-    assert MemeWidget._safe_post_url("javascript:alert(1)") == ""
-    assert MemeWidget._safe_post_url("https://example.com/") == ""
-    assert MemeWidget._safe_post_url("https://[:::]/") == ""
-
-
-def test_disabled_daily_meme_does_not_restart_retry_timer(qapp):
+def test_daily_cat_widget_displays_an_image_without_external_link_metadata(qapp, monkeypatch, tmp_path):
+    import base64
+    import json
     from PySide6.QtCore import QThreadPool
-    from ui.launcher_widgets import MemeWidget
+    from ui.launcher_widgets import CatWidget
 
-    widget = MemeWidget(QThreadPool())
+    cache = tmp_path / "daily_cat.json"
+    monkeypatch.setattr(CatWidget, "_get_cache_path", staticmethod(lambda: cache))
+    widget = CatWidget(QThreadPool())
+    png = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
+    )
+    widget.set_cat("cat", {"_image_bytes": png})
+    assert widget.preview.pixmap() is not None
+    assert not widget.preview.pixmap().isNull()
+    assert "tomorrow" in widget.status.text().lower()
+    saved = json.loads(cache.read_text(encoding="utf-8"))
+    assert saved["image_file"] == "daily_cat.png"
+    assert "url" not in saved
+    assert (tmp_path / "daily_cat.png").is_file()
+    widget.retry_timer.stop()
+    widget.day_timer.stop()
+    widget.deleteLater()
+    qapp.processEvents()
+
+
+def test_disabled_daily_cat_does_not_restart_retry_timer(qapp):
+    from PySide6.QtCore import QThreadPool
+    from ui.launcher_widgets import CatWidget
+
+    widget = CatWidget(QThreadPool())
     widget.setVisible(False)
-    widget.set_error("meme", "network unavailable")
+    widget.set_error("cat", "network unavailable")
     assert not widget.retry_timer.isActive()
     widget.deleteLater()
     qapp.processEvents()
@@ -922,16 +938,16 @@ def test_widget_order_settings_reorder_without_reparenting(qapp, controller):
     widgets = controller.launcher.launcher_widgets
     parents = {name: card.parentWidget() for name, card in widgets._cards.items()}
     controller.config.set("widgets.left_order", ["tasks", "clock", "system"])
-    controller.config.set("widgets.right_order", ["meme", "weather"])
+    controller.config.set("widgets.right_order", ["cat", "weather"])
     widgets.refresh_settings()
     left = [widgets._left_layout.itemAt(i).widget() for i in range(widgets._left_layout.count())]
     right = [widgets._right_layout.itemAt(i).widget() for i in range(widgets._right_layout.count())]
     assert left[:3] == [widgets.tasks, widgets.clock, widgets.system]
-    assert right[:2] == [widgets.meme, widgets.weather]
+    assert right[:2] == [widgets.cat, widgets.weather]
     for name, card in widgets._cards.items():
         assert card.parentWidget() is parents[name]
     controller.config.set("widgets.left_order", ["clock", "system", "tasks"])
-    controller.config.set("widgets.right_order", ["weather", "meme"])
+    controller.config.set("widgets.right_order", ["weather", "cat"])
     widgets.refresh_settings()
 
  
@@ -959,26 +975,28 @@ def test_weather_keeps_last_good_data_when_refresh_fails(qapp, controller):
     widget.deleteLater()
 
  
-def test_meme_keeps_last_good_item_when_refresh_fails(qapp, monkeypatch, tmp_path):
+def test_cat_keeps_last_good_image_when_refresh_fails(qapp, monkeypatch, tmp_path):
+    import base64
     from PySide6.QtCore import QThreadPool
-    from ui.launcher_widgets import MemeWidget
+    from ui.launcher_widgets import CatWidget
 
-    cache = tmp_path / "daily_meme.json"
-    monkeypatch.setattr(MemeWidget, "_get_cache_path", staticmethod(lambda: cache))
-    widget = MemeWidget(QThreadPool())
-    widget.set_meme("meme", {
-        "title": "Cached good meme",
-        "subreddit": "wholesomememes",
-        "postLink": "https://reddit.com/r/test/comments/123/",
-    })
-    widget.set_error("meme", "network unavailable")
-    assert widget.title.text() == "Cached good meme"
-    assert "cached offline copy" in widget.subreddit.text().lower()
+    cache = tmp_path / "daily_cat.json"
+    monkeypatch.setattr(CatWidget, "_get_cache_path", staticmethod(lambda: cache))
+    widget = CatWidget(QThreadPool())
+    png = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
+    )
+    widget.set_cat("cat", {"_image_bytes": png})
+    widget.set_error("cat", "network unavailable")
+    assert widget.preview.pixmap() is not None
+    assert not widget.preview.pixmap().isNull()
+    assert "saved cat" in widget.status.text().lower()
     widget.retry_timer.stop()
     widget.day_timer.stop()
     widget.deleteLater()
+    qapp.processEvents()
 
- 
+
 def test_weather_cache_restores_last_good_data_across_instances(qapp, monkeypatch, controller, tmp_path):
     from PySide6.QtCore import QThreadPool
     from ui.launcher_widgets import WeatherWidget
