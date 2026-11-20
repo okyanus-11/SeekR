@@ -189,3 +189,30 @@ def test_command_chain_preview_resolves_every_step_without_execution(service):
     assert "Task Manager" in lines[0] or "taskmgr" in lines[0].lower()
     assert "confirmation required" in lines[1]
     assert len(resolved) == 2
+
+
+@pytest.mark.parametrize(
+    "setting",
+    ["general.confirm_destructive_actions", "commands.confirm_destructive"],
+)
+def test_command_chain_respects_disabled_global_confirmation(service, hooks, setting):
+    from features.commands import CommandOutcome
+
+    calls = []
+    service.config.set(setting, False)
+    service._handlers["empty_recycle"] = lambda args: (
+        calls.append("empty") or CommandOutcome(True, "emptied")
+    )
+    service._handlers["taskmgr"] = lambda args: (
+        calls.append("taskmgr") or CommandOutcome(True, "opened")
+    )
+
+    valid, message, plan = service.preview_chain("empty_recycle then taskmgr")
+    assert valid, message
+    lines, _resolved = plan
+    assert "confirmation required" not in lines[0].lower()
+
+    outcome = service.run_chain("empty_recycle then taskmgr")
+    assert outcome.success
+    assert calls == ["empty", "taskmgr"]
+    assert not any(name == "confirm" for name, _args in hooks.calls)
