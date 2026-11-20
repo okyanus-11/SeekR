@@ -168,8 +168,9 @@ the Start Menu shortcut targeted the installed executable, and isolated
 for `calc: 2+2`. The Python 3.12.10 Windows suite passed with two documented
 platform skips.
 
-This is not a public release. A true upgrade from an older installer, code
-signing/SmartScreen, and several native shell integrations remain unverified.
+SeekR 2.0.0 is now a published public release. A true upgrade from an older
+installer, code signing/SmartScreen, and several native shell integrations
+remain unverified.
 `Alt+Space` was already registered by another application on the validation
 PC, so an alternate hotkey was used instead. Repeated packaged launch activation
 was inconsistent in that run: the request was forwarded but the window did not
@@ -316,7 +317,7 @@ and `dist/SeekR/SeekR`, which are not Windows executables.
 > The [latest release workflow](https://github.com/okyanus-11/SeekR/actions) runs the test suite on
 > Windows Latest, Windows Server 2022 and Ubuntu, then builds both Windows
 > distributions. It also opens the packaged portable and installed executables
-> to verify that all four enabled launcher widgets are visible, and performs
+> to verify that all six enabled launcher widgets are visible, and performs
 > installer, startup and uninstallation smoke tests. These automated checks do
 > not replace the [manual Windows GUI checklist](docs/WINDOWS_MANUAL_TEST.md).
 
@@ -498,10 +499,13 @@ GUI tests require a Qt platform; on a headless machine use:
 QT_QPA_PLATFORM=offscreen pytest
 ```
 
-On Ubuntu 24.04 with Python 3.12 and `QT_QPA_PLATFORM=offscreen`, the current
-suite passes **176 tests** with no failures or skips. Five regression tests
-(four for repeated activation, one for quitting) were added after the Windows
-validation run above and have not yet run on Windows.
+The published 2.0.0 release workflow passed on Ubuntu Latest (**328 passed,
+2 skipped**), Windows Latest (**326 passed, 4 skipped**) and Windows Server
+2022 (**326 passed, 4 skipped**). The Windows packaging job also passed
+portable/onedir builds, packaged UI verification, installer compilation,
+install/launch/UI checks, uninstall and checksum staging; GitHub release
+publication succeeded. These CI counts are the release evidence and supersede
+older local test-count snapshots.
 
 The Windows suite passed on Windows 11 build 26300; mocked or source-level
 checks do not establish native GUI behavior. In particular, real-display
@@ -524,9 +528,11 @@ and [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 Automated tests, a frozen-app startup smoke test, executable packaging,
 installer compilation, and install/reinstall/uninstall ran on Windows 11 build
-26300. Native Win32 hotkey, tray, window-switching, and Snipping Tool UX have
-not been manually verified, and tests do not establish real-display capture or
-where Snipping Tool saves captures. No release has been published. See
+26300. The stable 2.0.0 release was published on 2026-11-20 after the automated
+matrix and packaging pipeline passed. Native Win32 hotkey, tray,
+window-switching, and Snipping Tool UX have not been fully manually verified,
+and tests do not establish real-display capture or where Snipping Tool saves
+captures. See
 [docs/WINDOWS_AUDIT.md](docs/WINDOWS_AUDIT.md) for the evidence and
 [docs/WINDOWS_MANUAL_TEST.md](docs/WINDOWS_MANUAL_TEST.md) for the checklist.
 
