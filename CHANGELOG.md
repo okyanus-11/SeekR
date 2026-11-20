@@ -15,7 +15,7 @@
 ### Changed
 
 - Repositioned the launcher as a top-anchored dropdown, centered horizontally and kept close to the active screen's top edge.
-- Reworked the entrance and dismissal transitions to slide down from and retract above the top edge, while preserving the existing fade and animation settings.
+- Reworked the entrance and dismissal transitions as position-only slides. The launcher stays fully opaque; window-opacity animation is intentionally avoided because layered Qt windows can stop repainting reliably on Windows.
 
 ### Tests
 
