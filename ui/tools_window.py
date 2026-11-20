@@ -18,7 +18,7 @@ from core.version import APP_NAME
 from ui import i18n
 from ui.components import refresh_localized_widgets
 from ui.tools.basic import CalculatorTab, ColorTab, DateTimeTab, DeveloperTab, DictionaryTab
-from ui.tools.data import ActionsTab, BookmarksTab, ClipboardTab, ConnectionsTab, NotesTab, WorkflowsTab, SnippetsTab, TasksTab
+from ui.tools.data import ActionsTab, BookmarksTab, ClipboardTab, ConnectionsTab, NotesTab, WorkflowsTab, SnippetsTab, TasksTab, DatabaseTab
 from ui.tools.system import PowerTab, ProcessesTab, ScreenshotsTab, SystemTab
 
 
@@ -43,6 +43,7 @@ class ToolsWindow(QMainWindow):
         ("workflows", "Workflows", WorkflowsTab),
         ("snippets", "Text snippets", SnippetsTab),
         ("tasks", "Tasks", TasksTab),
+        ("database", "Database & backups", DatabaseTab),
     ]
 
     def __init__(self, controller):
