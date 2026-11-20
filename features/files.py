@@ -271,7 +271,9 @@ class FileService:
         if not text:
             if extension:
                 candidates = self.db.files_by_extension(extension, limit=limit * 20)
-            elif parsed.modified_after is not None or parsed.modified_before is not None or parsed.size_bytes is not None:
+            elif (parsed.modified_after is not None or parsed.modified_before is not None
+          or parsed.size_bytes is not None or parsed.size_min_bytes is not None
+          or parsed.size_max_bytes is not None):
                 candidates = self.db.recent_files(limit=800)
             else:
                 return []
@@ -306,6 +308,11 @@ class FileService:
                     continue
                 if parsed.size_operator == "<" and size >= parsed.size_bytes:
                     continue
+            file_size = int(row.get("size") or 0)
+            if parsed.size_min_bytes is not None and file_size <= parsed.size_min_bytes:
+                continue
+            if parsed.size_max_bytes is not None and file_size >= parsed.size_max_bytes:
+                continue
             score = fuzzy_score(text, row["name"], typo_tolerance=typo) if text else 0.5
             if score <= 0:
                 continue
