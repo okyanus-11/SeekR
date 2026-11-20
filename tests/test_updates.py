@@ -24,6 +24,8 @@ def test_version_key_compares_numeric_components():
     assert version_key("v2.1.0") > version_key("1.99.99")
     assert version_key("2.0.0") == version_key("v2.0.0")
     assert version_key("2.0.1") > version_key("2.0.0")
+    assert version_key("2.0.0-rc.1") < version_key("2.0.0")
+    assert version_key("2.0.0-rc.2") > version_key("2.0.0-rc.1")
 
 
 def test_update_check_detects_new_release_and_records_timestamp(config, monkeypatch):
@@ -116,3 +118,14 @@ def test_update_provider_exposes_official_asset_and_hash_actions(config, db, hoo
         ("open_url", (provider.service.last_info["assets"][0]["url"],)),
         ("copy_text", ("f" * 64,)),
     ]
+
+
+def test_update_check_rejects_invalid_release_version(config, monkeypatch):
+    payload = {"tag_name": "release-latest", "html_url": RELEASE_PAGE, "assets": []}
+    monkeypatch.setattr("urllib.request.urlopen", lambda *_args, **_kwargs: FakeResponse(payload))
+    try:
+        UpdateService(config).check_latest()
+    except RuntimeError as exc:
+        assert "version" in str(exc).lower()
+    else:
+        raise AssertionError("Invalid release tags must be rejected")
