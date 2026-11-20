@@ -568,7 +568,7 @@ troubleshooting guidance.
 
 ## Roadmap: plugins
 
-Version 1.0.0 intentionally ships **no plugin loading and no third-party code execution**. The provider interface, centralized keyword resolution and `UIHooks` boundary are the extension points a future plugin system will use. Settings → Plugins currently presents the planned marketplace as *Coming Soon* with no fake install buttons.
+Version 2.0.0 intentionally ships **no plugin loading and no third-party code execution**. The provider interface, centralized keyword resolution and `UIHooks` boundary are the extension points planned for the 3.0.0 plugin system. Settings → Plugins presents the marketplace as *Coming Soon*; no plugin code is loaded or executed.
 
 ---
 
