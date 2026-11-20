@@ -505,7 +505,7 @@ class WidgetsPage(SettingsPage):
         self.location_edit.setPlaceholderText("e.g. Izmir, Türkiye")
         self.location_edit.editingFinished.connect(self._save_location)
         self.row(location, "Location", "No GPS permission is requested; this text is used for the weather lookup.", self.location_edit)
-        location.add_widget(label("Weather and daily cat require an internet connection. System usage and clock stay local.", "Muted", wrap=True))
+        location.add_widget(label("Weather and daily cat need internet for fresh content; their saved data remains available offline. System usage and clock stay local.", "Muted", wrap=True))
 
     def _widgets_changed(self, _checked: bool) -> None:
         launcher = getattr(self.controller, "launcher", None)
