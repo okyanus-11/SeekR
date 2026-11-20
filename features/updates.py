@@ -60,16 +60,34 @@ class UpdateService:
         release_url = str(payload.get("html_url", RELEASE_PAGE))
         if not latest or not release_url.startswith("https://github.com/okyanus-11/SeekR/releases/"):
             raise RuntimeError("GitHub release metadata did not match the expected SeekR repository")
+        assets = []
+        for asset in payload.get("assets", []) or []:
+            if not isinstance(asset, dict):
+                continue
+            name = str(asset.get("name", "")).strip()
+            url = str(asset.get("browser_download_url", "")).strip()
+            digest = str(asset.get("digest", "")).strip().lower()
+            # Only expose assets hosted by the official repository and hashes
+            # supplied by GitHub in its documented sha256:<hex> format.
+            if (not name or not url.startswith("https://github.com/okyanus-11/SeekR/releases/download/")
+                    or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest)):
+                continue
+            try:
+                size = max(0, int(asset.get("size", 0)))
+            except (TypeError, ValueError):
+                size = 0
+            assets.append({
+                "name": name,
+                "url": url,
+                "sha256": digest.split(":", 1)[1],
+                "size": size,
+            })
         info = {
             "current_version": APP_VERSION,
             "latest_version": latest,
             "release_url": release_url,
             "update_available": version_key(latest) > version_key(APP_VERSION),
-            "assets": [
-                {"name": str(asset.get("name", "")), "url": str(asset.get("browser_download_url", ""))}
-                for asset in (payload.get("assets", []) or [])
-                if isinstance(asset, dict)
-            ],
+            "assets": assets,
             "checked_at": time.time(),
         }
         self.config.set("updates.last_check", info["checked_at"])
