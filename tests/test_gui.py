@@ -138,6 +138,14 @@ def test_launcher_is_anchored_to_the_top_of_the_active_screen(qapp, controller):
     qapp.processEvents()
 
 
+def test_launcher_uses_opaque_surface_without_graphics_effect(qapp, controller):
+    launcher = controller.launcher
+    assert not launcher.testAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+    assert launcher.graphicsEffect() is None
+    assert launcher.root.graphicsEffect() is None
+    assert launcher.windowOpacity() == 1.0
+
+
 def test_launcher_opens_and_searches(qapp, controller):
     controller.show_launcher()
     qapp.processEvents()
@@ -197,13 +205,12 @@ def test_launcher_show_interrupts_an_in_progress_hide(qapp, controller):
 
         assert launcher.isVisible()
         assert not launcher._hiding
-        assert launcher.windowOpacity() > 0.8
+        assert launcher.windowOpacity() == 1.0
     finally:
         config.set("appearance.animations", old_animations)
         config.set("appearance.animation_duration", old_duration)
         launcher._stop_window_animation()
         launcher._hiding = False
-        launcher.setWindowOpacity(float(config.get("appearance.opacity", 0.98)))
 
 
 def test_launcher_coalesces_rapid_searches_to_latest_query(qapp, controller):
