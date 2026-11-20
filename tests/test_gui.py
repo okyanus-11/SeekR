@@ -652,7 +652,7 @@ def test_hotkey_reopens_launcher_during_hide_animation(qapp, controller):
         controller.config.set("appearance.animations", False)
 
 
-def test_stale_window_deactivate_does_not_hide_reopened_launcher(qapp, controller, monkeypatch):
+def test_stale_window_deactivate_does_not_hide_reopened_launcher(qapp, controller):
     """A delayed deactivate event from the prior hide must not close a fresh show."""
     from PySide6.QtCore import QEvent
 
