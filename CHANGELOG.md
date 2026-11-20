@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Repositioned the launcher as a top-anchored dropdown, centered horizontally and kept close to the active screen's top edge.
+- Reworked the entrance and dismissal transitions to slide down from and retract above the top edge, while preserving the existing fade and animation settings.
+
+### Tests
+
+- Added a GUI regression test for top-edge anchoring and horizontal centering.
+
+
 ## [2.0.1] - 2026-11-20
 
 ### Changed
