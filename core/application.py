@@ -10,7 +10,7 @@ from typing import Any, Optional
 
 from PySide6.QtCore import QObject, QThread, QThreadPool, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QGuiApplication
-from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
+from PySide6.QtWidgets import QApplication, QFileDialog, QMenu, QSystemTrayIcon
 
 from features import system_info, util
 from features.applications import AppService, ApplicationsProvider
@@ -452,6 +452,20 @@ class SeekRApplication(QObject, UIHooks):
             return False
         clipboard.setText(text or "")
         return True
+
+    def verify_update_asset(self, asset: dict) -> bool:
+        name = str(asset.get("name", "SeekR update") if isinstance(asset, dict) else "SeekR update")
+        path, _ = QFileDialog.getOpenFileName(
+            self._dialog_parent(),
+            f"Verify downloaded {name}",
+            "",
+            "All files (*)",
+        )
+        if not path:
+            return False
+        valid, message = self.update_service.verify_asset_file(asset, path)
+        self.notify(message, "info" if valid else "warning")
+        return valid
 
     def show_info(self, title: str, text: str) -> None:
         if len(text) > 700:
