@@ -73,6 +73,7 @@ Press `Alt + Space`, start typing, and let fuzzy search find what you mean. Seek
 - Screenshots, system information and process inspection
 - Clipboard history, notes and bookmarks
 - Tasks, snippets, workflows and command chains
+- SSH profiles with Windows OpenSSH, window management and power actions
 - Database backup, restore and diagnostics
 
 </td>
@@ -187,6 +188,10 @@ On Windows, user data lives under `%APPDATA%\\SeekR`. Uninstalling the app prese
 | **Core stack** | Python · PySide6 · SymPy · psutil · SQLite |
 
 Linux is used in CI for source-mode testing and development; it is not currently a supported end-user desktop platform. macOS is not supported or tested.
+
+## Localization
+
+The launcher shell and shared navigation are available in English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese and Simplified Chinese. Localization is partial; some longer descriptions, tool content, dialogs and dynamic messages may remain in English.
 
 ## Development
 
