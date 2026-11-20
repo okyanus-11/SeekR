@@ -55,7 +55,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 
 - [x] Keep widget ownership/lifecycle independent from search-result refreshes.
 - [x] Verify widgets remain visible after repeated show/hide, activation, resize, theme change, settings refresh, and result updates with Qt regression tests.
-- [ ] Give every widget isolated error handling, loading, stale-data, offline, and disabled states.
+- [x] Give weather and daily meme widgets explicit loading, stale-data, offline, and disabled states; preserve last-good content on network failure. Local clock/system/task widgets report unavailable data independently.
 - [x] Make refresh intervals configurable within safe minimum/maximum bounds.
 - [x] Pause or slow polling when hidden or when the relevant widget is disabled.
 - [x] Add configurable widget sizes/layouts without reparenting fragile live widgets; rail width and card height are persisted in validated settings.
