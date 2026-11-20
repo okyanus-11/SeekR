@@ -584,7 +584,10 @@ class CommandChainProvider(SearchProvider):
             self.hooks.notify(outcome.message)
             self.hooks.hide_launcher()
         else:
-            self.hooks.show_error("Command chain", outcome.message)
+            detail = outcome.message
+            if outcome.output:
+                detail += "\n\nCompleted before failure:\n" + outcome.output
+            self.hooks.show_error("Command chain", detail)
 
 
 __all__ = ["CommandService", "CommandEntry", "CommandOutcome", "CommandsProvider", "CommandChainProvider", "split_command_chain"]
