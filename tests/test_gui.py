@@ -344,7 +344,6 @@ def test_widget_refresh_intervals_are_configurable_and_bounded(qapp, controller)
     controller.config.set("widgets.clock_refresh_ms", 1500)
     controller.config.set("widgets.system_refresh_ms", 5000)
     controller.config.set("widgets.weather_refresh_minutes", 45)
-    controller.config.set("widgets.cat_refresh_minutes", 120)
     controller.config.set("widgets.tasks_refresh_minutes", 10)
     widgets.weather.refresh = lambda: None
     widgets.cat._load_daily = lambda: None
@@ -355,18 +354,16 @@ def test_widget_refresh_intervals_are_configurable_and_bounded(qapp, controller)
     assert widgets.clock.timer.interval() == 1500
     assert widgets.system.timer.interval() == 5000
     assert widgets.weather.timer.interval() == 45 * 60 * 1000
-    assert widgets.cat.day_timer.interval() == 120 * 60 * 1000
+    assert widgets.cat.day_timer.interval() == 60_000
     assert widgets.tasks.timer.interval() == 10 * 60 * 1000
 
     controller.config.set("widgets.clock_refresh_ms", 1)
     controller.config.set("widgets.system_refresh_ms", 999999)
     controller.config.set("widgets.weather_refresh_minutes", 1)
-    controller.config.set("widgets.cat_refresh_minutes", 9999)
     controller.config.set("widgets.tasks_refresh_minutes", 9999)
     assert controller.config.get("widgets.clock_refresh_ms") == 250
     assert controller.config.get("widgets.system_refresh_ms") == 30000
     assert controller.config.get("widgets.weather_refresh_minutes") == 5
-    assert controller.config.get("widgets.cat_refresh_minutes") == 360
     assert controller.config.get("widgets.tasks_refresh_minutes") == 60
     widgets.set_active(False)
 
