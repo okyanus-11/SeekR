@@ -128,7 +128,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [x] Never silently replace a running executable or install an unverified artifact; updates are manual, hashes are verified before reporting success, and installer execution is never automatic.
 - [ ] Add code-signing support when a valid signing certificate is available; do not claim signed builds otherwise.
 - [x] Publish SHA256 checksums for every release artifact.
-- [ ] Improve crash diagnostics with explicit user consent and redaction; never upload clipboard, notes, paths, or query history by default.
+- [x] Add user-initiated local diagnostic export. Logs are excluded by default; optional log inclusion applies best-effort redaction, warns users to review the report, and never uploads clipboard, notes, indexed file lists, or search history.
 - [ ] Make installer failure recovery and rollback behavior testable.
 - [x] Ensure the installer is prominently linked from the README and every release page.
 
