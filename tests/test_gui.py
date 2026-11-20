@@ -830,9 +830,18 @@ def test_daily_cat_widget_displays_an_image_without_external_link_metadata(qapp,
     assert saved["image_file"] == "daily_cat.png"
     assert "url" not in saved
     assert (tmp_path / "daily_cat.png").is_file()
+
+    restored = CatWidget(QThreadPool())
+    restored._load_daily()
+    assert not restored._last_good_pixmap.isNull()
+    assert "saved on this device" in restored.status.text().lower()
+
     widget.retry_timer.stop()
     widget.day_timer.stop()
+    restored.retry_timer.stop()
+    restored.day_timer.stop()
     widget.deleteLater()
+    restored.deleteLater()
     qapp.processEvents()
 
 
