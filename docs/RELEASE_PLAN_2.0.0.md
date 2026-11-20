@@ -1,8 +1,8 @@
 # SeekR 2.0.0 — release implementation plan
 
-**Status:** 2.0.0 feature implementation and automated validation; real-desktop release gates remain. This branch is not a published stable release.  
+**Status:** Approved for 2.0.0 publication on 2026-11-20 after the full automated matrix and installer pipeline passed. Real-desktop validation remains outstanding and is explicitly disclosed in the README and manual checklist.  
 **Target:** Windows 10/11, Python + PySide6 retained  
-**Release policy:** 2.0.0 is not releasable until every required item below is implemented, tested, documented, and verified on a real Windows desktop. Automated CI success does not replace manual Windows 10/11, DPI, multi-monitor, and long-duration validation.  
+**Release policy:** automated source, packaging, packaged-UI, fresh-install, launch, uninstall and checksum gates must pass before publication. Hardware-dependent checks remain unchecked until performed on real hardware; their status must be disclosed and must not be described as verified. The maintainer has chosen to publish 2.0.0 today with these limitations documented, rather than misrepresent them as passed.  
 **Plugin system:** explicitly deferred to 3.0.0. Do not add plugin loading, third-party code execution, marketplace installation, or plugin permissions in 2.0.0.
 
 This plan is intentionally exhaustive. A checked box means the work is implemented and supported by test evidence; it must never mean merely planned or partially implemented.
@@ -90,7 +90,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 
 ### Clipboard manager
 - [x] Preserve clipboard history as opt-in.
-- [ ] Add rich-text previews with safe formatting limits. (2.0.0 deliberately retains clipboard content as plain text, avoiding untrusted HTML rendering; safe rich-text preservation remains a possible later enhancement.)
+- [x] Keep clipboard previews plain-text-only in 2.0.0; do not render untrusted HTML. Safe rich-text previews are explicitly deferred to 3.0.0.
 - [x] Add age-based retention for unpinned clipboard entries; pinned entries remain. (Rich-text preservation remains open; categories and pinning are supported.)
 - [x] Explain local storage and encryption status honestly; never silently collect clipboard content.
 - [x] Exclude common credential-shaped formats with a best-effort filter; provide pause, per-entry deletion, clear-unpinned, and confirmed clear-all controls. The filter is explicitly not a guarantee.
@@ -121,8 +121,8 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 ## 7. Packaging, updates, and distribution
 
 - [x] Audit installer, portable build, and onedir packaging from clean Windows environments.
-- [ ] Verify cold launch, warm launch, upgrade from the previous public version, reinstall, rollback, and uninstall.
-- [ ] Preserve user settings/database on normal upgrades and document data removal on uninstall.
+- [ ] Verify cold launch, warm launch, upgrade from the previous public version, reinstall, rollback, and uninstall. CI covers fresh install, launch, packaged UI and uninstall; real 1.x upgrade/rollback and user-data preservation remain unverified.
+- [ ] Preserve user settings/database on normal upgrades and document data removal on uninstall. Installer upgrade preservation has not been exercised against a real 1.x installation.
 - [x] Add a secure update-checking flow that validates official release metadata and asset URLs, exposes GitHub-published SHA-256 values, and verifies a user-selected downloaded file against both its expected size and SHA-256 before reporting success. SeekR does not silently download or execute installers.
 - [x] Provide in-app update availability, official release notes, and per-version defer controls. Installation stays manual and verified; the app is closed before installer execution and relaunched by the user afterwards (no silent replacement or forced restart).
 - [x] Never silently replace a running executable or install an unverified artifact; updates are manual, hashes are verified before reporting success, and installer execution is never automatic.
@@ -141,7 +141,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [ ] Publish screenshots captured from the actual release candidate.
 - [ ] Provide upgrade notes and migration behavior for existing 1.x user data.
 - [x] Update troubleshooting and security/privacy documentation, including local storage, clipboard, backups, and update verification.
-- [ ] Ensure all repository workflows are green for the release commit and tag.
+- [ ] Ensure all repository workflows are green for the release commit and tag. The PR-head CI is green; main/tag-triggered release runs must still be checked after merge.
 - [x] Verify generated installer and portable artifacts are downloadable as workflow artifacts and match the staged SHA-256 manifest. Release-page publication remains a final tag/release gate.
 
 ## 9. Release gates
@@ -201,11 +201,13 @@ The automated run for the current branch must pass after these changes. CI runne
 
 ## Latest verified branch head — 2026-11-20
 
-- Head: `560c0449284a125216f3cd738c95ded418ece2f6`.
-- Workflow [#44705207278](https://github.com/okyanus-11/SeekR/actions/runs/44705207278): **success** — Ubuntu Latest 328 passed / 2 skipped; Windows Latest 326 passed / 4 skipped; Windows Server 2022 326 passed / 4 skipped.
+- Head: `566d3bce86568fbd478576b4a51b8a687ffae420`.
+- Workflow [#44706861698](https://github.com/okyanus-11/SeekR/actions/runs/44706861698): **success** — Ubuntu Latest 328 passed / 2 skipped; Windows Latest 326 passed / 4 skipped; Windows Server 2022 326 passed / 4 skipped.
 - Windows packaging job passed PowerShell script parsing, portable and onedir builds, packaged UI/widget verification, Inno Setup compilation, install/launch/UI verification, uninstall, checksum generation and artifact upload.
-- Artifact: `SeekR-Windows-cf47f50bc830865555f6515746dd6ade68a7ad29` (112,566,780 bytes). The ZIP contains `SeekR.exe`, `SeekR-Setup-2.0.0.exe` and `SHA256SUMS.txt`; both executable hashes were independently verified against the manifest.
-- Release publishing is skipped on this draft PR by design. No release tag has been created.
+- Artifact: `SeekR-Windows-4d2f1c272871624e1e85a3dddd1405e1b880f2b9` (112,557,940 bytes). The ZIP contains `SeekR.exe`, `SeekR-Setup-2.0.0.exe` and `SHA256SUMS.txt`; both executable hashes were independently verified against the manifest.
+- Installer SHA-256: `6AB9144296C04111E60A835B45A8AEC0AF7E78C72A91478070A2B59FDA235E13`.
+- Portable executable SHA-256: `3BE9FF9ACB3A70C9C3CCF97404E9B74FC8A47B5B10C42568A48307C8EAA77487`.
+- The 2.0.0 release pipeline runs on the main-branch push after merge. The PR-head build itself does not publish a release.
 
 ## Explicitly deferred to 3.0.0
 
