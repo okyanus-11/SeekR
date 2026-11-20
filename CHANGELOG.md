@@ -23,8 +23,8 @@
 - Explicit clipboard privacy disclosures and a plain-text-only policy for rich-text
   clipboard content; optional PNG capture remains separate and unencrypted.
 - Update checks validate semantic release tags and official asset URLs, expose
-  GitHub-published SHA-256 digests, and let users open downloads or copy hashes
-  explicitly without silently downloading or installing updates.
+  GitHub-published SHA-256 digests, and lets users verify a manually downloaded
+  asset by expected size and SHA-256 without silently downloading or installing updates.
 
 ### Changed
 
