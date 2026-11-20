@@ -141,7 +141,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [ ] Publish screenshots captured from the actual release candidate.
 - [ ] Provide upgrade notes and migration behavior for existing 1.x user data.
 - [x] Update troubleshooting and security/privacy documentation, including local storage, clipboard, backups, and update verification.
-- [ ] Ensure all repository workflows are green for the release commit and tag. The PR-head CI is green; main/tag-triggered release runs must still be checked after merge.
+- [x] Ensure all repository workflows are green for the release commit and tag; main-branch run [#44711715571](https://github.com/okyanus-11/SeekR/actions/runs/44711715571) passed all three test runners, the Windows installer pipeline, and GitHub release publication.
 - [x] Verify generated installer and portable artifacts are downloadable as workflow artifacts and match the staged SHA-256 manifest. Release-page publication remains a final tag/release gate.
 
 ## 9. Release gates
@@ -199,15 +199,16 @@ The automated run for the current branch must pass after these changes. CI runne
 
 
 
-## Latest verified branch head — 2026-11-20
+## Published release evidence — 2026-11-20
 
-- Head: `ea9be619346b882e9020999f72ed17be1fe662bb`.
-- Workflow [#44708986130](https://github.com/okyanus-11/SeekR/actions/runs/44708986130): **success** — Ubuntu Latest 328 passed / 2 skipped; Windows Latest 326 passed / 4 skipped; Windows Server 2022 326 passed / 4 skipped.
-- Windows packaging job passed PowerShell script parsing, portable and onedir builds, packaged UI/widget verification, Inno Setup compilation, install/launch/UI verification, uninstall, checksum generation and artifact upload.
-- Artifact: `SeekR-Windows-df8409c17e3d12e398fed03c9ccdd0aa8ca08238` (112,556,730 bytes). The ZIP contains `SeekR.exe`, `SeekR-Setup-2.0.0.exe` and `SHA256SUMS.txt`; both executable hashes were independently verified against the manifest.
-- Installer SHA-256: `755E73C9D4CDFF14CD3CBD8FDE75EAEF2B8194018167A25CB480E1D1883602F7`.
-- Portable executable SHA-256: `1DE4212C179F80DE516624BCD3D0930D3532ED243A8215F135AAD974C7DEA8DE`.
-- The 2.0.0 release pipeline runs on the main-branch push after merge. The PR-head build itself does not publish a release. The final PR-head workflow passed all four test/build jobs; its release-publish job was skipped as expected for a pull-request event.
+- Release commit / main head: `6fb151f89d39e5ab7361daf449a15dde1a1ddf27`.
+- Main workflow [#44711715571](https://github.com/okyanus-11/SeekR/actions/runs/44711715571): **success** — Ubuntu Latest 328 passed / 2 skipped; Windows Latest 326 passed / 4 skipped; Windows Server 2022 326 passed / 4 skipped.
+- Windows packaging passed PowerShell script parsing, portable and onedir builds, packaged UI/widget verification, Inno Setup compilation, install/launch/UI verification, uninstall, checksum generation and artifact upload. GitHub release publication also succeeded.
+- Stable release: [SeekR v2.0.0](https://github.com/okyanus-11/SeekR/releases/tag/v2.0.0), published 2026-11-20.
+- Published installer SHA-256: `00B9103124F2A431C001B4251A2872F3009465E80250941E536C2369390E8D9A`.
+- Published portable executable SHA-256: `3F15B70FA97686446713829A185597745E09AAB06DC3FCDB02F32092C095C2B1`.
+- Both published assets were downloaded from the main workflow artifact and independently verified against `SHA256SUMS.txt`; the hashes match GitHub's release asset digests.
+- Hardware-dependent Windows 10/11, mixed-DPI, upgrade/rollback, accessibility and long-duration checks remain open and are not claimed as passed.
 
 ## Explicitly deferred to 3.0.0
 
