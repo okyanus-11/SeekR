@@ -500,7 +500,7 @@ class WidgetsPage(SettingsPage):
         self.row(cards, "Clock refresh", "Update interval for the local clock.", bind_spin(self.config, "widgets.clock_refresh_ms", 250, 5000, " ms"))
         self.row(cards, "System refresh", "Update interval for CPU, memory and network readings.", bind_spin(self.config, "widgets.system_refresh_ms", 1000, 30000, " ms"))
         self.row(cards, "Weather refresh", "How often SeekR checks for updated weather.", bind_spin(self.config, "widgets.weather_refresh_minutes", 5, 180, " minutes"))
-        self.row(cards, "Daily widget refresh", "How often the daily widget checks whether its cached day has changed.", bind_spin(self.config, "widgets.cat_refresh_minutes", 15, 360, " minutes"))
+        self.row(cards, "Daily cat refresh", "How often SeekR checks whether the cached daily cat image needs refreshing.", bind_spin(self.config, "widgets.cat_refresh_minutes", 15, 360, " minutes"))
         location = self.section("Weather location", "Enter a city or town. SeekR uses Open-Meteo for geocoding and current conditions.")
         self.location_edit = QLineEdit(str(self.config.get("widgets.weather_location", "") or ""))
         self.location_edit.setPlaceholderText("e.g. Izmir, Türkiye")
