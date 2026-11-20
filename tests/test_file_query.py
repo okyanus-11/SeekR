@@ -58,3 +58,10 @@ def test_modified_today_starts_at_local_midnight():
     parsed = parse_file_query("modified today", now=now)
     assert parsed.modified_after == datetime(2026, 11, 19, 0, 0, 0).timestamp()
     assert parsed.modified_before is None
+
+
+def test_parse_size_range_with_decimal_and_binary_units():
+    parsed = parse_file_query("archive larger than 500 MB smaller than 2 GiB")
+    assert parsed.text == "archive"
+    assert parsed.size_min_bytes == 500_000_000
+    assert parsed.size_max_bytes == 2 * 1024**3
