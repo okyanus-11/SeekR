@@ -898,3 +898,19 @@ def test_database_tools_page_backup_and_restore(qapp, controller, tmp_path, monk
     assert controller.notes_service.get(original_id)["body"] == "restored content"
     assert controller.notes_service.list("Later note") == []
     assert "Database restored" in page.status.text()
+
+
+def test_widget_size_settings_apply_without_reparenting(qapp, controller):
+    widgets = controller.launcher.launcher_widgets
+    parents = {name: card.parentWidget() for name, card in widgets._cards.items()}
+    controller.config.set("widgets.rail_width", 232)
+    controller.config.set("widgets.card_height", 176)
+    widgets.refresh_settings()
+    assert widgets.left_column.width() == 232
+    assert widgets.right_column.width() == 232
+    for name, card in widgets._cards.items():
+        assert card.minimumHeight() == 176
+        assert card.parentWidget() is parents[name]
+    controller.config.set("widgets.rail_width", 196)
+    controller.config.set("widgets.card_height", 140)
+    widgets.refresh_settings()
