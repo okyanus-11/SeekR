@@ -9,6 +9,7 @@ import time
 from PySide6.QtCore import QThreadPool
 
 from core.database import Database
+from core.errors import DatabaseError
 from core.workers import run_async
 
 
@@ -378,7 +379,7 @@ def test_database_restore_rolls_back_if_migration_fails(tmp_path, monkeypatch):
     live_note = db.create_note("Live state", "keep this if restore fails")
 
     def fail_migration():
-        raise sqlite3.OperationalError("simulated migration failure")
+        raise DatabaseError("simulated migration failure")
 
     monkeypatch.setattr(db, "_init_schema", fail_migration)
     assert db.restore_from(backup_path) is False
