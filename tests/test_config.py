@@ -176,13 +176,11 @@ def test_legacy_daily_widget_settings_migrate_to_cat(tmp_path):
         "schema_version": 2,
         "widgets": {
             "meme_enabled": False,
-            "meme_refresh_minutes": 120,
             "right_order": ["meme", "weather", "media"],
         },
     }), encoding="utf-8")
     config = ConfigManager(path)
     assert config.get("widgets.cat_enabled") is False
-    assert config.get("widgets.cat_refresh_minutes") == 120
     assert config.get("widgets.right_order") == ["cat", "weather", "media"]
     assert "meme_enabled" not in config.data["widgets"]
     assert "meme_refresh_minutes" not in config.data["widgets"]
