@@ -96,10 +96,20 @@ class _FetchTask(QRunnable):
                 request = urllib.request.Request(
                     image_url, headers={"User-Agent": f"SeekR/{APP_VERSION} (daily cat widget)"}
                 )
-                with urllib.request.urlopen(request, timeout=10) as response:
-                    final_host = urlparse(response.geturl()).hostname or ""
-                    if not final_host.endswith(".thecatapi.com"):
-                        raise ValueError("The cat image redirected to an untrusted host.")
+
+                class _CatRedirectHandler(urllib.request.HTTPRedirectHandler):
+                    def redirect_request(self, req, fp, code, msg, headers, new_url):
+                        target = urlparse(new_url)
+                        if (
+                            target.scheme != "https"
+                            or not target.hostname
+                            or not target.hostname.endswith(".thecatapi.com")
+                        ):
+                            raise ValueError("The cat image redirected to an untrusted host.")
+                        return super().redirect_request(req, fp, code, msg, headers, new_url)
+
+                opener = urllib.request.build_opener(_CatRedirectHandler())
+                with opener.open(request, timeout=10) as response:
                     if not response.headers.get_content_type().startswith("image/"):
                         raise ValueError("The cat service did not return an image.")
                     image_bytes = response.read(4_000_001)
