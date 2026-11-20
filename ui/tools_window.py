@@ -20,6 +20,7 @@ from ui.components import refresh_localized_widgets
 from ui.tools.basic import CalculatorTab, ColorTab, DateTimeTab, DeveloperTab, DictionaryTab
 from ui.tools.data import ActionsTab, BookmarksTab, ClipboardTab, ConnectionsTab, NotesTab, WorkflowsTab, SnippetsTab, TasksTab, DatabaseTab
 from ui.tools.system import PowerTab, ProcessesTab, ScreenshotsTab, SystemTab
+from ui.tools.diagnostics import DiagnosticsTab
 
 
 class ToolsWindow(QMainWindow):
@@ -44,6 +45,7 @@ class ToolsWindow(QMainWindow):
         ("snippets", "Text snippets", SnippetsTab),
         ("tasks", "Tasks", TasksTab),
         ("database", "Database & backups", DatabaseTab),
+        ("diagnostics", "Diagnostics", DiagnosticsTab),
     ]
 
     def __init__(self, controller):
