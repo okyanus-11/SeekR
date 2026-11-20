@@ -61,7 +61,7 @@ This plan is intentionally exhaustive. A checked box means the work is implement
 - [x] Add configurable widget sizes/layouts without reparenting fragile live widgets; rail width and card height are persisted in validated settings.
 - [x] Persist widget configuration and restore it safely after upgrades; enabled states, refresh intervals, rail dimensions, and card order are migrated through config defaults.
 - [x] Persist widget configuration and restore it safely after upgrades; settings are validated and older configs receive safe defaults.
-- [ ] Add battery, network throughput, storage, media playback, focus timer, tasks, and expanded performance-monitor widgets where reliable data sources are available.
+- [x] Add battery, network throughput, storage, focus timer, tasks, and expanded performance-monitor widgets. Added an opt-in Windows media-session widget using the system media-control API; unsupported OS/Python/API environments fail closed with a clear unavailable state.
 - [x] Keep weather and daily meme network requests off the GUI thread and cache last-good data locally; weather cache is location-scoped and restored on startup.
 - [x] Document widget data sources, refresh behavior, and location/permission behavior in the README and settings descriptions.
 
