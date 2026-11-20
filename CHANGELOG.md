@@ -2,6 +2,16 @@
 
 ## [2.0.2] - 2026-11-20
 
+### Fixed
+
+- Correct the Inno Setup fallback version and Windows product metadata so the installer registers the current SeekR version, publisher, and support links.
+- Preserve the previous installation directory and Start Menu group during upgrades; scope automatic application closing to SeekR.exe.
+
+### Tests
+
+- Extend the Windows installer smoke test to verify the registered product version, install directory, and Start Menu shortcut target, in addition to installation, launch, UI verification, and uninstall.
+
+
 ### Changed
 
 - Repositioned the launcher as a top-anchored dropdown, centered horizontally and kept close to the active screen's top edge.
@@ -84,18 +94,6 @@
 - Latest full CI run [44706861698](https://github.com/okyanus-11/SeekR/actions/runs/44706861698) passed: Ubuntu 328 passed / 2 skipped; Windows Latest 326 passed / 4 skipped; Windows Server 2022 326 passed / 4 skipped.
 - The Windows packaging job passed portable and onedir builds, packaged UI verification, Inno Setup compilation, fresh install, launch, installed UI verification, uninstall, SHA-256 manifest generation and artifact upload.
 - Physical Windows 10/11 desktop checks (mixed DPI, multi-monitor, sleep/resume, real 1.x upgrade, long-duration stability and accessibility review) have not been performed. The release is not described as manually Windows-verified. Builds are unsigned.
-
-## [Unreleased]
-
-### Fixed
-
-- Align the Inno Setup fallback version with the current release and make the existing install-directory behavior explicit.
-- Explicitly retain the existing install directory during upgrades and limit automatic application closing to SeekR.exe.
-
-### Tests
-
-- Strengthen the Windows installer smoke test to verify the registered product version, install location, and Start Menu shortcut target in addition to installation, launch, UI verification, and uninstall.
-
 
 ## [1.1.2] - 2026-11-19
 
