@@ -23,6 +23,7 @@ log = get_logger(__name__)
 RELEASE_API = "https://api.github.com/repos/okyanus-11/SeekR/releases/latest"
 RELEASE_PAGE = "https://github.com/okyanus-11/SeekR/releases/latest"
 CHECK_INTERVAL_SECONDS = 24 * 60 * 60
+MAX_UPDATE_ASSET_BYTES = 1_000_000_000
 _VERSION_RE = re.compile(
     r"^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
     r"(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$",
@@ -99,9 +100,9 @@ class UpdateService:
                 return False, "The selected file does not exist"
             actual_size = path.stat().st_size
             expected_size = int(asset.get("size", 0) or 0)
-            if expected_size <= 0:
-                return False, f"Missing expected file size for {name}"
-            if actual_size != expected_size:
+            if expected_size <= 0 or expected_size > MAX_UPDATE_ASSET_BYTES:
+                return False, f"Invalid expected file size for {name}"
+            if actual_size > MAX_UPDATE_ASSET_BYTES or actual_size != expected_size:
                 return False, f"File size mismatch for {name}"
             digest = hashlib.sha256()
             with path.open("rb") as stream:
