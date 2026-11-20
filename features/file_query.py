@@ -31,6 +31,8 @@ class FileQuery:
     modified_before: float | None = None
     size_operator: str | None = None
     size_bytes: int | None = None
+    size_min_bytes: int | None = None
+    size_max_bytes: int | None = None
 
 
 def parse_file_query(query: str, now: float | None = None) -> FileQuery:
@@ -40,6 +42,8 @@ def parse_file_query(query: str, now: float | None = None) -> FileQuery:
     modified_before = None
     size_operator = None
     size_bytes = None
+    size_min_bytes = None
+    size_max_bytes = None
     match = _EXTENSION.search(text)
     if match:
         extension = "." + match.group(1).lower().lstrip(".")
@@ -60,11 +64,19 @@ def parse_file_query(query: str, now: float | None = None) -> FileQuery:
             days = {"last week": 7, "last month": 30}[period]
             modified_after = current - days * 86400
         text = _MODIFIED.sub("", text).strip()
-    match = _SIZE.search(text)
-    if match:
-        size_operator = "<" if match.group(1).lower() == "smaller" else ">"
-        size_bytes = int(float(match.group(2)) * _MULTIPLIERS[match.group(3).lower()])
+    matches = list(_SIZE.finditer(text))
+    for match in matches:
+        operator = "<" if match.group(1).lower() == "smaller" else ">"
+        amount = int(float(match.group(2)) * _MULTIPLIERS[match.group(3).lower()])
+        if operator == "<":
+            size_max_bytes = amount if size_max_bytes is None else min(size_max_bytes, amount)
+        else:
+            size_min_bytes = amount if size_min_bytes is None else max(size_min_bytes, amount)
+        if size_operator is None:
+            size_operator, size_bytes = operator, amount
+    if matches:
         text = _SIZE.sub("", text).strip()
     return FileQuery(text=text, extension=extension, modified_after=modified_after,
                      modified_before=modified_before, size_operator=size_operator,
-                     size_bytes=size_bytes)
+                     size_bytes=size_bytes, size_min_bytes=size_min_bytes,
+                     size_max_bytes=size_max_bytes)
