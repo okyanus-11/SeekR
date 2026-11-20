@@ -214,6 +214,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.release_version.outputs.tag }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message || '' }}
         shell: bash
         run: |
           # Remove a malformed historical release created under the bare tag
@@ -222,8 +223,16 @@ jobs:
             gh release delete "v" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag
           fi
 
-          # Main publishes only once; tag-triggered runs may refresh assets.
-          if [[ "$GITHUB_REF" == "refs/heads/main" ]] && \
+          # A deliberately marked main-branch commit can refresh an existing
+          # release. Move its tag first so the source snapshot matches the
+          # rebuilt binaries. Ordinary main pushes never rewrite release assets.
+          if [[ "$GITHUB_REF" == "refs/heads/main" && "$COMMIT_MESSAGE" == *"[refresh-release-assets]"* ]]; then
+            echo "Refreshing $TAG from $GITHUB_SHA"
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" \
+              -f sha="$GITHUB_SHA" -F force=true
+          fi
+
+          if [[ "$GITHUB_REF" == "refs/heads/main" && "$COMMIT_MESSAGE" != *"[refresh-release-assets]"* ]] && \
              gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $TAG already exists; keeping its published assets."
           else
