@@ -50,6 +50,8 @@ log = get_logger(__name__)
 
 _MARGIN = 16
 _ROW_HEIGHT = 58
+_DROPDOWN_TOP_GAP = 8
+_DROPDOWN_REVEAL = 18
 
 #: How long a programmatically shown launcher keeps retrying activation before
 #: "hide when focus is lost" is allowed to hide it again. Windows may refuse
@@ -298,10 +300,13 @@ class LauncherWindow(QWidget):
         if available is not None:
             width = min(width, available.width() - 24)
             height = min(height, available.height() - 80)
+            # SeekR behaves like a desktop command palette: centered
+            # horizontally, anchored near the top edge rather than floating
+            # in the middle of the workspace.
             x = available.x() + (available.width() - width) // 2
-            y = available.y() + int(available.height() * 0.16)
+            y = available.y() + _DROPDOWN_TOP_GAP
         else:
-            x = y = 120
+            x, y = 120, _DROPDOWN_TOP_GAP
         self.resize(width, height)
         self.move(x, y)
         self._target_position = QPoint(x, y)
@@ -409,7 +414,8 @@ class LauncherWindow(QWidget):
         opacity.setEasingCurve(QEasingCurve.Type.OutCubic)
         slide = QPropertyAnimation(self, b"pos", group)
         slide.setDuration(duration)
-        slide.setStartValue(QPoint(target.x(), target.y() - 12))
+        # Enter from above the screen edge, like a native dropdown panel.
+        slide.setStartValue(QPoint(target.x(), target.y() - self.height() + _DROPDOWN_REVEAL))
         slide.setEndValue(target)
         slide.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._window_animation = group
@@ -433,13 +439,20 @@ class LauncherWindow(QWidget):
         self._hiding = True
         self._hide_generation += 1
         generation = self._hide_generation
-        animation = QPropertyAnimation(self, b"windowOpacity", self)
-        animation.setDuration(max(60, duration // 2))
-        animation.setStartValue(self.windowOpacity())
-        animation.setEndValue(0.0)
-        self._window_animation = animation
-        animation.finished.connect(lambda g=generation, a=animation: self._finish_hide(g, a))
-        animation.start(QAbstractAnimation.DeletionPolicy.DeleteWhenStopped)
+        group = QParallelAnimationGroup(self)
+        opacity = QPropertyAnimation(self, b"windowOpacity", group)
+        opacity.setDuration(max(60, duration // 2))
+        opacity.setStartValue(self.windowOpacity())
+        opacity.setEndValue(0.0)
+        opacity.setEasingCurve(QEasingCurve.Type.InCubic)
+        slide = QPropertyAnimation(self, b"pos", group)
+        slide.setDuration(max(80, duration))
+        slide.setStartValue(self.pos())
+        slide.setEndValue(QPoint(self.x(), self.y() - self.height() + _DROPDOWN_REVEAL))
+        slide.setEasingCurve(QEasingCurve.Type.InCubic)
+        self._window_animation = group
+        group.finished.connect(lambda g=generation, a=group: self._finish_hide(g, a))
+        group.start(QAbstractAnimation.DeletionPolicy.DeleteWhenStopped)
 
     def _finish_hide(self, generation: Optional[int] = None, animation=None) -> None:
         if generation is not None and generation != self._hide_generation:

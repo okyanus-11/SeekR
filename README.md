@@ -12,7 +12,7 @@
 
 **A fast, keyboard-first desktop launcher for Windows.**
 
-Search apps and files, calculate, run commands, manage local tasks, and reach a suite of everyday tools — from one focused, floating window.
+Search apps and files, calculate, run commands, manage local tasks, and reach a suite of everyday tools — from one focused dropdown that slides down from the top edge of your screen.
 
 <br>
 
@@ -49,7 +49,7 @@ It is designed to stay out of your way: open it with a global hotkey, type natur
 
 | | |
 |---|---|
-| **Launcher** | Frameless, always-on-top search window with fuzzy matching, typo tolerance, recent/frequent ranking, and configurable global hotkey. |
+| **Launcher** | Frameless, always-on-top dropdown anchored near the top of your screen, with fuzzy matching, typo tolerance, recent/frequent ranking, and configurable global hotkey. |
 | **Search** | Applications, indexed files, folders, document content (opt-in), web, Wikipedia, YouTube, GitHub, and custom search engines. |
 | **Everyday tools** | Calculator, dictionary, translation, date/time, unit conversion, emoji search, color conversion, screenshots, and system information. |
 | **Productivity** | Notes, tasks, bookmarks, reusable snippets, multi-step workflows, command chains, and quick actions. |
@@ -58,7 +58,7 @@ It is designed to stay out of your way: open it with a global hotkey, type natur
 
 ## The launcher
 
-SeekR is more than a search box. Its launcher can show optional information cards around the results, while keeping the central search workflow uncluttered.
+SeekR drops from the top of your screen instead of appearing in the middle. It stays near the top while you work, with the search field immediately ready and optional information cards arranged around the results.
 
 **Optional widgets**
 - **Clock** — local time at a glance.
@@ -271,9 +271,9 @@ See [the detailed limitations and Windows audit](docs/WINDOWS_AUDIT.md) for curr
 
 ## Roadmap
 
-**2.0.1** adds a daily cat photo rendered directly in the launcher. The image is downloaded, cached locally, and displayed without opening an external link.
+**2.0.2** turns SeekR into a top-anchored dropdown launcher that slides down from the top edge of the active screen. The daily cat photo remains rendered directly inside the launcher.
 
-A plugin marketplace is planned for **3.0.0**. Plugins are **not included in 2.0.0**: the Settings → Plugins page is a Coming Soon placeholder, and this release does not load or execute plugin code.
+**2.0.3** is planned to focus on search improvements, widget customization, and bug fixes. A plugin marketplace is planned for **3.0.0**. Plugins are **not included in 2.0.0**: the Settings → Plugins page is a Coming Soon placeholder, and this release does not load or execute plugin code.
 
 ## Contributing
 
