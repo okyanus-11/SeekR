@@ -41,7 +41,7 @@ SeekR is a keyboard-driven Windows launcher built with **Python and PySide6**. I
 
 It is designed to stay out of your way: open it with a global hotkey, type naturally or use a keyword, and choose an action without navigating layers of menus.
 
-**Current release: 2.0.0** · **License: MIT**
+**Current release: 2.0.1** · **License: MIT**
 
 > **Release transparency:** 2.0.0 passed the published Ubuntu, Windows Latest, and Windows Server 2022 CI matrix, plus portable/onedir packaging and installer install/launch/uninstall smoke checks. It has **not** completed the full manual validation on physical Windows 10/11 desktops. Mixed-DPI and multi-monitor behavior, sleep/resume, a real 1.x upgrade, and long-duration stability still need hands-on verification. Builds are unsigned. See the [Windows audit](docs/WINDOWS_AUDIT.md) and [manual checklist](docs/WINDOWS_MANUAL_TEST.md).
 
@@ -64,13 +64,13 @@ SeekR is more than a search box. Its launcher can show optional information card
 - **Clock** — local time at a glance.
 - **System** — CPU and memory usage.
 - **Weather** — current conditions for a city you configure.
-- **Daily meme** — a cached wholesome meme.
+- **Daily cat** — a real cat photo rendered directly inside the launcher, cached locally for the day.
 - **Media** — current Windows media-session information and playback controls, where supported.
 - **Task summary** — a compact view of your local tasks.
 
 Widgets can be enabled individually. Their refresh intervals, rail width, card height, and left/right ordering are configurable. Network-backed cards keep and label their last successful data when a refresh fails; they do not need to block the launcher.
 
-> Weather is provided by Open-Meteo. Network widgets require an internet connection for fresh data; local widgets do not.
+> Weather is provided by Open-Meteo; daily cat photos are provided by TheCatAPI. Both network widgets cache their last successful content locally and show it when offline. Fresh content requires an internet connection; local widgets do not.
 
 ## Search capabilities
 
@@ -271,7 +271,7 @@ See [the detailed limitations and Windows audit](docs/WINDOWS_AUDIT.md) for curr
 
 ## Roadmap
 
-**2.0.0** focuses on a broader local productivity toolkit, configurable widgets, workflows, tasks, snippets, and maintenance tools.
+**2.0.1** replaces the former daily meme card with a daily cat photo rendered directly in the launcher. The image is downloaded, cached locally, and displayed without opening an external link.
 
 A plugin marketplace is planned for **3.0.0**. Plugins are **not included in 2.0.0**: the Settings → Plugins page is a Coming Soon placeholder, and this release does not load or execute plugin code.
 
