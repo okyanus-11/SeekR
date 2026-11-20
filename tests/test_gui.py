@@ -631,6 +631,27 @@ def test_a_superseded_hide_animation_cannot_hide_a_reshown_launcher(qapp, contro
         controller.config.set("appearance.animations", False)
 
 
+def test_hotkey_reopens_launcher_during_hide_animation(qapp, controller):
+    """A second hotkey press must reverse an in-progress dropdown dismissal."""
+    launcher = controller.launcher
+    controller.config.set("appearance.animations", True)
+    controller.config.set("appearance.animation_duration", 400)
+    try:
+        launcher.show_launcher()
+        qapp.processEvents()
+        assert launcher.isVisible()
+
+        launcher.hide_launcher()
+        assert launcher._hiding
+        launcher.toggle()  # same path used by the global hotkey
+        _pump(qapp, 0.6)
+
+        assert launcher.isVisible(), "the second hotkey press was swallowed by the hide animation"
+        assert not launcher._hiding
+    finally:
+        controller.config.set("appearance.animations", False)
+
+
 def test_controller_quit_stops_the_event_loop(tmp_path):
     """[REAL Qt event loop, subprocess] Quit must actually end the application.
 
