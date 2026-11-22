@@ -26,6 +26,7 @@ import types
 from pathlib import Path
 
 import pytest
+from PySide6.QtNetwork import QLocalSocket
 
 import build
 from core import paths, startup
