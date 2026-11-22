@@ -415,6 +415,40 @@ def test_critical_processes_are_protected():
 
 
 # ------------------------------------------------------------ single instance
+def test_single_instance_partial_request_does_not_block_event_loop(qapp):
+    """[REAL] An incomplete local-socket command never stalls Qt's event loop."""
+    key = f"SeekR.Partial.{os.getpid()}.{time.time_ns()}"
+    primary = SingleInstance(key)
+    client = QLocalSocket()
+    received: list[int] = []
+    primary.show_requested.connect(lambda: received.append(1))
+    try:
+        assert primary.listen() is True
+        client.connectToServer(key)
+        assert client.waitForConnected(1000)
+
+        # Deliberately send only part of the four-byte command. The server must
+        # retain it and return to Qt immediately instead of waiting for the rest.
+        assert client.write(b"s") == 1
+        assert client.waitForBytesWritten(1000)
+        started = time.perf_counter()
+        qapp.processEvents()
+        elapsed = time.perf_counter() - started
+        assert elapsed < 0.3, f"partial socket request blocked Qt for {elapsed:.3f}s"
+        assert received == []
+
+        assert client.write(b"how") == 3
+        assert client.waitForBytesWritten(1000)
+        deadline = time.monotonic() + 1.0
+        while time.monotonic() < deadline and not received:
+            qapp.processEvents()
+            time.sleep(0.005)
+        assert received == [1]
+    finally:
+        client.abort()
+        primary.close()
+
+
 def test_single_instance_forwards_only_one_show(qapp):
     """[REAL] A second instance in the same process raises the launcher once."""
     key = f"SeekR.Test.{os.getpid()}.{time.time_ns()}"
@@ -446,6 +480,7 @@ def test_single_instance_forwards_repeated_shows_from_other_processes():
     primary_script = """
 import sys
 from PySide6.QtCore import QCoreApplication
+from PySide6.QtNetwork import QLocalSocket
 from core.single_instance import SingleInstance
 
 app = QCoreApplication(["seekr-single-instance-primary"])
