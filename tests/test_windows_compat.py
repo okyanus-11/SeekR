@@ -431,15 +431,15 @@ def test_single_instance_partial_request_does_not_block_event_loop(qapp):
         # Deliberately send only part of the four-byte command. The server must
         # retain it and return to Qt immediately instead of waiting for the rest.
         assert client.write(b"s") == 1
-        assert client.waitForBytesWritten(1000)
+        client.flush()
         started = time.perf_counter()
         qapp.processEvents()
         elapsed = time.perf_counter() - started
-        assert elapsed < 0.3, f"partial socket request blocked Qt for {elapsed:.3f}s"
+        assert elapsed < 0.15, f"partial socket request blocked Qt for {elapsed:.3f}s"
         assert received == []
 
         assert client.write(b"how") == 3
-        assert client.waitForBytesWritten(1000)
+        client.flush()
         deadline = time.monotonic() + 1.0
         while time.monotonic() < deadline and not received:
             qapp.processEvents()
