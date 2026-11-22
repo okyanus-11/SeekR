@@ -56,6 +56,7 @@ class SingleInstance(QObject):
         self.key = key
         self._server: QLocalServer | None = None
         self._sockets: list[QLocalSocket] = []
+        self._request_buffers: dict[QLocalSocket, bytearray] = {}
 
     def notify_existing(self, timeout_ms: int = 1000) -> bool:
         """Return True if an existing instance accepted our message."""
@@ -110,37 +111,37 @@ class SingleInstance(QObject):
             if socket is None:
                 return
             self._sockets.append(socket)
+            self._request_buffers[socket] = bytearray()
             socket.readyRead.connect(lambda s=socket: self._read_request(s))
             socket.disconnected.connect(lambda s=socket: self._cleanup_socket(s))
-            if socket.bytesAvailable() == 0:
-                socket.waitForReadyRead(500)
+            # Do not wait synchronously here. This slot runs on the GUI thread;
+            # waitForReadyRead() can stall the primary event loop during a rapid
+            # second launch. readyRead delivers the tiny request as soon as it
+            # arrives, without blocking painting, timers, or input processing.
             self._read_request(socket)
-            # On Windows the data may arrive slightly after the first read;
-            # retry once after a short wait.
-            if socket.bytesAvailable() > 0:
-                self._read_request(socket)
 
     def _read_request(self, socket: QLocalSocket) -> None:
+        buffer = self._request_buffers.get(socket)
+        if buffer is None or socket.bytesAvailable() <= 0:
+            return
         try:
-            if socket.bytesAvailable() <= 0:
-                return
-            message = bytes(socket.readAll()).decode("utf-8", "ignore").strip()
-            # If the message is incomplete, wait briefly for more data.
-            if message and message != "show" and socket.waitForReadyRead(200):
-                extra = bytes(socket.readAll()).decode("utf-8", "ignore").strip()
-                if extra:
-                    message = (message + extra).strip()
+            buffer.extend(bytes(socket.readAll()))
         except Exception:  # pragma: no cover - defensive
             return
-        # Only an explicit "show" request is honoured; an empty read (for
-        # example a second readyRead after the payload was consumed) must not
-        # raise the launcher a second time.
-        if message == "show":
-            self.show_requested.emit()
+        # The protocol is one fixed four-byte command. Buffer partial delivery
+        # across readyRead notifications rather than blocking the GUI thread.
+        if len(buffer) >= 4:
+            message = bytes(buffer[:4])
+            buffer.clear()
+            if message == b"show":
+                self.show_requested.emit()
+        elif len(buffer) > 64:
+            buffer.clear()
 
     def _cleanup_socket(self, socket: QLocalSocket) -> None:
         if socket in self._sockets:
             self._sockets.remove(socket)
+        self._request_buffers.pop(socket, None)
         socket.deleteLater()
 
     def close(self) -> None:
@@ -150,6 +151,7 @@ class SingleInstance(QObject):
             self._server = None
         for socket in list(self._sockets):
             self._sockets.remove(socket)
+            self._request_buffers.pop(socket, None)
             socket.abort()
             socket.deleteLater()
 
