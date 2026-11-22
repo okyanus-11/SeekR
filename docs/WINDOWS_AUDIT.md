@@ -469,9 +469,9 @@ Regression coverage now includes:
 - repeated requests from separate client processes;
 - the existing launcher hide/show and activation lifecycle tests.
 
-CI for commit `f1ecb26` passed on Windows 2022, Windows latest and Ubuntu:
-339 passed / 4 skipped on each Windows runner and 341 passed / 2 skipped on
-Ubuntu. The Windows installer was built, installed, launched, UI-smoke-tested
-and uninstalled successfully. The new partial-command regression test is
-being run in the next CI cycle; a physical desktop/manual hardware check is
-still distinct from automated runner validation.
+CI for commit `b23c1af` passed on Windows 2022, Windows latest and Ubuntu:
+340 passed / 4 skipped on each Windows runner and 342 passed / 2 skipped on
+Ubuntu. The Windows executable and installer were built; the packaged UI
+smoke test, install, launch and uninstall checks all passed. A physical
+desktop/manual hardware check is still distinct from automated runner
+validation.
