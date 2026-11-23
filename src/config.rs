@@ -123,6 +123,20 @@ impl WidgetPreferences {
             self.enabled.entry((*name).to_string()).or_insert(!matches!(*name, "media"));
         }
         self.enabled.retain(|name, _| WIDGETS.contains(&name.as_str()));
+
+        // Keep legacy flat keys synchronized for safe downgrade/dual-version use.
+        for (old_key, new_key) in [
+            ("clock_enabled", "clock"),
+            ("system_enabled", "system"),
+            ("tasks_enabled", "tasks"),
+            ("weather_enabled", "weather"),
+            ("cat_enabled", "cat"),
+            ("media_enabled", "media"),
+        ] {
+            if let Some(value) = self.enabled.get(new_key) {
+                self.legacy.insert(old_key.to_string(), Value::Bool(*value));
+            }
+        }
     }
 }
 
@@ -257,7 +271,7 @@ mod tests {
         let saved: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
         assert_eq!(saved["general"]["hotkey"], "Alt+Space");
         assert_eq!(saved["appearance"]["theme"], "dark");
-        assert_eq!(saved["widgets"]["clock_enabled"], false);
+        assert_eq!(saved["widgets"]["clock_enabled"], true);
         assert_eq!(saved["widgets"]["enabled"]["clock"], true);
     }
 
