@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use serde_json::Value;
 use tempfile::NamedTempFile;
 
 
@@ -48,6 +49,9 @@ pub struct WidgetPreferences {
     pub enabled: BTreeMap<String, bool>,
     pub left_order: Vec<String>,
     pub right_order: Vec<String>,
+    /// Preserve settings written by older SeekR versions that this build does not yet understand.
+    #[serde(flatten)]
+    pub legacy: BTreeMap<String, Value>,
 }
 
 impl Default for WidgetPreferences {
@@ -62,12 +66,40 @@ impl Default for WidgetPreferences {
             enabled,
             left_order: vec!["clock".into(), "system".into(), "tasks".into()],
             right_order: vec!["weather".into(), "cat".into(), "media".into()],
+            legacy: BTreeMap::new(),
         }
     }
 }
 
 impl WidgetPreferences {
     pub fn normalize(&mut self) {
+        // Import the flat widget keys used by the Python 2.0.x configuration.
+        // Keep the original keys too, so an older build can still read the file.
+        for (old_key, new_key) in [
+            ("clock_enabled", "clock"),
+            ("system_enabled", "system"),
+            ("tasks_enabled", "tasks"),
+            ("weather_enabled", "weather"),
+            ("cat_enabled", "cat"),
+            ("media_enabled", "media"),
+        ] {
+            if let Some(value) = self.legacy.get(old_key).and_then(Value::as_bool) {
+                self.enabled.insert(new_key.to_string(), value);
+            }
+        }
+        if let Some(value) = self.legacy.get("rail_width").and_then(Value::as_u64) {
+            self.rail_width = value.min(u16::MAX as u64) as u16;
+        }
+        if let Some(value) = self.legacy.get("card_height").and_then(Value::as_u64) {
+            self.card_height = value.min(u16::MAX as u64) as u16;
+        }
+        if let Some(value) = self.legacy.get("left_order").and_then(Value::as_array) {
+            self.left_order = value.iter().filter_map(Value::as_str).map(str::to_owned).collect();
+        }
+        if let Some(value) = self.legacy.get("right_order").and_then(Value::as_array) {
+            self.right_order = value.iter().filter_map(Value::as_str).map(str::to_owned).collect();
+        }
+
         self.rail_width = self.rail_width.clamp(160, 320);
         self.card_height = self.card_height.clamp(100, 260);
         self.refresh_seconds = self.refresh_seconds.clamp(5, 3600);
@@ -99,11 +131,14 @@ impl WidgetPreferences {
 pub struct AppConfig {
     pub schema_version: u32,
     pub widgets: WidgetPreferences,
+    /// Keep non-widget settings from the existing Python configuration intact during migration.
+    #[serde(flatten)]
+    pub legacy: BTreeMap<String, Value>,
 }
 
 impl Default for AppConfig {
     fn default() -> Self {
-        Self { schema_version: 1, widgets: WidgetPreferences::default() }
+        Self { schema_version: 1, widgets: WidgetPreferences::default(), legacy: BTreeMap::new() }
     }
 }
 
@@ -183,6 +218,47 @@ mod tests {
         fs::write(&path, "{broken").unwrap();
         assert_eq!(AppConfig::load(&path).unwrap_err().kind(), io::ErrorKind::InvalidData);
         assert_eq!(fs::read_to_string(path).unwrap(), "{broken");
+    }
+
+    #[test]
+    fn legacy_python_settings_are_migrated_and_preserved() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("config.json");
+        let legacy = r#"{
+            "schema_version": 2,
+            "general": {"hotkey": "Alt+Space"},
+            "appearance": {"theme": "dark"},
+            "widgets": {
+                "clock_enabled": false,
+                "system_enabled": true,
+                "tasks_enabled": false,
+                "weather_enabled": true,
+                "cat_enabled": false,
+                "media_enabled": true,
+                "rail_width": 248,
+                "card_height": 176,
+                "left_order": ["tasks", "clock", "system"],
+                "right_order": ["cat", "weather", "media"]
+            }
+        }"#;
+        fs::write(&path, legacy).unwrap();
+
+        let mut loaded = AppConfig::load(&path).unwrap();
+        assert!(!loaded.widgets.enabled["clock"]);
+        assert!(!loaded.widgets.enabled["tasks"]);
+        assert!(loaded.widgets.enabled["media"]);
+        assert_eq!(loaded.widgets.rail_width, 248);
+        assert_eq!(loaded.widgets.card_height, 176);
+        assert_eq!(loaded.widgets.left_order, vec!["tasks", "clock", "system"]);
+        assert_eq!(loaded.schema_version, 2);
+
+        loaded.widgets.enabled.insert("clock".into(), true);
+        loaded.save_atomic(&path).unwrap();
+        let saved: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        assert_eq!(saved["general"]["hotkey"], "Alt+Space");
+        assert_eq!(saved["appearance"]["theme"], "dark");
+        assert_eq!(saved["widgets"]["clock_enabled"], false);
+        assert_eq!(saved["widgets"]["enabled"]["clock"], true);
     }
 
     #[test]
