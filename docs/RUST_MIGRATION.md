@@ -35,6 +35,7 @@ The current native slice includes:
   folders, built on a worker thread so directory traversal does not block the UI.
 - Fuzzy title matching with typo tolerance and deterministic result ranking.
 - A calculator prefix (calc:) with case-insensitive matching and clipboard copy.
+- A live local clock preview updated once per second.
 - Persistent widget enabled states, dimensions and left/right ordering.
 - Migration of legacy Python widget preferences while preserving unrelated
   settings and unknown keys.
@@ -42,8 +43,8 @@ The current native slice includes:
 
 The native preview is still not feature-complete. Search results are displayed
 as text; Previous/Next controls select which result is activated. The widget controls currently
-edit persisted preferences; the full live widget dashboard and its data
-providers are not ported. The global hotkey, tray, single-instance lifecycle,
+edit persisted preferences; only the clock has a live data preview. The full
+widget dashboard and its other data providers are not ported. The global hotkey, tray, single-instance lifecycle,
 active-monitor dropdown behavior, complete settings/tools surfaces, database
 integration, installer and end-user packaging remain release blockers.
 
