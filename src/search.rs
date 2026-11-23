@@ -464,8 +464,14 @@ mod tests {
     }
 
     #[test]
-    fn exact_matches_rank_above_prefix_and_substring() {
-        assert!(SearchEngine::default().search("settings").starts_with("No results"));
+    fn placeholder_tools_are_not_advertised_as_working_results() {
+        let results = SearchEngine::default().search_results("settings");
+        assert!(!results.iter().any(|result| {
+            result.description == "Configure SeekR and its widgets"
+                || result.description == "View CPU, memory and device details"
+                || result.description == "Browse locally stored clipboard entries"
+                || result.description == "Start or manage a focus session"
+        }));
     }
 
     #[test]
