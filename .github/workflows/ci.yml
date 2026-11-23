@@ -205,7 +205,7 @@ jobs:
           if ($metadata.ProductName -ne "SeekR" -or $metadata.ProductVersion -notlike "$version*") {
             throw "Reinstalled executable has wrong metadata: ProductName=$($metadata.ProductName); ProductVersion=$($metadata.ProductVersion)"
           }
-          $appProcess = Start-Process -FilePath $installedExe -ArgumentList @("--hidden", "--no-hotkey", "--allow-multiple") -PassThru -WindowStyle Hidden
+          $appProcess = Start-Process -FilePath $installedExe -ArgumentList @("--hidden", "--no-hotkey") -PassThru
           Start-Sleep -Seconds 8
           $appProcess.Refresh()
           if ($appProcess.HasExited) { throw "Reinstalled SeekR exited during startup (code $($appProcess.ExitCode))" }
@@ -263,7 +263,7 @@ jobs:
             files = @{ enabled = $false; auto_index = $false; directories = @() }
           }
           $config | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $configPath -Encoding utf8
-          $baselineApp = Start-Process -FilePath $baselineExe -ArgumentList @("--hidden", "--no-hotkey", "--allow-multiple") -PassThru -WindowStyle Hidden
+          $baselineApp = Start-Process -FilePath $baselineExe -ArgumentList @("--hidden", "--no-hotkey") -PassThru
           Start-Sleep -Seconds 8
           $baselineApp.Refresh()
           if ($baselineApp.HasExited) { throw "SeekR v$baselineVersion exited during startup (code $($baselineApp.ExitCode))" }
@@ -313,7 +313,7 @@ jobs:
           if ($updatedConfig.general.hotkey -ne "Ctrl+Alt+Shift+Z" -or $updatedConfig.general.upgrade_smoke_sentinel -ne "preserve-me") {
             throw "SeekR upgrade did not preserve existing settings and unknown config keys"
           }
-          $appProcess = Start-Process -FilePath $installedExe -ArgumentList @("--hidden", "--no-hotkey", "--allow-multiple") -PassThru -WindowStyle Hidden
+          $appProcess = Start-Process -FilePath $installedExe -ArgumentList @("--hidden", "--no-hotkey") -PassThru
           Start-Sleep -Seconds 8
           $appProcess.Refresh()
           if ($appProcess.HasExited) { throw "Upgraded SeekR exited during startup (code $($appProcess.ExitCode))" }
