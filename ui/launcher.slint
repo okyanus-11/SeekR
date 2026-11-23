@@ -1,0 +1,82 @@
+import { Button, HorizontalBox, LineEdit, VerticalBox } from "std-widgets.slint";
+
+export component AppWindow inherits Window {
+    title: "SeekR";
+    width: 980px;
+    height: 620px;
+    background: #10131a;
+
+    in-out property <string> results-text: "Start typing to search.";
+    callback search-changed(string);
+    callback hide-requested();
+
+    Rectangle {
+        background: #10131a;
+        border-radius: 18px;
+        border-width: 1px;
+        border-color: #293142;
+
+        VerticalBox {
+            padding: 28px;
+            spacing: 18px;
+
+            HorizontalBox {
+                spacing: 12px;
+                Text {
+                    text: "SEEKR";
+                    color: #e8edf7;
+                    font-size: 24px;
+                    font-weight: 800;
+                    vertical-alignment: center;
+                }
+                Text {
+                    text: "Find it. Launch it. Get things done.";
+                    color: #8d98aa;
+                    font-size: 14px;
+                    vertical-alignment: center;
+                }
+                Rectangle { horizontal-stretch: 1; }
+                Button {
+                    text: "Close";
+                    clicked => { root.hide-requested(); }
+                }
+            }
+
+            LineEdit {
+                placeholder-text: "Search apps, files, commands and tools…";
+                font-size: 18px;
+                edited(text) => { root.search-changed(text); }
+            }
+
+            Rectangle {
+                background: #171d28;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: #283246;
+                VerticalBox {
+                    padding: 20px;
+                    Text {
+                        text: "RESULTS";
+                        color: #8290a7;
+                        font-size: 11px;
+                        font-weight: 700;
+                    }
+                    Text {
+                        text: root.results-text;
+                        color: #e0e6f0;
+                        font-size: 15px;
+                        wrap: word-wrap;
+                        vertical-stretch: 1;
+                    }
+                }
+                vertical-stretch: 1;
+            }
+
+            Text {
+                text: "Rust migration preview · Search and widget foundations";
+                color: #68758a;
+                font-size: 11px;
+            }
+        }
+    }
+}
