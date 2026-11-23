@@ -15,11 +15,14 @@ export component AppWindow inherits Window {
     in-out property <bool> media-enabled: false;
     in-out property <string> rail-width-text: "196";
     in-out property <string> card-height-text: "140";
+    in-out property <string> left-order-text: "clock, system, tasks";
+    in-out property <string> right-order-text: "weather, cat, media";
     callback search-changed(string);
     callback hide-requested();
     callback widget-toggled(string, bool);
     callback launch-requested();
     callback widget-size-changed(string, string);
+    callback widget-order-changed(string, string);
 
     Rectangle {
         background: #10131a;
@@ -56,13 +59,13 @@ export component AppWindow inherits Window {
             HorizontalBox {
                 spacing: 10px;
                 LineEdit {
-                    placeholder-text: "Search apps, files, commands and tools…";
+                    placeholder-text: "Search apps and files · calc: 42 * 42";
                     font-size: 18px;
                     edited(text) => { root.search-changed(text); }
                     horizontal-stretch: 1;
                 }
                 Button {
-                    text: "Launch top result";
+                    text: "Open / Copy top result";
                     clicked => { root.launch-requested(); }
                 }
             }
@@ -127,6 +130,21 @@ export component AppWindow inherits Window {
                             input-type: number;
                             edited(value) => { root.widget-size-changed("card_height", value); }
                             width: 76px;
+                        }
+                    }
+                    HorizontalBox {
+                        spacing: 8px;
+                        Text { text: "Left order"; color: #aeb9ca; vertical-alignment: center; }
+                        LineEdit {
+                            text: root.left-order-text;
+                            edited(value) => { root.widget-order-changed("left", value); }
+                            horizontal-stretch: 1;
+                        }
+                        Text { text: "Right order"; color: #aeb9ca; vertical-alignment: center; }
+                        LineEdit {
+                            text: root.right-order-text;
+                            edited(value) => { root.widget-order-changed("right", value); }
+                            horizontal-stretch: 1;
                         }
                     }
                 }
