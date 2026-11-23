@@ -28,6 +28,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         window.set_weather_enabled(*settings.widgets.enabled.get("weather").unwrap_or(&true));
         window.set_cat_enabled(*settings.widgets.enabled.get("cat").unwrap_or(&true));
         window.set_media_enabled(*settings.widgets.enabled.get("media").unwrap_or(&false));
+        window.set_rail_width_text(settings.widgets.rail_width.to_string().into());
+        window.set_card_height_text(settings.widgets.card_height.to_string().into());
     }
 
     let weak_window = window.as_weak();
@@ -79,6 +81,51 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if let Some(window) = weak_window.upgrade() {
                         window.set_results_text(format!("Could not save settings: {error}").into());
                     }
+                }
+            }
+        }
+    });
+
+
+    let weak_window = window.as_weak();
+    let config_path = path.clone();
+    window.on_widget_size_changed(move |name, value| {
+        let parsed = value.trim().parse::<u16>();
+        let mut settings = config.borrow_mut();
+        let key = name.to_string();
+        let Ok(parsed) = parsed else {
+            if let Some(window) = weak_window.upgrade() {
+                window.set_results_text("Enter a whole number for widget dimensions.".into());
+            }
+            return;
+        };
+        let previous = match key.as_str() {
+            "rail_width" => settings.widgets.rail_width,
+            "card_height" => settings.widgets.card_height,
+            _ => return,
+        };
+        match key.as_str() {
+            "rail_width" => settings.widgets.rail_width = parsed,
+            "card_height" => settings.widgets.card_height = parsed,
+            _ => return,
+        }
+        settings.widgets.normalize();
+        match settings.save_atomic(&config_path) {
+            Ok(()) => {
+                if let Some(window) = weak_window.upgrade() {
+                    window.set_rail_width_text(settings.widgets.rail_width.to_string().into());
+                    window.set_card_height_text(settings.widgets.card_height.to_string().into());
+                    window.set_results_text(format!("Saved widget dimensions. Values are clamped to supported ranges.").into());
+                }
+            }
+            Err(error) => {
+                match key.as_str() {
+                    "rail_width" => settings.widgets.rail_width = previous,
+                    "card_height" => settings.widgets.card_height = previous,
+                    _ => {}
+                }
+                if let Some(window) = weak_window.upgrade() {
+                    window.set_results_text(format!("Could not save widget dimensions: {error}").into());
                 }
             }
         }
