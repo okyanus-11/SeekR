@@ -13,10 +13,13 @@ export component AppWindow inherits Window {
     in-out property <bool> weather-enabled: true;
     in-out property <bool> cat-enabled: true;
     in-out property <bool> media-enabled: false;
+    in-out property <string> rail-width-text: "196";
+    in-out property <string> card-height-text: "140";
     callback search-changed(string);
     callback hide-requested();
     callback widget-toggled(string, bool);
     callback launch-requested();
+    callback widget-size-changed(string, string);
 
     Rectangle {
         background: #10131a;
@@ -108,6 +111,23 @@ export component AppWindow inherits Window {
                         CheckBox { text: "Weather"; checked: root.weather-enabled; toggled => { root.widget-toggled("weather", self.checked); } }
                         CheckBox { text: "Daily cat"; checked: root.cat-enabled; toggled => { root.widget-toggled("cat", self.checked); } }
                         CheckBox { text: "Media"; checked: root.media-enabled; toggled => { root.widget-toggled("media", self.checked); } }
+                    }
+                    HorizontalBox {
+                        spacing: 10px;
+                        Text { text: "Rail width"; color: #aeb9ca; vertical-alignment: center; }
+                        LineEdit {
+                            text: root.rail-width-text;
+                            input-type: number;
+                            edited(value) => { root.widget-size-changed("rail_width", value); }
+                            width: 76px;
+                        }
+                        Text { text: "Card height"; color: #aeb9ca; vertical-alignment: center; }
+                        LineEdit {
+                            text: root.card-height-text;
+                            input-type: number;
+                            edited(value) => { root.widget-size-changed("card_height", value); }
+                            width: 76px;
+                        }
                     }
                 }
             }
