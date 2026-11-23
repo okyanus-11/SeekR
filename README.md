@@ -228,6 +228,8 @@ See [Architecture](docs/ARCHITECTURE.md) for the codebase overview and [Installa
 
 **Latest published release: v2.0.2.** The main branch contains post-release maintenance changes that are not included in the v2.0.2 installer or portable download. The main-branch workflow runs the test suite on Windows and Ubuntu, builds the Windows packages, and verifies a fresh installation; those checks do not retroactively change the published v2.0.2 assets.
 
+A separate Rust/Slint native preview is being developed alongside the stable Python application. It is not the downloadable SeekR release and does not yet have feature parity, a supported installer, or end-user release status. See [the Rust migration status](docs/RUST_MIGRATION.md) before trying the preview.
+
 Automated checks are not a substitute for testing on a real desktop. Mixed-DPI and multi-monitor behavior, sleep/resume, upgrading from an older installer while preserving user data, accessibility, and long-duration interactive stability still require hands-on validation. Follow the open [Windows post-release checklist](https://github.com/okyanus-11/SeekR/issues/1) for what remains. Windows executables are currently unsigned and may trigger a SmartScreen warning.
 
 ## Contributing
