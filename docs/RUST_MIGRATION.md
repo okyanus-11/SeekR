@@ -27,6 +27,30 @@ It also means the Rust preview is not yet a replacement for the published produc
 - Atomic configuration writes and non-destructive handling of malformed config.
 - Windows CI for formatting, linting, tests and release builds.
 
+## Current implementation status
+
+The current native slice includes:
+
+- Windows Start Menu application discovery and bounded indexing of common user
+  folders, built on a worker thread so directory traversal does not block the UI.
+- Fuzzy title matching with typo tolerance and deterministic result ranking.
+- A calculator prefix (calc:) with case-insensitive matching and clipboard copy.
+- Persistent widget enabled states, dimensions and left/right ordering.
+- Migration of legacy Python widget preferences while preserving unrelated
+  settings and unknown keys.
+- Atomic settings replacement, malformed-file protection, and regression tests.
+
+The native preview is still not feature-complete. Search results are displayed
+as text and only the top result can be activated. The widget controls currently
+edit persisted preferences; the full live widget dashboard and its data
+providers are not ported. The global hotkey, tray, single-instance lifecycle,
+active-monitor dropdown behavior, complete settings/tools surfaces, database
+integration, installer and end-user packaging remain release blockers.
+
+CI now runs Clippy, unit tests and optimized Windows builds on both
+windows-2022 and windows-latest. This validates compilation and core logic,
+not real desktop interaction or long-duration stability.
+
 ## Release gates
 
 Do not publish a Rust replacement until all of the following are true:
