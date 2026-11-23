@@ -132,8 +132,11 @@ impl SearchProvider for BuiltInProvider {
     }
 
     fn search(&self, query: &str) -> Result<Vec<SearchResult>, String> {
-        if let Some(expression) = query.strip_prefix("calc:") {
-            let expression = expression.trim();
+        if query
+            .get(..5)
+            .is_some_and(|prefix| prefix.eq_ignore_ascii_case("calc:"))
+        {
+            let expression = query[5..].trim();
             if expression.is_empty() {
                 return Ok(Vec::new());
             }
@@ -486,6 +489,13 @@ mod tests {
         let results = SearchEngine::default().search_results("calc: sqrt(81) + 3");
         assert_eq!(results[0].title, "12");
         assert_eq!(results[0].copy_text.as_deref(), Some("12"));
+    }
+
+    #[test]
+    fn calculator_prefix_is_case_insensitive() {
+        let results = SearchEngine::default().search_results("CALC: 6 * 7");
+        assert_eq!(results[0].title, "42");
+        assert_eq!(results[0].copy_text.as_deref(), Some("42"));
     }
 
     #[test]
