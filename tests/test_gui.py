@@ -165,23 +165,6 @@ def test_launcher_opens_and_searches(qapp, controller):
     assert len(launcher._results) >= 3
     assert launcher.current_result().title.startswith("GUI result")
 
-
-def test_launcher_can_render_results_before_first_show(qapp, controller):
-    from ui.launcher_window import LauncherWindow
-
-    launcher = LauncherWindow(controller)
-    try:
-        assert not launcher.isVisible()
-        launcher._display_results(
-            [SearchResult(title="Pre-show result", category="Test", score=1.0)],
-            "pre-show",
-        )
-        assert launcher.current_result() is not None
-        assert launcher.current_result().title == "Pre-show result"
-    finally:
-        launcher.close()
-
-
     # Keyboard handling: arrow keys move the selection.
     event = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Down, Qt.KeyboardModifier.NoModifier)
     assert launcher.eventFilter(launcher.search_input, event) is True
@@ -197,6 +180,23 @@ def test_launcher_can_render_results_before_first_show(qapp, controller):
     escape = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier)
     assert launcher.eventFilter(launcher.search_input, escape) is True
     assert launcher._action_index is None
+
+
+
+def test_launcher_can_render_results_before_first_show(qapp, controller):
+    from ui.launcher_window import LauncherWindow
+
+    launcher = LauncherWindow(controller)
+    try:
+        assert not launcher.isVisible()
+        launcher._display_results(
+            [SearchResult(title="Pre-show result", category="Test", score=1.0)],
+            "pre-show",
+        )
+        assert launcher.current_result() is not None
+        assert launcher.current_result().title == "Pre-show result"
+    finally:
+        launcher.close()
 
 
 
