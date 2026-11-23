@@ -30,6 +30,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         window.set_media_enabled(*settings.widgets.enabled.get("media").unwrap_or(&false));
         window.set_rail_width_text(settings.widgets.rail_width.to_string().into());
         window.set_card_height_text(settings.widgets.card_height.to_string().into());
+        window.set_left_order_text(settings.widgets.left_order.join(", ").into());
+        window.set_right_order_text(settings.widgets.right_order.join(", ").into());
     }
 
     let weak_window = window.as_weak();
@@ -69,9 +71,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let weak_window = window.as_weak();
+    let widget_config = config.clone();
     let config_path = path.clone();
     window.on_widget_toggled(move |name, enabled| {
-        let mut settings = config.borrow_mut();
+        let mut settings = widget_config.borrow_mut();
         let key = name.to_string();
         if let Some(previous) = settings.widgets.enabled.get(&key).copied() {
             settings.widgets.enabled.insert(key.clone(), enabled);
@@ -94,10 +97,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 
     let weak_window = window.as_weak();
+    let size_config = config.clone();
     let config_path = path.clone();
     window.on_widget_size_changed(move |name, value| {
         let parsed = value.trim().parse::<u16>();
-        let mut settings = config.borrow_mut();
+        let mut settings = size_config.borrow_mut();
         let key = name.to_string();
         let Ok(parsed) = parsed else {
             if let Some(window) = weak_window.upgrade() {
@@ -132,6 +136,54 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 if let Some(window) = weak_window.upgrade() {
                     window.set_results_text(format!("Could not save widget dimensions: {error}").into());
+                }
+            }
+        }
+    });
+
+
+    let weak_window = window.as_weak();
+    let order_config = config.clone();
+    let order_config_path = path.clone();
+    window.on_widget_order_changed(move |side, value| {
+        let side = side.to_string();
+        let requested: Vec<String> = value
+            .split(',')
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .map(str::to_lowercase)
+            .collect();
+        let mut settings = order_config.borrow_mut();
+        let previous = match side.as_str() {
+            "left" => settings.widgets.left_order.clone(),
+            "right" => settings.widgets.right_order.clone(),
+            _ => return,
+        };
+        match side.as_str() {
+            "left" => settings.widgets.left_order = requested,
+            "right" => settings.widgets.right_order = requested,
+            _ => return,
+        }
+        settings.widgets.normalize();
+        match settings.save_atomic(&order_config_path) {
+            Ok(()) => {
+                if let Some(window) = weak_window.upgrade() {
+                    window.set_left_order_text(settings.widgets.left_order.join(", ").into());
+                    window.set_right_order_text(settings.widgets.right_order.join(", ").into());
+                    window.set_results_text("Saved widget order. Unknown or duplicate names were removed.".into());
+                }
+            }
+            Err(error) => {
+                match side.as_str() {
+                    "left" => settings.widgets.left_order = previous,
+                    "right" => settings.widgets.right_order = previous,
+                    _ => {}
+                }
+                settings.widgets.normalize();
+                if let Some(window) = weak_window.upgrade() {
+                    window.set_left_order_text(settings.widgets.left_order.join(", ").into());
+                    window.set_right_order_text(settings.widgets.right_order.join(", ").into());
+                    window.set_results_text(format!("Could not save widget order: {error}").into());
                 }
             }
         }
