@@ -168,29 +168,8 @@ impl SearchProvider for BuiltInProvider {
             };
         }
 
-        let entries = [
-            ("Calculator", "Evaluate an expression with calc:", "Tool"),
-            ("Settings", "Configure SeekR and its widgets", "Application"),
-            ("Reindex apps and files", "Refresh the local search index", "Action"),
-            ("System information", "View CPU, memory and device details", "Tool"),
-            ("Clipboard history", "Browse locally stored clipboard entries", "Tool"),
-            ("Focus timer", "Start or manage a focus session", "Widget"),
-        ];
-
-        Ok(entries
-            .into_iter()
-            .filter_map(|(title, description, category)| {
-                let score = match_score(query, title, description);
-                (score > 0.0).then(|| SearchResult {
-                    title: title.into(),
-                    description: description.into(),
-                    category: category.into(),
-                    score,
-                    target: None,
-                    copy_text: None,
-                })
-            })
-            .collect())
+        // Do not advertise placeholder tools that have no working action.
+        Ok(Vec::new())
     }
 }
 
@@ -486,7 +465,7 @@ mod tests {
 
     #[test]
     fn exact_matches_rank_above_prefix_and_substring() {
-        assert!(SearchEngine::default().search("settings").starts_with("Settings"));
+        assert!(SearchEngine::default().search("settings").starts_with("No results"));
     }
 
     #[test]
@@ -525,7 +504,6 @@ mod tests {
         let mut engine = SearchEngine::default();
         engine.register(Box::new(FailingProvider));
         let output = engine.search("settings");
-        assert!(output.contains("Settings"));
         assert!(output.contains("provider unavailable"));
     }
 
@@ -534,7 +512,6 @@ mod tests {
         let mut engine = SearchEngine::default();
         engine.register(Box::new(PanickingProvider));
         let output = engine.search("settings");
-        assert!(output.contains("Settings"));
         assert!(output.contains("failed safely"));
     }
 
