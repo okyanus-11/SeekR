@@ -372,6 +372,17 @@ mod tests {
     }
 
     #[test]
+    fn unrelated_query_does_not_match_generic_description() {
+        assert_eq!(match_score("xyz", "Calculator", ""), 0.0);
+    }
+
+    #[test]
+    fn typo_matching_requires_a_close_title_token() {
+        assert!(match_score("clculator", "Calculator", "") > 0.0);
+        assert_eq!(match_score("calculator xyz", "Calculator", ""), 0.0);
+    }
+
+    #[test]
     fn result_launch_without_target_is_rejected() {
         let result = SearchResult {
             title: "Settings".into(),
