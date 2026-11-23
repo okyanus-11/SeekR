@@ -2,8 +2,40 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
+
+
+/// Resolve the per-user configuration file without writing into the install directory.
+pub fn config_path() -> PathBuf {
+    if let Some(override_path) = std::env::var_os("SEEKR_CONFIG") {
+        return PathBuf::from(override_path);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let base = std::env::var_os("APPDATA")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("USERPROFILE").map(|home| PathBuf::from(home).join("AppData").join("Roaming")))
+            .unwrap_or_else(|| PathBuf::from("."));
+        return base.join("SeekR").join("config.json");
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let base = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
+        return base.join("Library").join("Application Support").join("SeekR").join("config.json");
+    }
+
+    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
+    {
+        let base = std::env::var_os("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))
+            .unwrap_or_else(|| PathBuf::from("."));
+        base.join("SeekR").join("config.json")
+    }
+}
 
 const WIDGETS: &[&str] = &["clock", "system", "tasks", "weather", "cat", "media"];
 
