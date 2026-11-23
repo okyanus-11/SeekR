@@ -158,7 +158,7 @@ impl SearchProvider for WindowsAppsProvider {
 
     fn search(&self, query: &str) -> Result<Vec<SearchResult>, String> {
         Ok(self.entries.iter().filter_map(|(name, path)| {
-            let score = match_score(query, name, "Windows Start Menu application");
+            let score = match_score(query, name, "");
             (score > 0.0).then(|| SearchResult {
                 title: name.clone(),
                 description: "Open installed application".into(),
