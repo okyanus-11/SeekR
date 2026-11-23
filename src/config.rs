@@ -236,6 +236,12 @@ mod tests {
         expected.widgets.rail_width = 240;
         expected.save_atomic(&path).unwrap();
         assert_eq!(AppConfig::load(&path).unwrap(), expected);
+
+        // Saving again must atomically replace the existing file on Windows.
+        expected.widgets.enabled.insert("clock".into(), false);
+        expected.widgets.card_height = 180;
+        expected.save_atomic(&path).unwrap();
+        assert_eq!(AppConfig::load(&path).unwrap(), expected);
     }
 
     #[test]
