@@ -41,8 +41,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config_path = path.clone();
     window.on_widget_toggled(move |name, enabled| {
         let mut settings = config.borrow_mut();
-        if let Some(value) = settings.widgets.enabled.get_mut(name.as_str()) {
-            *value = enabled;
+        let key = name.to_string();
+        if let Some(previous) = settings.widgets.enabled.get(&key).copied() {
+            settings.widgets.enabled.insert(key.clone(), enabled);
             match settings.save_atomic(&config_path) {
                 Ok(()) => {
                     if let Some(window) = weak_window.upgrade() {
@@ -51,7 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 Err(error) => {
                     // Revert the in-memory change when persistence fails.
-                    *value = !enabled;
+                    settings.widgets.enabled.insert(key, previous);
                     if let Some(window) = weak_window.upgrade() {
                         window.set_results_text(format!("Could not save settings: {error}").into());
                     }
