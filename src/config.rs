@@ -25,7 +25,7 @@ pub fn config_path() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
         let base = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
-        return base.join("Library").join("Application Support").join("SeekR").join("config.json");
+        base.join("Library").join("Application Support").join("SeekR").join("config.json")
     }
 
     #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
