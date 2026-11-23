@@ -2,12 +2,24 @@ slint::include_modules!();
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 use seekr_native::config::{config_path, AppConfig};
 use seekr_native::search::{SearchEngine, SearchResult};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let window = AppWindow::new()?;
-    let engine = Rc::new(SearchEngine::default());
+    // Build the Windows app/file indexes off the UI thread. Startup must stay
+    // responsive even when user folders contain many files or slow locations.
+    let engine: Arc<Mutex<Option<SearchEngine>>> = Arc::new(Mutex::new(None));
+    let index_engine = Arc::clone(&engine);
+    std::thread::Builder::new()
+        .name("seekr-search-index".into())
+        .spawn(move || {
+            let indexed = SearchEngine::default();
+            if let Ok(mut slot) = index_engine.lock() {
+                *slot = Some(indexed);
+            }
+        })?;
     let last_results: Rc<RefCell<Vec<SearchResult>>> = Rc::new(RefCell::new(Vec::new()));
     let path = config_path();
     let config = match AppConfig::load(&path) {
@@ -36,9 +48,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let weak_window = window.as_weak();
     let search_results = last_results.clone();
+    let search_engine = Arc::clone(&engine);
+    window.set_results_text("Indexing apps and files in the background…".into());
     window.on_search_changed(move |query| {
-        let found = engine.search_results(query.as_str());
-        let text = if query.trim().is_empty() {
+        let (found, indexing) = match search_engine.lock() {
+            Ok(slot) => match slot.as_ref() {
+                Some(engine) => (engine.search_results(query.as_str()), false),
+                None => (Vec::new(), true),
+            },
+            Err(_) => (Vec::new(), true),
+        };
+        let text = if indexing {
+            "Still indexing apps and files. Search will be available shortly.".to_owned()
+        } else if query.trim().is_empty() {
             "Start typing to search.\n\nTry: an app name, a file name, or calc: 42 * 42".to_owned()
         } else if found.is_empty() {
             format!("No results for “{}”.", query.trim())
