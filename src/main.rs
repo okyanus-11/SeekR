@@ -54,7 +54,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     window.on_launch_requested(move || {
         let result = launch_results.borrow().first().cloned();
         let message = match result {
-            Some(item) => SearchEngine::launch(&item).map(|_| format!("Opening {}…", item.title)),
+            Some(item) => SearchEngine::launch(&item).map(|_| {
+                if item.copy_text.is_some() {
+                    format!("Copied {} to the clipboard.", item.title)
+                } else {
+                    format!("Opening {}…", item.title)
+                }
+            }),
             None => Err("Search for an application first.".into()),
         };
         if let Some(window) = weak_window.upgrade() {
