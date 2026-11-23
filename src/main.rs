@@ -1,10 +1,25 @@
 slint::include_modules!();
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use seekr_native::config::{config_path, AppConfig};
 use seekr_native::search::{SearchEngine, SearchResult};
+
+fn format_results(results: &[SearchResult], selected: usize) -> String {
+    results
+        .iter()
+        .enumerate()
+        .map(|(index, item)| {
+            let marker = if index == selected { "▶" } else { " " };
+            format!(
+                "{marker} {}\n{}  ·  {}",
+                item.title, item.description, item.category
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let window = AppWindow::new()?;
@@ -21,6 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         })?;
     let last_results: Rc<RefCell<Vec<SearchResult>>> = Rc::new(RefCell::new(Vec::new()));
+    let selected_index = Rc::new(Cell::new(0usize));
     let path = config_path();
     let config = match AppConfig::load(&path) {
         Ok(config) => config,
@@ -48,6 +64,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let weak_window = window.as_weak();
     let search_results = last_results.clone();
+    let search_selection = selected_index.clone();
     let search_engine = Arc::clone(&engine);
     window.set_results_text(
         "Start typing to search.\n\nTry: an app name, a file name, or calc: 42 * 42".into(),
@@ -67,7 +84,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } else if found.is_empty() {
             format!("No results for “{}”.", query.trim())
         } else {
-            found.iter().map(|item| format!("{}\n{}  ·  {}", item.title, item.description, item.category)).collect::<Vec<_>>().join("\n\n")
+            search_selection.set(0);
+            format_results(&found, 0)
         };
         *search_results.borrow_mut() = found;
         if let Some(window) = weak_window.upgrade() {
@@ -76,9 +94,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let weak_window = window.as_weak();
+    let selection_results = last_results.clone();
+    let selection_index = selected_index.clone();
+    window.on_selection_moved(move |delta| {
+        let results = selection_results.borrow();
+        if results.is_empty() {
+            return;
+        }
+        let length = results.len() as i32;
+        let next = (selection_index.get() as i32 + delta).rem_euclid(length) as usize;
+        selection_index.set(next);
+        if let Some(window) = weak_window.upgrade() {
+            window.set_results_text(format_results(&results, next).into());
+        }
+    });
+
+    let weak_window = window.as_weak();
     let launch_results = last_results.clone();
+    let launch_selection = selected_index.clone();
     window.on_launch_requested(move || {
-        let result = launch_results.borrow().first().cloned();
+        let result = launch_results
+            .borrow()
+            .get(launch_selection.get())
+            .cloned();
         let message = match result {
             Some(item) => SearchEngine::launch(&item).map(|_| {
                 if item.copy_text.is_some() {
