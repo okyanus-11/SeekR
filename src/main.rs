@@ -255,3 +255,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     window.run()?;
     Ok(())
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn result(title: &str) -> SearchResult {
+        SearchResult {
+            title: title.into(),
+            description: format!("{title} description"),
+            category: "Test".into(),
+            score: 1.0,
+            target: None,
+            copy_text: None,
+        }
+    }
+
+    #[test]
+    fn result_renderer_marks_only_the_selected_item() {
+        let results = vec![result("First"), result("Second")];
+        let rendered = format_results(&results, 1);
+        assert!(rendered.starts_with("  First"));
+        assert!(rendered.contains("▶ Second"));
+        assert_eq!(rendered.matches('▶').count(), 1);
+    }
+}
