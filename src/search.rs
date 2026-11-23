@@ -48,8 +48,6 @@ impl SearchEngine {
                     score: 0.0,
                     target: None,
             copy_text: None,
-                copy_text: None,
-                    copy_text: None,
                 }),
                 Err(_) => results.push(SearchResult {
                     title: format!("{} provider failed safely", provider.id()),
@@ -58,8 +56,6 @@ impl SearchEngine {
                     score: 0.0,
                     target: None,
             copy_text: None,
-                copy_text: None,
-                    copy_text: None,
                 }),
             }
         }
@@ -170,7 +166,6 @@ impl SearchProvider for BuiltInProvider {
                 score,
                 target: None,
             copy_text: None,
-                copy_text: None,
             })
         }).collect())
     }
@@ -216,7 +211,6 @@ impl SearchProvider for WindowsAppsProvider {
                 score: score + 0.03,
                 target: Some(path.clone()),
             copy_text: None,
-                copy_text: None,
             })
         }).collect())
     }
@@ -284,7 +278,6 @@ impl SearchProvider for WindowsFilesProvider {
                 score: score * 0.96,
                 target: Some(path.clone()),
             copy_text: None,
-                copy_text: None,
             })
         }).collect())
     }
