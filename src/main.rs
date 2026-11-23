@@ -49,7 +49,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let weak_window = window.as_weak();
     let search_results = last_results.clone();
     let search_engine = Arc::clone(&engine);
-    window.set_results_text("Indexing apps and files in the background…".into());
+    window.set_results_text(
+        "Start typing to search.\n\nTry: an app name, a file name, or calc: 42 * 42".into(),
+    );
     window.on_search_changed(move |query| {
         let (found, indexing) = match search_engine.lock() {
             Ok(slot) => match slot.as_ref() {
