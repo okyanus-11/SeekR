@@ -73,24 +73,6 @@ impl Default for WidgetPreferences {
 
 impl WidgetPreferences {
     pub fn normalize(&mut self) {
-        // Import the flat widget keys used by the Python 2.0.x configuration.
-        // Keep the original keys too, so an older build can still read the file.
-        for (old_key, new_key) in [
-            ("clock_enabled", "clock"),
-            ("system_enabled", "system"),
-            ("tasks_enabled", "tasks"),
-            ("weather_enabled", "weather"),
-            ("cat_enabled", "cat"),
-            ("media_enabled", "media"),
-        ] {
-            // Canonical nested settings win when both formats are present.
-            // Older Python configs have only the flat key, so import it once.
-            if !self.enabled.contains_key(new_key)
-                && let Some(value) = self.legacy.get(old_key).and_then(Value::as_bool)
-            {
-                self.enabled.insert(new_key.to_string(), value);
-            }
-        }
         if let Some(value) = self.legacy.get("rail_width").and_then(Value::as_u64) {
             self.rail_width = value.min(u16::MAX as u64) as u16;
         }
@@ -168,8 +150,31 @@ impl AppConfig {
     pub fn load(path: &Path) -> io::Result<Self> {
         if !path.exists() { return Ok(Self::default()); }
         let contents = fs::read_to_string(path)?;
-        let mut config: Self = serde_json::from_str(&contents)
+        let raw: Value = serde_json::from_str(&contents)
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+        let has_canonical_enabled = raw
+            .get("widgets")
+            .and_then(|widgets| widgets.get("enabled"))
+            .is_some();
+        let mut config: Self = serde_json::from_value(raw)
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+
+        // A legacy Python config has flat `*_enabled` keys but no nested map.
+        // Import those only in that case; otherwise canonical values win.
+        if !has_canonical_enabled {
+            for (old_key, new_key) in [
+                ("clock_enabled", "clock"),
+                ("system_enabled", "system"),
+                ("tasks_enabled", "tasks"),
+                ("weather_enabled", "weather"),
+                ("cat_enabled", "cat"),
+                ("media_enabled", "media"),
+            ] {
+                if let Some(value) = config.widgets.legacy.get(old_key).and_then(Value::as_bool) {
+                    config.widgets.enabled.insert(new_key.to_string(), value);
+                }
+            }
+        }
         config.widgets.normalize();
         Ok(config)
     }
