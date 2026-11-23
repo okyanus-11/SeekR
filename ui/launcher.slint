@@ -7,6 +7,7 @@ export component AppWindow inherits Window {
     background: #10131a;
 
     in-out property <string> results-text: "Start typing to search.";
+    in-out property <string> clock-time: "--:--:--";
     in-out property <bool> clock-enabled: true;
     in-out property <bool> system-enabled: true;
     in-out property <bool> tasks-enabled: true;
@@ -123,6 +124,17 @@ export component AppWindow inherits Window {
                         CheckBox { text: "Weather"; checked: root.weather-enabled; toggled => { root.widget-toggled("weather", self.checked); } }
                         CheckBox { text: "Daily cat"; checked: root.cat-enabled; toggled => { root.widget-toggled("cat", self.checked); } }
                         CheckBox { text: "Media"; checked: root.media-enabled; toggled => { root.widget-toggled("media", self.checked); } }
+                    }
+                    HorizontalBox {
+                        spacing: 10px;
+                        Text { text: "Clock preview"; color: #aeb9ca; vertical-alignment: center; }
+                        Text {
+                            text: root.clock-enabled ? root.clock-time : "Disabled";
+                            color: #e0e6f0;
+                            font-size: 18px;
+                            font-weight: 700;
+                            vertical-alignment: center;
+                        }
                     }
                     HorizontalBox {
                         spacing: 10px;
