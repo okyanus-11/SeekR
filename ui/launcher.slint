@@ -1,4 +1,4 @@
-import { Button, HorizontalBox, LineEdit, VerticalBox } from "std-widgets.slint";
+import { Button, CheckBox, HorizontalBox, LineEdit, VerticalBox } from "std-widgets.slint";
 
 export component AppWindow inherits Window {
     title: "SeekR";
@@ -7,8 +7,15 @@ export component AppWindow inherits Window {
     background: #10131a;
 
     in-out property <string> results-text: "Start typing to search.";
+    in-out property <bool> clock-enabled: true;
+    in-out property <bool> system-enabled: true;
+    in-out property <bool> tasks-enabled: true;
+    in-out property <bool> weather-enabled: true;
+    in-out property <bool> cat-enabled: true;
+    in-out property <bool> media-enabled: false;
     callback search-changed(string);
     callback hide-requested();
+    callback widget-toggled(string, bool);
 
     Rectangle {
         background: #10131a;
@@ -72,8 +79,32 @@ export component AppWindow inherits Window {
                 vertical-stretch: 1;
             }
 
+            Rectangle {
+                background: #171d28;
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: #283246;
+                VerticalBox {
+                    padding: 14px;
+                    spacing: 8px;
+                    Text { text: "WIDGET CUSTOMIZATION"; color: #8290a7; font-size: 11px; font-weight: 700; }
+                    HorizontalBox {
+                        spacing: 12px;
+                        CheckBox { text: "Clock"; checked: root.clock-enabled; toggled => { root.widget-toggled("clock", self.checked); } }
+                        CheckBox { text: "System"; checked: root.system-enabled; toggled => { root.widget-toggled("system", self.checked); } }
+                        CheckBox { text: "Tasks"; checked: root.tasks-enabled; toggled => { root.widget-toggled("tasks", self.checked); } }
+                    }
+                    HorizontalBox {
+                        spacing: 12px;
+                        CheckBox { text: "Weather"; checked: root.weather-enabled; toggled => { root.widget-toggled("weather", self.checked); } }
+                        CheckBox { text: "Daily cat"; checked: root.cat-enabled; toggled => { root.widget-toggled("cat", self.checked); } }
+                        CheckBox { text: "Media"; checked: root.media-enabled; toggled => { root.widget-toggled("media", self.checked); } }
+                    }
+                }
+            }
+
             Text {
-                text: "Rust migration preview · Search and widget foundations";
+                text: "Rust native preview · Search and widget customization";
                 color: #68758a;
                 font-size: 11px;
             }
