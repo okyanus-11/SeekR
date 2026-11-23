@@ -19,7 +19,7 @@ pub fn config_path() -> PathBuf {
             .map(PathBuf::from)
             .or_else(|| std::env::var_os("USERPROFILE").map(|home| PathBuf::from(home).join("AppData").join("Roaming")))
             .unwrap_or_else(|| PathBuf::from("."));
-        return base.join("SeekR").join("config.json");
+        base.join("SeekR").join("config.json")
     }
 
     #[cfg(target_os = "macos")]
