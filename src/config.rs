@@ -85,10 +85,10 @@ impl WidgetPreferences {
         ] {
             // Canonical nested settings win when both formats are present.
             // Older Python configs have only the flat key, so import it once.
-            if !self.enabled.contains_key(new_key) {
-                if let Some(value) = self.legacy.get(old_key).and_then(Value::as_bool) {
-                    self.enabled.insert(new_key.to_string(), value);
-                }
+            if !self.enabled.contains_key(new_key)
+                && let Some(value) = self.legacy.get(old_key).and_then(Value::as_bool)
+            {
+                self.enabled.insert(new_key.to_string(), value);
             }
         }
         if let Some(value) = self.legacy.get("rail_width").and_then(Value::as_u64) {
@@ -139,10 +139,10 @@ impl WidgetPreferences {
         ] {
             // Only maintain compatibility keys that already existed in a
             // legacy config. New configs stay in the canonical nested format.
-            if self.legacy.contains_key(old_key) {
-                if let Some(value) = self.enabled.get(new_key) {
-                    self.legacy.insert(old_key.to_string(), Value::Bool(*value));
-                }
+            if self.legacy.contains_key(old_key)
+                && let Some(value) = self.enabled.get(new_key)
+            {
+                self.legacy.insert(old_key.to_string(), Value::Bool(*value));
             }
         }
     }
