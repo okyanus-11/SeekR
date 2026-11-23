@@ -44,7 +44,9 @@ jobs:
           components: rustfmt, clippy
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
-      - name: Check formatting
+      - name: Format Rust sources
+        run: cargo fmt --all
+      - name: Verify Rust formatting
         run: cargo fmt --all -- --check
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
