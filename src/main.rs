@@ -3,6 +3,7 @@ slint::include_modules!();
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use seekr_native::config::{config_path, AppConfig};
 use seekr_native::search::{SearchEngine, SearchResult};
 
@@ -61,6 +62,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         window.set_left_order_text(settings.widgets.left_order.join(", ").into());
         window.set_right_order_text(settings.widgets.right_order.join(", ").into());
     }
+
+    window.set_clock_time(chrono::Local::now().format("%H:%M:%S").to_string().into());
+    let clock_timer = slint::Timer::default();
+    let clock_window = window.as_weak();
+    clock_timer.start(slint::TimerMode::Repeated, Duration::from_secs(1), move || {
+        if let Some(window) = clock_window.upgrade() {
+            window.set_clock_time(chrono::Local::now().format("%H:%M:%S").to_string().into());
+        }
+    });
 
     let weak_window = window.as_weak();
     let search_results = last_results.clone();
