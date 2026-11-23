@@ -12,7 +12,7 @@ pub struct SearchResult {
     pub copy_text: Option<String>,
 }
 
-pub trait SearchProvider {
+pub trait SearchProvider: Send + Sync {
     fn id(&self) -> &'static str;
     fn search(&self, query: &str) -> Result<Vec<SearchResult>, String>;
 }
