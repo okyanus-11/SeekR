@@ -112,19 +112,42 @@ fn match_score(query: &str, title: &str, description: &str) -> f32 {
     if title.contains(&query) { return 0.82; }
     if description.contains(&query) { return 0.62; }
 
-    let tokens: Vec<_> = query.split_whitespace().collect();
-    if !tokens.is_empty()
-        && tokens.iter().all(|token| title.split_whitespace().any(|part| part.starts_with(token)))
-    {
-        return 0.72;
+    let title_words: Vec<&str> = title.split_whitespace().collect();
+    let query_words: Vec<&str> = query.split_whitespace().collect();
+    if query_words.is_empty() || title_words.is_empty() { return 0.0; }
+
+    // Prefer matching every query token to a title token. Edit distance is
+    // bounded by token length so unrelated words never become fuzzy hits.
+    let mut total = 0.0;
+    for query_word in &query_words {
+        let best = title_words.iter()
+            .map(|word| edit_distance(query_word, word))
+            .min()
+            .unwrap_or(usize::MAX);
+        let allowance = (query_word.chars().count() / 3).max(1);
+        if best > allowance { return 0.0; }
+        total += 0.72 - (best as f32 * 0.08);
     }
-    if is_subsequence(&query, &title) { return 0.45; }
-    0.0
+    total / query_words.len() as f32
 }
 
-fn is_subsequence(needle: &str, haystack: &str) -> bool {
-    let mut chars = haystack.chars();
-    needle.chars().all(|wanted| chars.any(|actual| actual == wanted))
+fn edit_distance(left: &str, right: &str) -> usize {
+    let left: Vec<char> = left.chars().collect();
+    let right: Vec<char> = right.chars().collect();
+    let mut previous: Vec<usize> = (0..=right.len()).collect();
+    let mut current = vec![0; right.len() + 1];
+
+    for (row, left_char) in left.iter().enumerate() {
+        current[0] = row + 1;
+        for (column, right_char) in right.iter().enumerate() {
+            let substitution = previous[column] + usize::from(left_char != right_char);
+            let insertion = current[column] + 1;
+            let deletion = previous[column + 1] + 1;
+            current[column + 1] = substitution.min(insertion).min(deletion);
+        }
+        std::mem::swap(&mut previous, &mut current);
+    }
+    previous[right.len()]
 }
 
 #[cfg(test)]
