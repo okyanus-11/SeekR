@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 9649)
-Total output lines: 912
-
 """The floating SeekR launcher window."""
 
 from __future__ import annotations
@@ -251,7 +248,431 @@ class LauncherWindow(QWidget):
 
         self.action_label = label("", "Muted")
         self.action_label.setVisible(False)
-        footer_layout.add…4649 tokens truncated…lta))
+        footer_layout.addWidget(self.action_label)
+
+        self.status_label = label("", "Muted")
+        footer_layout.addWidget(self.status_label)
+
+        self.count_label = label("", "Muted")
+        footer_layout.addWidget(self.count_label)
+        root_layout.addWidget(footer)
+
+    def refresh_texts(self) -> None:
+        """Apply placeholder and hint strings for the configured language."""
+        self.search_input.setPlaceholderText(i18n.tr(self.config, "launcher.placeholder"))
+        self.settings_button.setToolTip(f"{i18n.tr(self.config, 'launcher.settings')} (Ctrl+,)")
+        while self.hint_container.count():
+            item = self.hint_container.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        self.hint_labels = []
+        for key, default_key, default_label in (
+            ("launcher.hint.navigate", "↑↓", "Navigate"),
+            ("launcher.hint.open", "↵", "Open"),
+            ("launcher.hint.actions", "Tab", "Actions"),
+            ("launcher.hint.copy", "Ctrl+C", "Copy"),
+            ("launcher.hint.close", "Esc", "Close"),
+        ):
+            text = i18n.tr(self.config, key)
+            if text == key:
+                text = default_label
+            if " " in text:
+                keycap, remainder = text.split(" ", 1)
+                keycap_label = label(keycap, "Kbd")
+                keycap_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.hint_container.addWidget(keycap_label)
+                hint = label(remainder, "Muted")
+            else:
+                hint = label(text, "Muted")
+            self.hint_container.addWidget(hint)
+            self.hint_labels.append(hint)
+            self.hint_container.addSpacing(8)
+
+    # ------------------------------------------------------------- geometry
+    def _screen(self):
+        screen = QGuiApplication.screenAt(QCursor.pos())
+        return screen or QGuiApplication.primaryScreen()
+
+    def _apply_geometry(self) -> None:
+        screen = self._screen()
+        available = screen.availableGeometry() if screen else None
+        width = int(self.config.get("appearance.window_width", 1180) or 780) + _MARGIN * 2
+        height = int(self.config.get("appearance.window_height", 620) or 500) + _MARGIN * 2
+        if available is not None:
+            width = min(width, available.width() - 24)
+            height = min(height, available.height() - 80)
+            # SeekR behaves like a desktop command palette: centered
+            # horizontally, anchored near the top edge rather than floating
+            # in the middle of the workspace.
+            x = available.x() + (available.width() - width) // 2
+            y = available.y() + _DROPDOWN_TOP_GAP
+        else:
+            x, y = 120, _DROPDOWN_TOP_GAP
+        self.resize(width, height)
+        self.move(x, y)
+        self._target_position = QPoint(x, y)
+
+    # ---------------------------------------------------------------- show
+    def showEvent(self, event) -> None:  # noqa: N802
+        super().showEvent(event)
+        self.launcher_widgets.set_active(True)
+
+    def hideEvent(self, event) -> None:  # noqa: N802
+        self.launcher_widgets.set_active(False)
+        super().hideEvent(event)
+
+    def show_launcher(self) -> None:
+        self._hiding = False
+        # Any fade-out still in flight belongs to an earlier hide; a show that
+        # arrives mid-animation must win.
+        self._hide_generation += 1
+        # A pending focus-loss hide must not undo the request we are serving.
+        self._hide_timer.stop()
+        self._activation_confirmed = self.isActiveWindow()
+        self._activation_deadline = time.monotonic() + _ACTIVATION_GRACE
+        self._apply_dimensions()
+        self._apply_geometry()
+        self._reset_action_selection()
+        remember = bool(self.config.get("general.remember_last_query", False))
+        if not remember:
+            self.search_input.blockSignals(True)
+            self.search_input.clear()
+            self.search_input.blockSignals(False)
+        self.refresh_texts()
+        self.show()
+        self.raise_()
+        self.activateWindow()
+        self.search_input.setFocus(Qt.FocusReason.OtherFocusReason)
+        # Windows may refuse foreground activation from a background process;
+        # retry once the window is mapped so the search box really has focus.
+        self._force_windows_foreground()
+        QTimer.singleShot(0, self._force_windows_foreground)
+        self._run_search()
+        self.launcher_widgets.refresh_settings(animate=True)
+        self._animate_show()
+
+    def _force_windows_foreground(self) -> None:
+        if os.name != "nt" or not self.isVisible():
+            return
+        try:
+            from features import util
+
+            util.force_foreground(int(self.winId()))
+        except Exception:  # pragma: no cover - defensive
+            log.debug("Could not force the launcher to the foreground", exc_info=True)
+
+    def refresh_appearance(self) -> None:
+        """Apply font/size changes without clearing the current query."""
+        self._apply_dimensions()
+        if self.isVisible():
+            self._apply_geometry()
+        self.update()
+
+    def _apply_dimensions(self) -> None:
+        font_family = str(self.config.get("appearance.font_family", "Segoe UI") or "Segoe UI")
+        font_size = int(self.config.get("appearance.font_size", 13) or 13)
+        font = QFont(font_family, font_size)
+        self.setFont(font)
+        self.search_input.setFont(QFont(font_family, font_size + 5))
+        spacing = int(self.config.get("appearance.result_spacing", 4) or 0)
+        self.results_list.setSpacing(0)
+        self._row_height = _ROW_HEIGHT + spacing
+
+    def _stop_window_animation(self) -> None:
+        """Stop an in-flight transition before starting its opposite."""
+        animation = self._window_animation
+        self._window_animation = None
+        if animation is not None:
+            animation.stop()
+
+    def _animate_show(self) -> None:
+        self._stop_window_animation()
+        duration = int(self.config.get("appearance.animation_duration", 150) or 0)
+        target = getattr(self, "_target_position", self.pos())
+        if not self.config.get("appearance.animations", True) or duration <= 0:
+            self.move(target)
+            return
+
+        # Animate position only. Window-opacity animation creates a layered
+        # native window on Windows and can leave the visible surface stale.
+        group = QParallelAnimationGroup(self)
+        slide = QPropertyAnimation(self, b"pos", group)
+        slide.setDuration(duration)
+        slide.setStartValue(QPoint(target.x(), target.y() - self.height() + _DROPDOWN_REVEAL))
+        slide.setEndValue(target)
+        slide.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._window_animation = group
+        group.finished.connect(lambda g=group: self._clear_window_animation(g))
+        group.start(QAbstractAnimation.DeletionPolicy.DeleteWhenStopped)
+
+    def _clear_window_animation(self, animation) -> None:
+        if self._window_animation is animation:
+            self._window_animation = None
+
+    def hide_launcher(self) -> None:
+        if not self.isVisible() or self._hiding:
+            return
+        self._stop_window_animation()
+        duration = int(self.config.get("appearance.animation_duration", 150) or 0)
+        if not self.config.get("appearance.animations", True) or duration <= 0:
+            self._hide_timer.stop()
+            self.hide()
+            return
+        self._hiding = True
+        self._hide_generation += 1
+        generation = self._hide_generation
+        group = QParallelAnimationGroup(self)
+        slide = QPropertyAnimation(self, b"pos", group)
+        slide.setDuration(max(80, duration))
+        slide.setStartValue(self.pos())
+        slide.setEndValue(QPoint(self.x(), self.y() - self.height() + _DROPDOWN_REVEAL))
+        slide.setEasingCurve(QEasingCurve.Type.InCubic)
+        self._window_animation = group
+        group.finished.connect(lambda g=generation, a=group: self._finish_hide(g, a))
+        group.start(QAbstractAnimation.DeletionPolicy.DeleteWhenStopped)
+
+    def _finish_hide(self, generation: Optional[int] = None, animation=None) -> None:
+        if generation is not None and generation != self._hide_generation:
+            return
+        if animation is not None and self._window_animation is animation:
+            self._window_animation = None
+        self.hide()
+        self._hiding = False
+        self.closed.emit()
+
+    def toggle(self) -> None:
+        # A dropdown remains technically visible and can still report itself
+        # active during its short hide animation. Treat that state as a pending
+        # dismissal, not as an already-open launcher: the next hotkey press
+        # must cancel the stale hide and bring the window back immediately.
+        if self._hiding:
+            self.show_launcher()
+        elif self.isVisible() and self.isActiveWindow():
+            self.hide_launcher()
+        else:
+            self.show_launcher()
+
+    # -------------------------------------------------------------- searching
+    def _on_text_changed(self, text: str) -> None:
+        self._reset_action_selection()
+        if self._pending_execute_query is not None and text != self._pending_execute_query:
+            self._pending_execute_query = None
+        self._debouncer.call_later(self._run_search)
+
+    def set_query(self, text: str, focus: bool = True) -> None:
+        self.show_launcher()
+        self.search_input.setText(text)
+        self.search_input.setCursorPosition(len(text))
+        self._debouncer.cancel()
+        if focus:
+            self.search_input.setFocus(Qt.FocusReason.OtherFocusReason)
+        self._run_search()
+
+    def _run_search(self) -> None:
+        query = self.search_input.text()
+        self._search_generation += 1
+        request = (self._search_generation, query)
+        if self._active_searches >= 1:
+            # Keep only the latest pending request; never build a backlog of
+            # obsolete keystrokes behind slow providers.
+            self._queued_search = request
+            return
+        self._start_search(*request)
+
+    def _start_search(self, generation: int, query: str) -> None:
+        self._active_searches += 1
+        worker = _SearchWorker(self.engine, query, generation)
+        worker.signals.finished.connect(self._on_search_finished)
+        worker.signals.failed.connect(self._on_search_failed)
+        self._search_workers.add(worker)
+        self._search_pool.start(worker)
+
+    def _start_queued_search(self) -> bool:
+        """Start the newest pending query as soon as a worker slot is free."""
+        self._active_searches = max(0, self._active_searches - 1)
+        request = self._queued_search
+        self._queued_search = None
+        if request is None:
+            return False
+        generation, query = request
+        if generation != self._search_generation or query != self.search_input.text():
+            return False
+        if self._active_searches < self._search_pool.maxThreadCount():
+            self._start_search(generation, query)
+            return True
+        self._queued_search = request
+        return False
+
+    @Slot(int, str, object, object)
+    def _on_search_finished(
+        self, generation: int, query: str, results: list[SearchResult], worker
+    ) -> None:
+        self._search_workers.discard(worker)
+        self._start_queued_search()
+        if generation != self._search_generation or query != self.search_input.text():
+            return
+        elapsed_ms = 0.0
+        self._display_results(list(results), query)
+        if self._pending_execute_query == query:
+            self._pending_execute_query = None
+            QTimer.singleShot(0, self._execute_current)
+        if self.config.get("advanced.performance_stats", False):
+            self.show_status(f"{len(results)} results")
+
+    @Slot(int, str, str, object)
+    def _on_search_failed(self, generation: int, query: str, message: str, worker) -> None:
+        self._search_workers.discard(worker)
+        if self._start_queued_search():
+            return
+        if generation != self._search_generation or query != self.search_input.text():
+            return
+        log.error("Background search failed: %s", message)
+        if self._pending_execute_query == query:
+            self._pending_execute_query = None
+        self._display_results(
+            [
+                SearchResult(
+                    title="Search failed",
+                    subtitle=message,
+                    category="System",
+                    score=1.0,
+                    icon_glyph="!",
+                )
+            ],
+            query,
+        )
+
+    def _display_results(self, results: list[SearchResult], query: str) -> None:
+        self._displayed_query = query
+        current = self.current_result()
+        current_title = current.title if current else None
+        self._results = results
+        self.results_list.setUpdatesEnabled(False)
+        self.results_list.clear()
+        show_icons = bool(self.config.get("appearance.show_icons", True))
+        show_categories = bool(self.config.get("appearance.show_categories", True))
+
+        if not results:
+            self._add_message_row(
+                i18n.tr(self.config, "launcher.noresults.title" if query else "launcher.empty.title"),
+                i18n.tr(self.config, "launcher.noresults.body" if query else "launcher.empty.body"),
+            )
+        else:
+            for index, result in enumerate(results):
+                item = QListWidgetItem()
+                item.setSizeHint(QSize(0, self._row_height))
+                item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+                self.results_list.addItem(item)
+                widget = self._build_row(result, show_icons, show_categories)
+                self.results_list.setItemWidget(item, widget)
+
+        self.results_list.setUpdatesEnabled(True)
+        self._reset_action_selection()
+
+        if results:
+            selected = 0
+            if current_title:
+                for index, result in enumerate(results):
+                    if result.title == current_title:
+                        selected = index
+                        break
+            self.results_list.setCurrentRow(selected)
+        self._update_count()
+
+    def _add_message_row(self, title: str, body: str) -> None:
+        item = QListWidgetItem()
+        item.setSizeHint(QSize(0, self._row_height + 18))
+        item.setFlags(Qt.ItemFlag.NoItemFlags)
+        self.results_list.addItem(item)
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(2)
+        title_label = QLabel(title)
+        title_label.setObjectName("Title")
+        layout.addWidget(title_label)
+        body_label = QLabel(body)
+        body_label.setObjectName("Muted")
+        body_label.setWordWrap(True)
+        layout.addWidget(body_label)
+        self.results_list.setItemWidget(item, widget)
+
+    def _build_row(self, result: SearchResult, show_icons: bool, show_categories: bool) -> QWidget:
+        widget = QWidget()
+        widget.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(10, 6, 12, 6)
+        layout.setSpacing(12)
+
+        glyph = QLabel()
+        glyph.setObjectName("ResultGlyph")
+        glyph.setFixedSize(36, 36)
+        glyph.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Resolving a new Windows file icon can synchronously invoke the shell
+        # and stall the GUI thread while the user types. Only use icons already
+        # cached by background/secondary UI work; otherwise render the glyph.
+        icon = self.icons.cached_icon_for(result.icon_path) if show_icons else None
+        if icon is not None:
+            glyph.setPixmap(icon.pixmap(26, 26))
+        else:
+            glyph.setText(result.icon_glyph or "•")
+        layout.addWidget(glyph)
+
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(1)
+        title = ElidedLabel(result.title)
+        title.setObjectName("Title")
+        title_font = title.font()
+        title_font.setWeight(QFont.Weight.DemiBold)
+        title.setFont(title_font)
+        text_layout.addWidget(title)
+        if result.subtitle:
+            subtitle = ElidedLabel(result.subtitle)
+            subtitle.setObjectName("Muted")
+            subtitle_font = subtitle.font()
+            subtitle_font.setPointSizeF(max(7.5, subtitle_font.pointSizeF() - 1))
+            subtitle.setFont(subtitle_font)
+            text_layout.addWidget(subtitle)
+        layout.addLayout(text_layout, 1)
+
+        if show_categories and result.category:
+            chip = QLabel(result.category)
+            chip.setObjectName("CategoryChip")
+            layout.addWidget(chip, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        hint = QLabel("↵")
+        hint.setObjectName("Kbd")
+        layout.addWidget(hint, 0, Qt.AlignmentFlag.AlignVCenter)
+        return widget
+
+    def _update_count(self) -> None:
+        count = len(self._results)
+        text = i18n.tr(self.config, "launcher.single_result") if count == 1 else i18n.tr(
+            self.config, "launcher.results", count=count
+        )
+        self.count_label.setText(text if self._results else "")
+
+    # ------------------------------------------------------------- selection
+    def current_result(self) -> Optional[SearchResult]:
+        row = self.results_list.currentRow()
+        if 0 <= row < len(self._results):
+            return self._results[row]
+        return None
+
+    def _on_selection_changed(self, _row: int) -> None:
+        self._reset_action_selection()
+
+    def _on_item_clicked(self, _item: QListWidgetItem) -> None:
+        self._execute_current()
+
+    def _move_selection(self, delta: int) -> None:
+        if not self._results:
+            return
+        row = self.results_list.currentRow()
+        if row < 0:
+            row = 0
+        row = max(0, min(len(self._results) - 1, row + delta))
         self.results_list.setCurrentRow(row)
         self.results_list.scrollToItem(self.results_list.item(row))
 
@@ -488,4 +909,3 @@ class LauncherWindow(QWidget):
 
 
 __all__ = ["LauncherWindow"]
-
