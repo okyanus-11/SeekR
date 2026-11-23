@@ -68,4 +68,3 @@ def test_parse_size_range_with_decimal_and_binary_units():
     assert parsed.text == "archive"
     assert parsed.size_min_bytes == 500_000_000
     assert parsed.size_max_bytes == 2 * 1024**3
-
