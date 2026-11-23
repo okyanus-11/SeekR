@@ -37,11 +37,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     window.on_search_changed(move |query| {
         let found = engine.search_results(query.as_str());
         let text = if query.trim().is_empty() {
-            "Start typing to search.\\n\\nTry: calculator, settings, reindex, system".to_owned()
+            "Start typing to search.\n\nTry: calculator, settings, reindex, system".to_owned()
         } else if found.is_empty() {
             format!("No results for “{}”.", query.trim())
         } else {
-            found.iter().map(|item| format!("{}\\n{}  ·  {}", item.title, item.description, item.category)).collect::<Vec<_>>().join("\\n\\n")
+            found.iter().map(|item| format!("{}\n{}  ·  {}", item.title, item.description, item.category)).collect::<Vec<_>>().join("\n\n")
         };
         *search_results.borrow_mut() = found;
         if let Some(window) = weak_window.upgrade() {
@@ -115,7 +115,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(window) = weak_window.upgrade() {
                     window.set_rail_width_text(settings.widgets.rail_width.to_string().into());
                     window.set_card_height_text(settings.widgets.card_height.to_string().into());
-                    window.set_results_text(format!("Saved widget dimensions. Values are clamped to supported ranges.").into());
+                    window.set_results_text("Saved widget dimensions. Values are clamped to supported ranges.".into());
                 }
             }
             Err(error) => {
