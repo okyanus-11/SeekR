@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             window.set_results_text(text.into());
         }
     });
-    window.on_hide_requested(|| slint::quit_event_loop());
+    window.on_hide_requested(|| { let _ = slint::quit_event_loop(); });
 
     window.run()?;
     Ok(())
