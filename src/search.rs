@@ -146,7 +146,7 @@ impl WindowsAppsProvider {
             for root in roots.into_iter().flatten() {
                 collect_shortcuts(&root, 0, &mut entries);
             }
-            entries.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+            entries.sort_by_key(|entry| entry.0.to_lowercase());
             entries.dedup_by(|a, b| a.1 == b.1);
         }
         Self { entries }
