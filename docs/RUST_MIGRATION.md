@@ -41,7 +41,7 @@ The current native slice includes:
 - Atomic settings replacement, malformed-file protection, and regression tests.
 
 The native preview is still not feature-complete. Search results are displayed
-as text and only the top result can be activated. The widget controls currently
+as text; Previous/Next controls select which result is activated. The widget controls currently
 edit persisted preferences; the full live widget dashboard and its data
 providers are not ported. The global hotkey, tray, single-instance lifecycle,
 active-monitor dropdown behavior, complete settings/tools surfaces, database
