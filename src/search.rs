@@ -246,8 +246,266 @@ fn collect_user_files(directory: &std::path::Path, depth: usize, output: &mut Ve
         let Ok(metadata) = entry.metadata() else { continue; };
         if metadata.file_type().is_symlink() { continue; }
         let Some(name) = path.file_name().and_then(|value| value.to_str()) else { continue; };
-        if name.starts_with('.') || name.starts_with('
+        if name.starts_with('.') || name.starts_with(' = query.to_lowercase();
+    let title = title.to_lowercase();
+    let description = description.to_lowercase();
+    if query.is_empty() { return 0.0; }
+    if title == query { return 1.0; }
+    if title.starts_with(&query) { return 0.92; }
+    if title.contains(&query) { return 0.82; }
+    if description.contains(&query) { return 0.62; }
+
+    let title_words: Vec<&str> = title.split_whitespace().collect();
+    let query_words: Vec<&str> = query.split_whitespace().collect();
+    if query_words.is_empty() || title_words.is_empty() { return 0.0; }
+
+    let mut total = 0.0;
+    for query_word in &query_words {
+        let best = title_words.iter()
+            .map(|word| edit_distance(query_word, word))
+            .min()
+            .unwrap_or(usize::MAX);
+        let allowance = (query_word.chars().count() / 3).max(1);
+        if best > allowance { return 0.0; }
+        total += 0.72 - (best as f32 * 0.08);
+    }
+    total / query_words.len() as f32
+}
+
+fn edit_distance(left: &str, right: &str) -> usize {
+    let left: Vec<char> = left.chars().collect();
+    let right: Vec<char> = right.chars().collect();
+    let mut previous: Vec<usize> = (0..=right.len()).collect();
+    let mut current = vec![0; right.len() + 1];
+
+    for (row, left_char) in left.iter().enumerate() {
+        current[0] = row + 1;
+        for (column, right_char) in right.iter().enumerate() {
+            let substitution = previous[column] + usize::from(left_char != right_char);
+            let insertion = current[column] + 1;
+            let deletion = previous[column + 1] + 1;
+            current[column + 1] = substitution.min(insertion).min(deletion);
+        }
+        std::mem::swap(&mut previous, &mut current);
+    }
+    previous[right.len()]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct FailingProvider;
+    impl SearchProvider for FailingProvider {
+        fn id(&self) -> &'static str { "failing" }
+        fn search(&self, _: &str) -> Result<Vec<SearchResult>, String> { Err("test failure".into()) }
+    }
+
+    struct PanickingProvider;
+    impl SearchProvider for PanickingProvider {
+        fn id(&self) -> &'static str { "panicking" }
+        fn search(&self, _: &str) -> Result<Vec<SearchResult>, String> { panic!("simulated provider panic"); }
+    }
+
+    #[test]
+    fn exact_matches_rank_above_prefix_and_substring() {
+        assert!(SearchEngine::default().search("settings").starts_with("Settings"));
+    }
+
+    #[test]
+    fn matching_is_case_insensitive_and_typo_tolerant() {
+        let engine = SearchEngine::default();
+        assert!(engine.search("CALC").contains("Calculator"));
+        assert!(engine.search("clculator").contains("Calculator"));
+    }
+
+    #[test]
+    fn empty_query_returns_guidance() {
+        assert!(SearchEngine::default().search("  ").contains("Start typing"));
+    }
+
+    #[test]
+    fn unknown_query_returns_empty_state() {
+        assert!(SearchEngine::default().search("not-a-real-feature").contains("No results"));
+    }
+
+    #[test]
+    fn provider_errors_do_not_abort_search() {
+        let mut engine = SearchEngine::default();
+        engine.register(Box::new(FailingProvider));
+        let output = engine.search("settings");
+        assert!(output.contains("Settings"));
+        assert!(output.contains("provider unavailable"));
+    }
+
+    #[test]
+    fn provider_panics_are_contained() {
+        let mut engine = SearchEngine::default();
+        engine.register(Box::new(PanickingProvider));
+        let output = engine.search("settings");
+        assert!(output.contains("Settings"));
+        assert!(output.contains("failed safely"));
+    }
+
+    #[test]
+    fn registering_same_provider_replaces_it() {
+        let mut engine = SearchEngine::default();
+        engine.register(Box::new(FailingProvider));
+        engine.register(Box::new(FailingProvider));
+        assert_eq!(engine.providers.iter().filter(|p| p.id() == "failing").count(), 1);
+    }
+
+    #[test]
+    fn result_launch_without_target_is_rejected() {
+        let result = SearchResult {
+            title: "Settings".into(),
+            description: "Configure SeekR".into(),
+            category: "Application".into(),
+            score: 1.0,
+            target: None,
+        };
+        assert!(SearchEngine::launch(&result).is_err());
+    }
+}
+) { continue; }
+        if metadata.is_dir() {
+            output.push((name.to_owned(), path.clone()));
+            if depth < 2 {
+                collect_user_files(&path, depth + 1, output, limit);
+            }
+        } else if metadata.is_file() {
+            output.push((name.to_owned(), path));
+        }
+    }
+}
+
+fn match_score(query: &str, title: &str, description: &str) -> f32 {
     let query = query.to_lowercase();
+    let title = title.to_lowercase();
+    let description = description.to_lowercase();
+    if query.is_empty() { return 0.0; }
+    if title == query { return 1.0; }
+    if title.starts_with(&query) { return 0.92; }
+    if title.contains(&query) { return 0.82; }
+    if description.contains(&query) { return 0.62; }
+
+    let title_words: Vec<&str> = title.split_whitespace().collect();
+    let query_words: Vec<&str> = query.split_whitespace().collect();
+    if query_words.is_empty() || title_words.is_empty() { return 0.0; }
+
+    let mut total = 0.0;
+    for query_word in &query_words {
+        let best = title_words.iter()
+            .map(|word| edit_distance(query_word, word))
+            .min()
+            .unwrap_or(usize::MAX);
+        let allowance = (query_word.chars().count() / 3).max(1);
+        if best > allowance { return 0.0; }
+        total += 0.72 - (best as f32 * 0.08);
+    }
+    total / query_words.len() as f32
+}
+
+fn edit_distance(left: &str, right: &str) -> usize {
+    let left: Vec<char> = left.chars().collect();
+    let right: Vec<char> = right.chars().collect();
+    let mut previous: Vec<usize> = (0..=right.len()).collect();
+    let mut current = vec![0; right.len() + 1];
+
+    for (row, left_char) in left.iter().enumerate() {
+        current[0] = row + 1;
+        for (column, right_char) in right.iter().enumerate() {
+            let substitution = previous[column] + usize::from(left_char != right_char);
+            let insertion = current[column] + 1;
+            let deletion = previous[column + 1] + 1;
+            current[column + 1] = substitution.min(insertion).min(deletion);
+        }
+        std::mem::swap(&mut previous, &mut current);
+    }
+    previous[right.len()]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct FailingProvider;
+    impl SearchProvider for FailingProvider {
+        fn id(&self) -> &'static str { "failing" }
+        fn search(&self, _: &str) -> Result<Vec<SearchResult>, String> { Err("test failure".into()) }
+    }
+
+    struct PanickingProvider;
+    impl SearchProvider for PanickingProvider {
+        fn id(&self) -> &'static str { "panicking" }
+        fn search(&self, _: &str) -> Result<Vec<SearchResult>, String> { panic!("simulated provider panic"); }
+    }
+
+    #[test]
+    fn exact_matches_rank_above_prefix_and_substring() {
+        assert!(SearchEngine::default().search("settings").starts_with("Settings"));
+    }
+
+    #[test]
+    fn matching_is_case_insensitive_and_typo_tolerant() {
+        let engine = SearchEngine::default();
+        assert!(engine.search("CALC").contains("Calculator"));
+        assert!(engine.search("clculator").contains("Calculator"));
+    }
+
+    #[test]
+    fn empty_query_returns_guidance() {
+        assert!(SearchEngine::default().search("  ").contains("Start typing"));
+    }
+
+    #[test]
+    fn unknown_query_returns_empty_state() {
+        assert!(SearchEngine::default().search("not-a-real-feature").contains("No results"));
+    }
+
+    #[test]
+    fn provider_errors_do_not_abort_search() {
+        let mut engine = SearchEngine::default();
+        engine.register(Box::new(FailingProvider));
+        let output = engine.search("settings");
+        assert!(output.contains("Settings"));
+        assert!(output.contains("provider unavailable"));
+    }
+
+    #[test]
+    fn provider_panics_are_contained() {
+        let mut engine = SearchEngine::default();
+        engine.register(Box::new(PanickingProvider));
+        let output = engine.search("settings");
+        assert!(output.contains("Settings"));
+        assert!(output.contains("failed safely"));
+    }
+
+    #[test]
+    fn registering_same_provider_replaces_it() {
+        let mut engine = SearchEngine::default();
+        engine.register(Box::new(FailingProvider));
+        engine.register(Box::new(FailingProvider));
+        assert_eq!(engine.providers.iter().filter(|p| p.id() == "failing").count(), 1);
+    }
+
+    #[test]
+    fn result_launch_without_target_is_rejected() {
+        let result = SearchResult {
+            title: "Settings".into(),
+            description: "Configure SeekR".into(),
+            category: "Application".into(),
+            score: 1.0,
+            target: None,
+        };
+        assert!(SearchEngine::launch(&result).is_err());
+    }
+}
+) { continue; }
+    }
+}
+
+fn match_score(query = query.to_lowercase();
     let title = title.to_lowercase();
     let description = description.to_lowercase();
     if query.is_empty() { return 0.0; }
