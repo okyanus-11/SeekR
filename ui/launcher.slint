@@ -16,6 +16,7 @@ export component AppWindow inherits Window {
     callback search-changed(string);
     callback hide-requested();
     callback widget-toggled(string, bool);
+    callback launch-requested();
 
     Rectangle {
         background: #10131a;
@@ -49,10 +50,18 @@ export component AppWindow inherits Window {
                 }
             }
 
-            LineEdit {
-                placeholder-text: "Search apps, files, commands and tools…";
-                font-size: 18px;
-                edited(text) => { root.search-changed(text); }
+            HorizontalBox {
+                spacing: 10px;
+                LineEdit {
+                    placeholder-text: "Search apps, files, commands and tools…";
+                    font-size: 18px;
+                    edited(text) => { root.search-changed(text); }
+                    horizontal-stretch: 1;
+                }
+                Button {
+                    text: "Launch top result";
+                    clicked => { root.launch-requested(); }
+                }
             }
 
             Rectangle {
