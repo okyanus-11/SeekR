@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     window.on_search_changed(move |query| {
         let found = engine.search_results(query.as_str());
         let text = if query.trim().is_empty() {
-            "Start typing to search.\n\nTry: calculator, settings, reindex, system".to_owned()
+            "Start typing to search.\n\nTry: an app name, a file name, or calc: 42 * 42".to_owned()
         } else if found.is_empty() {
             format!("No results for “{}”.", query.trim())
         } else {
