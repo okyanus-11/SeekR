@@ -21,6 +21,7 @@ export component AppWindow inherits Window {
     callback hide-requested();
     callback widget-toggled(string, bool);
     callback launch-requested();
+    callback selection-moved(int);
     callback widget-size-changed(string, string);
     callback widget-order-changed(string, string);
 
@@ -65,7 +66,15 @@ export component AppWindow inherits Window {
                     horizontal-stretch: 1;
                 }
                 Button {
-                    text: "Open / Copy top result";
+                    text: "↑";
+                    clicked => { root.selection-moved(-1); }
+                }
+                Button {
+                    text: "↓";
+                    clicked => { root.selection-moved(1); }
+                }
+                Button {
+                    text: "Open / Copy selected";
                     clicked => { root.launch-requested(); }
                 }
             }
