@@ -9,6 +9,7 @@ pub struct SearchResult {
     pub category: String,
     pub score: f32,
     pub target: Option<PathBuf>,
+    pub copy_text: Option<String>,
 }
 
 pub trait SearchProvider {
@@ -46,6 +47,9 @@ impl SearchEngine {
                     category: "Status".into(),
                     score: 0.0,
                     target: None,
+            copy_text: None,
+                copy_text: None,
+                    copy_text: None,
                 }),
                 Err(_) => results.push(SearchResult {
                     title: format!("{} provider failed safely", provider.id()),
@@ -53,6 +57,9 @@ impl SearchEngine {
                     category: "Status".into(),
                     score: 0.0,
                     target: None,
+            copy_text: None,
+                copy_text: None,
+                    copy_text: None,
                 }),
             }
         }
@@ -81,6 +88,12 @@ impl SearchEngine {
     }
 
     pub fn launch(result: &SearchResult) -> Result<(), String> {
+        if let Some(text) = result.copy_text.as_ref() {
+            let mut clipboard = arboard::Clipboard::new()
+                .map_err(|error| format!("Could not access the clipboard: {error}"))?;
+            return clipboard.set_text(text.clone())
+                .map_err(|error| format!("Could not copy the result: {error}"));
+        }
         let Some(path) = result.target.as_ref() else {
             return Err("This result does not have a launch action.".into());
         };
@@ -105,6 +118,41 @@ impl SearchProvider for BuiltInProvider {
     fn id(&self) -> &'static str { "built-in" }
 
     fn search(&self, query: &str) -> Result<Vec<SearchResult>, String> {
+        if let Some(expression) = query.strip_prefix("calc:") {
+            let expression = expression.trim();
+            if expression.is_empty() {
+                return Ok(Vec::new());
+            }
+            return match meval::eval_str(expression) {
+                Ok(value) if value.is_finite() => {
+                    let answer = value.to_string();
+                    Ok(vec![SearchResult {
+                        title: answer.clone(),
+                        description: format!("Result of {expression} · activate to copy"),
+                        category: "Calculator".into(),
+                        score: 1.0,
+                        target: None,
+                        copy_text: Some(answer),
+                    }])
+                }
+                Ok(_) => Ok(vec![SearchResult {
+                    title: "Result is not finite".into(),
+                    description: "Try a different expression.".into(),
+                    category: "Calculator".into(),
+                    score: 0.0,
+                    target: None,
+                    copy_text: None,
+                }]),
+                Err(error) => Ok(vec![SearchResult {
+                    title: "Invalid expression".into(),
+                    description: error.to_string(),
+                    category: "Calculator".into(),
+                    score: 0.0,
+                    target: None,
+                    copy_text: None,
+                }]),
+            };
+        }
         let entries = [
             ("Calculator", "Evaluate a mathematical expression", "Tool"),
             ("Settings", "Configure SeekR and its widgets", "Application"),
@@ -121,6 +169,8 @@ impl SearchProvider for BuiltInProvider {
                 category: category.into(),
                 score,
                 target: None,
+            copy_text: None,
+                copy_text: None,
             })
         }).collect())
     }
@@ -165,6 +215,8 @@ impl SearchProvider for WindowsAppsProvider {
                 category: "Application".into(),
                 score: score + 0.03,
                 target: Some(path.clone()),
+            copy_text: None,
+                copy_text: None,
             })
         }).collect())
     }
@@ -231,6 +283,8 @@ impl SearchProvider for WindowsFilesProvider {
                 category: if path.is_dir() { "Folder" } else { "File" }.into(),
                 score: score * 0.96,
                 target: Some(path.clone()),
+            copy_text: None,
+                copy_text: None,
             })
         }).collect())
     }
@@ -336,6 +390,20 @@ mod tests {
     }
 
     #[test]
+    fn calculator_evaluates_and_returns_copyable_result() {
+        let results = SearchEngine::default().search_results("calc: sqrt(81) + 3");
+        assert_eq!(results[0].title, "12");
+        assert_eq!(results[0].copy_text.as_deref(), Some("12"));
+    }
+
+    #[test]
+    fn calculator_rejects_invalid_and_non_finite_expressions() {
+        let engine = SearchEngine::default();
+        assert!(engine.search("calc: 1 / 0").contains("not finite"));
+        assert!(engine.search("calc: (").contains("Invalid expression"));
+    }
+
+    #[test]
     fn empty_query_returns_guidance() {
         assert!(SearchEngine::default().search("  ").contains("Start typing"));
     }
@@ -390,6 +458,7 @@ mod tests {
             category: "Application".into(),
             score: 1.0,
             target: None,
+            copy_text: None,
         };
         assert!(SearchEngine::launch(&result).is_err());
     }
@@ -515,6 +584,7 @@ mod tests {
             category: "Application".into(),
             score: 1.0,
             target: None,
+            copy_text: None,
         };
         assert!(SearchEngine::launch(&result).is_err());
     }
@@ -649,6 +719,7 @@ mod tests {
             category: "Application".into(),
             score: 1.0,
             target: None,
+            copy_text: None,
         };
         assert!(SearchEngine::launch(&result).is_err());
     }
