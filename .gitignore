@@ -18,7 +18,6 @@ ENV/
 # Build / packaging
 build/
 dist/
-target/
 windows_test_results.txt
 SeekR.build/
 SeekR.dist/

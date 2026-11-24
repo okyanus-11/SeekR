@@ -17,13 +17,11 @@ from core.logging_setup import get_logger
 from core.models import ResultAction, SearchResult
 from core.paths import cache_dir
 from core.search_engine import SearchProvider
-from core.version import APP_VERSION
 
 log = get_logger(__name__)
 
 ENDPOINT = "https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
-USER_AGENT = f"SeekR/{APP_VERSION} (desktop launcher)"
-MAX_DICTIONARY_RESPONSE_BYTES = 1_000_000
+USER_AGENT = "SeekR/1.0 (desktop launcher)"
 
 
 class DictionaryError(RuntimeError):
@@ -74,10 +72,7 @@ def _fetch_definition(cleaned: str, timeout: float = 8.0) -> dict[str, Any]:
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 (fixed host)
-            response_bytes = response.read(MAX_DICTIONARY_RESPONSE_BYTES + 1)
-            if len(response_bytes) > MAX_DICTIONARY_RESPONSE_BYTES:
-                raise DictionaryError("The dictionary service returned an oversized response")
-            payload = json.loads(response_bytes.decode("utf-8", "replace"))
+            payload = json.loads(response.read().decode("utf-8", "replace"))
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
             raise DictionaryError(f"No definition found for “{cleaned}”") from exc

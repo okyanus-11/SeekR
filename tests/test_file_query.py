@@ -20,10 +20,7 @@ def test_parse_size_filter_and_preserve_unknown_words():
 def test_parse_smaller_than_and_yesterday():
     from datetime import datetime, timedelta
 
-    # Keep the synthetic local date well after the Unix epoch. A 1970 date
-    # can put "yesterday" before the epoch in positive-offset time zones,
-    # where Windows' local timestamp conversion rejects negative values.
-    now = datetime(2025, 5, 1, 12, 0, 0).timestamp()
+    now = 200_000
     local_now = datetime.fromtimestamp(now)
     today_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
     parsed = parse_file_query("smaller than 2 KiB modified yesterday", now=now)

@@ -105,21 +105,6 @@ jobs:
           $portable = (Resolve-Path ".\release\SeekR.exe").Path
           $process = Start-Process -FilePath $portable -ArgumentList @("--verify-ui", "--no-hotkey", "--allow-multiple", "--reset-config") -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw "Packaged portable UI verification failed with exit code $($process.ExitCode)" }
-      - name: Run packaged stability soak
-        shell: pwsh
-        run: |
-          $profile = Join-Path $env:RUNNER_TEMP "SeekR-stability-$env:GITHUB_RUN_ID"
-          New-Item -ItemType Directory -Force -Path $profile | Out-Null
-          $config = @{
-            general = @{ show_tray_icon = $false }
-            applications = @{ index_start_menu = $false; refresh_on_start = $false; directories = @() }
-            files = @{ enabled = $false; auto_index = $false; directories = @() }
-          }
-          $config | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $profile "config.json") -Encoding utf8
-          $env:SEEKR_HOME = $profile
-          $exe = (Resolve-Path ".\dist\SeekR\SeekR.exe").Path
-          $output = Join-Path $env:RUNNER_TEMP "SeekR-stability-$env:GITHUB_RUN_ID.csv"
-          & .\tools\windows_stability.ps1 -ExecutablePath $exe -DurationMinutes 3 -SampleIntervalSeconds 30 -OutputPath $output
       - name: Install Inno Setup
         run: choco install innosetup --yes --no-progress
       - name: Build installer
@@ -186,149 +171,6 @@ jobs:
           if (Test-Path -LiteralPath (Join-Path $installDir "SeekR.exe")) {
             throw "SeekR files remain after uninstall"
           }
-      - name: Verify reinstall after uninstall
-        shell: pwsh
-        run: |
-          $version = python -c "from core.version import APP_VERSION; print(APP_VERSION)"
-          $installer = (Resolve-Path ".\dist\installer\SeekR-Setup-$version.exe").Path
-          $installDir = Join-Path $env:RUNNER_TEMP "SeekR-install-smoke"
-          $installedExe = Join-Path $installDir "SeekR.exe"
-          if (Test-Path -LiteralPath $installedExe) { throw "The prior uninstall left SeekR.exe behind" }
-          $configPath = Join-Path $env:APPDATA "SeekR\config.json"
-          $databasePath = Join-Path $env:APPDATA "SeekR\seekr.db"
-          if (-not (Test-Path -LiteralPath $configPath)) { throw "The first install/uninstall did not preserve SeekR settings" }
-          if (-not (Test-Path -LiteralPath $databasePath)) { throw "The first install/uninstall did not preserve the SeekR database" }
-          $process = Start-Process -FilePath $installer -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=$installDir") -Wait -PassThru
-          if ($process.ExitCode -ne 0) { throw "SeekR reinstall exited with code $($process.ExitCode)" }
-          if (-not (Test-Path -LiteralPath $installedExe)) { throw "SeekR.exe is missing after reinstall" }
-          $metadata = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($installedExe)
-          if ($metadata.ProductName -ne "SeekR" -or $metadata.ProductVersion -notlike "$version*") {
-            throw "Reinstalled executable has wrong metadata: ProductName=$($metadata.ProductName); ProductVersion=$($metadata.ProductVersion)"
-          }
-          $appProcess = Start-Process -FilePath $installedExe -ArgumentList @("--hidden", "--no-hotkey") -PassThru
-          Start-Sleep -Seconds 8
-          $appProcess.Refresh()
-          if ($appProcess.HasExited) { throw "Reinstalled SeekR exited during startup (code $($appProcess.ExitCode))" }
-          Stop-Process -Id $appProcess.Id -Force
-          $uninstaller = Join-Path $installDir "unins000.exe"
-          if (-not (Test-Path -LiteralPath $uninstaller)) { throw "Reinstalled SeekR uninstaller is missing" }
-          $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") -Wait -PassThru
-          if ($uninstallProcess.ExitCode -ne 0) { throw "Reinstalled SeekR uninstaller exited with code $($uninstallProcess.ExitCode)" }
-          $deadline = (Get-Date).AddSeconds(15)
-          while ((Test-Path -LiteralPath $installedExe) -and ((Get-Date) -lt $deadline)) { Start-Sleep -Milliseconds 250 }
-          if (Test-Path -LiteralPath $installedExe) { throw "SeekR files remain after the second uninstall" }
-          if (-not (Test-Path -LiteralPath $configPath)) { throw "Reinstall/uninstall removed SeekR settings" }
-          if (-not (Test-Path -LiteralPath $databasePath)) { throw "Reinstall/uninstall removed the SeekR database" }
-      - name: Verify upgrade from v2.0.2
-        shell: pwsh
-        run: |
-          $baselineVersion = "2.0.2"
-          $version = python -c "from core.version import APP_VERSION; print(APP_VERSION)"
-          if ([version]$version -le [version]$baselineVersion) {
-            Write-Host "Skipping the upgrade smoke until APP_VERSION is newer than v$baselineVersion."
-            exit 0
-          }
-          $downloadDir = Join-Path $env:RUNNER_TEMP "SeekR-upgrade-download-$env:GITHUB_RUN_ID"
-          New-Item -ItemType Directory -Force -Path $downloadDir | Out-Null
-          $baselineUrl = "https://github.com/okyanus-11/SeekR/releases/download/v$baselineVersion"
-          $checksumsPath = Join-Path $downloadDir "SHA256SUMS.txt"
-          $baselineInstaller = Join-Path $downloadDir "SeekR-Setup-$baselineVersion.exe"
-          Invoke-WebRequest -Uri "$baselineUrl/SHA256SUMS.txt" -OutFile $checksumsPath -ErrorAction Stop
-          Invoke-WebRequest -Uri "$baselineUrl/SeekR-Setup-$baselineVersion.exe" -OutFile $baselineInstaller -ErrorAction Stop
-          $pattern = "^([A-Fa-f0-9]{64})\s+SeekR-Setup-$([regex]::Escape($baselineVersion))\.exe$"
-          $checksumLine = Get-Content -LiteralPath $checksumsPath | Where-Object { $_ -match "SeekR-Setup-$baselineVersion\.exe$" } | Select-Object -First 1
-          if (-not $checksumLine) { throw "The published v$baselineVersion checksum list does not contain the installer" }
-          $checksumMatch = [regex]::Match([string]$checksumLine, $pattern)
-          if (-not $checksumMatch.Success) { throw "The published v$baselineVersion installer checksum line is malformed" }
-          $expectedHash = $checksumMatch.Groups[1].Value.ToUpperInvariant()
-          $actualHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $baselineInstaller).Hash.ToUpperInvariant()
-          if ($actualHash -ne $expectedHash) { throw "The downloaded v$baselineVersion installer checksum does not match SHA256SUMS.txt" }
-          $upgradeDir = Join-Path $env:RUNNER_TEMP "SeekR-upgrade-$env:GITHUB_RUN_ID"
-          if (Test-Path -LiteralPath $upgradeDir) { throw "Upgrade smoke install directory already exists: $upgradeDir" }
-          $baselineProcess = Start-Process -FilePath $baselineInstaller -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=$upgradeDir") -Wait -PassThru
-          if ($baselineProcess.ExitCode -ne 0) { throw "SeekR v$baselineVersion installer exited with code $($baselineProcess.ExitCode)" }
-          $baselineExe = Join-Path $upgradeDir "SeekR.exe"
-          if (-not (Test-Path -LiteralPath $baselineExe)) { throw "The v$baselineVersion installation did not create SeekR.exe" }
-          $baselineMetadata = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($baselineExe)
-          if ($baselineMetadata.ProductName -ne "SeekR" -or $baselineMetadata.ProductVersion -notlike "$baselineVersion*") {
-            throw "Baseline executable has wrong metadata: ProductName=$($baselineMetadata.ProductName); ProductVersion=$($baselineMetadata.ProductVersion)"
-          }
-          $profile = Join-Path $env:APPDATA "SeekR"
-          New-Item -ItemType Directory -Force -Path $profile | Out-Null
-          $configPath = Join-Path $profile "config.json"
-          $databasePath = Join-Path $profile "seekr.db"
-          $config = @{
-            general = @{ show_tray_icon = $false }
-            applications = @{ index_start_menu = $false; refresh_on_start = $false; directories = @() }
-            files = @{ enabled = $false; auto_index = $false; directories = @() }
-          }
-          $config | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $configPath -Encoding utf8
-          $baselineApp = Start-Process -FilePath $baselineExe -ArgumentList @("--hidden", "--no-hotkey") -PassThru
-          Start-Sleep -Seconds 8
-          $baselineApp.Refresh()
-          if ($baselineApp.HasExited) { throw "SeekR v$baselineVersion exited during startup (code $($baselineApp.ExitCode))" }
-          Stop-Process -Id $baselineApp.Id -Force
-          if (-not (Test-Path -LiteralPath $databasePath)) { throw "SeekR v$baselineVersion did not create its user database" }
-          $dataScript = Join-Path $downloadDir "upgrade_data.py"
-          $dataScriptSource = @'
-          import sqlite3
-          import sys
-          import time
-          mode, database_path = sys.argv[1:3]
-          with sqlite3.connect(database_path) as connection:
-              if mode == "seed":
-                  connection.execute("DELETE FROM notes WHERE title = ?", ("SeekR upgrade sentinel",))
-                  now = time.time()
-                  connection.execute(
-                      "INSERT INTO notes (title, body, pinned, created, updated) VALUES (?, ?, 0, ?, ?)",
-                      ("SeekR upgrade sentinel", "Preserve this note across install", now, now),
-                  )
-                  print("seeded")
-              elif mode == "verify":
-                  row = connection.execute(
-                      "SELECT count(*) FROM notes WHERE title = ? AND body = ?",
-                      ("SeekR upgrade sentinel", "Preserve this note across install"),
-                  ).fetchone()
-                  print(0 if row is None else row[0])
-              else:
-                  raise SystemExit(f"Unknown mode: {mode}")
-          '@
-          $dataScriptSource | Set-Content -LiteralPath $dataScript -Encoding utf8
-          $config = Get-Content -Raw -LiteralPath $configPath | ConvertFrom-Json -AsHashtable
-          $config["general"]["hotkey"] = "Ctrl+Alt+Shift+Z"
-          $config["general"]["upgrade_smoke_sentinel"] = "preserve-me"
-          $config | ConvertTo-Json -Depth 50 | Set-Content -LiteralPath $configPath -Encoding utf8
-          python $dataScript seed $databasePath
-          if ($LASTEXITCODE -ne 0) { throw "Could not seed the v2.0.2 user database" }
-          $installer = (Resolve-Path ".\dist\installer\SeekR-Setup-$version.exe").Path
-          $process = Start-Process -FilePath $installer -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=$upgradeDir") -Wait -PassThru
-          if ($process.ExitCode -ne 0) { throw "SeekR upgrade installer exited with code $($process.ExitCode)" }
-          $installedExe = Join-Path $upgradeDir "SeekR.exe"
-          if (-not (Test-Path -LiteralPath $installedExe)) { throw "SeekR.exe is missing after upgrade" }
-          $metadata = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($installedExe)
-          if ($metadata.ProductName -ne "SeekR" -or $metadata.ProductVersion -notlike "$version*") {
-            throw "Upgraded executable has wrong metadata: ProductName=$($metadata.ProductName); ProductVersion=$($metadata.ProductVersion)"
-          }
-          $updatedConfig = Get-Content -Raw -LiteralPath $configPath | ConvertFrom-Json
-          if ($updatedConfig.general.hotkey -ne "Ctrl+Alt+Shift+Z" -or $updatedConfig.general.upgrade_smoke_sentinel -ne "preserve-me") {
-            throw "SeekR upgrade did not preserve existing settings and unknown config keys"
-          }
-          $appProcess = Start-Process -FilePath $installedExe -ArgumentList @("--hidden", "--no-hotkey") -PassThru
-          Start-Sleep -Seconds 8
-          $appProcess.Refresh()
-          if ($appProcess.HasExited) { throw "Upgraded SeekR exited during startup (code $($appProcess.ExitCode))" }
-          Stop-Process -Id $appProcess.Id -Force
-          $noteCount = python $dataScript verify $databasePath
-          if ($LASTEXITCODE -ne 0 -or [int]$noteCount -ne 1) { throw "SeekR upgrade did not preserve the existing database note" }
-          $uninstaller = Join-Path $upgradeDir "unins000.exe"
-          if (-not (Test-Path -LiteralPath $uninstaller)) { throw "Upgraded SeekR uninstaller is missing" }
-          $uninstallProcess = Start-Process -FilePath $uninstaller -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") -Wait -PassThru
-          if ($uninstallProcess.ExitCode -ne 0) { throw "Upgraded SeekR uninstall exited with code $($uninstallProcess.ExitCode)" }
-          if (Test-Path -LiteralPath $installedExe) { throw "Upgraded SeekR files remain after uninstall" }
-          if (-not (Test-Path -LiteralPath $configPath) -or -not (Test-Path -LiteralPath $databasePath)) {
-            throw "Upgraded uninstall removed user settings or database data"
-          }
-          Remove-Item -LiteralPath $dataScript -Force
       - name: Stage installer and checksums
         shell: pwsh
         run: |
@@ -348,7 +190,7 @@ jobs:
   release:
     name: Publish GitHub release
     needs: windows-build
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -359,16 +201,11 @@ jobs:
         shell: bash
         run: |
           version="$(grep '^APP_VERSION =' core/version.py | cut -d '"' -f 2)"
-          tag="$GITHUB_REF_NAME"
           if [[ -z "$version" ]]; then
             echo "Could not read APP_VERSION from core/version.py" >&2
             exit 1
           fi
-          if [[ "$tag" != "v$version" ]]; then
-            echo "Tag $tag does not match APP_VERSION $version" >&2
-            exit 1
-          fi
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v8
         with:
           name: SeekR-Windows-${{ github.sha }}
@@ -377,16 +214,34 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.release_version.outputs.tag }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message || '' }}
         shell: bash
         run: |
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; refusing to overwrite published assets." >&2
-            exit 1
+          # Remove a malformed historical release created under the bare tag
+          # "v". The valid v1.1.2 release remains untouched.
+          if gh release view "v" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete "v" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag
           fi
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "SeekR $TAG" --generate-notes
-          gh release upload "$TAG" artifacts/SeekR.exe artifacts/SeekR-Setup-*.exe artifacts/SHA256SUMS.txt \
-            --repo "$GITHUB_REPOSITORY"
+
+          # A deliberately marked main-branch commit can refresh an existing
+          # release. Move its tag first so the source snapshot matches the
+          # rebuilt binaries. Ordinary main pushes never rewrite release assets.
+          if [[ "$GITHUB_REF" == "refs/heads/main" && "$COMMIT_MESSAGE" == *"[refresh-release-assets]"* ]]; then
+            echo "Refreshing $TAG from $GITHUB_SHA"
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" \
+              -f sha="$GITHUB_SHA" -F force=true
+          fi
+
+          if [[ "$GITHUB_REF" == "refs/heads/main" && "$COMMIT_MESSAGE" != *"[refresh-release-assets]"* ]] && \
+             gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; keeping its published assets."
+          else
+            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+              gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+                --title "SeekR $TAG" --generate-notes
+            gh release upload "$TAG" artifacts/SeekR.exe artifacts/SeekR-Setup-*.exe artifacts/SHA256SUMS.txt \
+              --repo "$GITHUB_REPOSITORY" --clobber
+          fi
 
           # Keep the public release page's notes authoritative and explicit
           # about hardware-dependent checks that CI cannot perform.

@@ -19,7 +19,6 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QPixmap
 from core.version import APP_VERSION
 from ui.themes import palette_for
-from core.workers import run_async
 from PySide6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QProgressBar, QPushButton,
     QVBoxLayout, QWidget,
@@ -227,40 +226,9 @@ class ClockWidget(WidgetCard):
         self._refresh_focus()
 
 
-def _collect_system_snapshot() -> dict:
-    """Read potentially slow OS metrics away from Qt's GUI thread."""
-    snapshot = {}
-    try:
-        snapshot["cpu"] = int(psutil.cpu_percent(interval=None))
-    except Exception:
-        log.debug("System CPU refresh failed", exc_info=True)
-    try:
-        snapshot["memory"] = psutil.virtual_memory()
-    except Exception:
-        log.debug("System memory refresh failed", exc_info=True)
-    try:
-        root = Path.home().anchor or os.path.abspath(os.sep)
-        snapshot["disk"] = psutil.disk_usage(root)
-    except Exception:
-        log.debug("System storage refresh failed", exc_info=True)
-    try:
-        snapshot["battery"] = psutil.sensors_battery()
-    except Exception:
-        log.debug("System battery refresh failed", exc_info=True)
-    try:
-        snapshot["network"] = psutil.net_io_counters()
-    except Exception:
-        log.debug("System network refresh failed", exc_info=True)
-    return snapshot
-
-
 class SystemWidget(WidgetCard):
-    def __init__(self, pool: QThreadPool, parent=None):
+    def __init__(self, parent=None):
         super().__init__("System", parent)
-        self.pool = pool
-        self._busy = False
-        self._network_previous = None
-        self._network_time = time.monotonic()
         self.cpu_label = QLabel("CPU  ·  —")
         self.ram_label = QLabel("Memory  ·  —")
         self.disk_label = QLabel("Storage  ·  —")
@@ -273,6 +241,12 @@ class SystemWidget(WidgetCard):
         self.content.addWidget(self.network_label)
         self.battery_label.setObjectName("WidgetSecondary")
         self.network_label.setObjectName("WidgetSecondary")
+        try:
+            psutil.cpu_percent(interval=None)
+            self._network_previous = psutil.net_io_counters()
+        except Exception:
+            self._network_previous = None
+        self._network_time = time.monotonic()
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.refresh)
         self.timer.start(2000)
@@ -300,74 +274,55 @@ class SystemWidget(WidgetCard):
         return f"{amount:.0f} {units[unit]}"
 
     def refresh(self):
-        # psutil can call into Windows system APIs and storage drivers. Never
-        # perform those calls in the GUI thread: a slow device/provider must
-        # not make the entire launcher stop repainting or accepting input.
-        if self._busy:
-            return
-        self._busy = True
-        run_async(
-            _collect_system_snapshot,
-            on_finished=self._apply_snapshot,
-            on_failed=self._refresh_failed,
-            pool=self.pool,
-        )
-
-    def _refresh_failed(self, message: str, _traceback_text: str) -> None:
-        self._busy = False
-        log.warning("System metrics refresh failed: %s", message)
-
-    def _apply_snapshot(self, snapshot: dict) -> None:
-        self._busy = False
         try:
-            if "cpu" in snapshot:
-                cpu = max(0, min(100, int(snapshot["cpu"])))
-                self.cpu_label.setText(f"CPU  ·  {cpu}%")
-                self.cpu_bar.setValue(cpu)
-            else:
-                self.cpu_label.setText("CPU  ·  unavailable")
+            cpu = int(psutil.cpu_percent(interval=None))
+            memory = psutil.virtual_memory()
+            ram = int(memory.percent)
+            self.cpu_label.setText(f"CPU  ·  {cpu}%")
+            self.ram_label.setText(f"Memory  ·  {ram}%")
+            self.cpu_bar.setValue(cpu)
+            self.ram_bar.setValue(ram)
+        except Exception:
+            log.debug("System CPU/memory refresh failed", exc_info=True)
 
-            memory = snapshot.get("memory")
-            if memory is not None:
-                ram = max(0, min(100, int(memory.percent)))
-                self.ram_label.setText(f"Memory  ·  {ram}%")
-                self.ram_bar.setValue(ram)
-            else:
-                self.ram_label.setText("Memory  ·  unavailable")
+        try:
+            root = Path.home().anchor or os.path.abspath(os.sep)
+            disk = psutil.disk_usage(root)
+            disk_percent = int(disk.percent)
+            self.disk_label.setText(f"Storage  ·  {disk_percent}% used")
+            self.disk_bar.setValue(disk_percent)
+        except Exception:
+            self.disk_label.setText("Storage  ·  unavailable")
+            log.debug("System storage refresh failed", exc_info=True)
 
-            disk = snapshot.get("disk")
-            if disk is not None:
-                disk_percent = max(0, min(100, int(disk.percent)))
-                self.disk_label.setText(f"Storage  ·  {disk_percent}% used")
-                self.disk_bar.setValue(disk_percent)
-            else:
-                self.disk_label.setText("Storage  ·  unavailable")
-
-            battery = snapshot.get("battery")
+        try:
+            battery = psutil.sensors_battery()
             if battery is None:
                 self.battery_label.setText("Battery  ·  unavailable")
             else:
                 state = "plugged in" if battery.power_plugged else "on battery"
                 self.battery_label.setText(f"Battery  ·  {int(battery.percent)}% · {state}")
-
-            current = snapshot.get("network")
-            if current is None:
-                self.network_label.setText("Network  ·  unavailable")
-            else:
-                now = time.monotonic()
-                elapsed = max(0.1, now - self._network_time)
-                if self._network_previous is None:
-                    sent_rate = received_rate = 0.0
-                else:
-                    sent_rate = max(0, current.bytes_sent - self._network_previous.bytes_sent) / elapsed
-                    received_rate = max(0, current.bytes_recv - self._network_previous.bytes_recv) / elapsed
-                self._network_previous = current
-                self._network_time = now
-                self.network_label.setText(
-                    f"Network  ·  ↑ {self._rate(sent_rate)}  ↓ {self._rate(received_rate)}"
-                )
         except Exception:
-            log.exception("Could not render the system metrics snapshot")
+            self.battery_label.setText("Battery  ·  unavailable")
+            log.debug("System battery refresh failed", exc_info=True)
+
+        try:
+            current = psutil.net_io_counters()
+            now = time.monotonic()
+            elapsed = max(0.1, now - self._network_time)
+            if self._network_previous is None:
+                sent_rate = received_rate = 0.0
+            else:
+                sent_rate = max(0, current.bytes_sent - self._network_previous.bytes_sent) / elapsed
+                received_rate = max(0, current.bytes_recv - self._network_previous.bytes_recv) / elapsed
+            self._network_previous = current
+            self._network_time = now
+            self.network_label.setText(
+                f"Network  ·  ↑ {self._rate(sent_rate)}  ↓ {self._rate(received_rate)}"
+            )
+        except Exception:
+            self.network_label.setText("Network  ·  unavailable")
+            log.debug("System network refresh failed", exc_info=True)
 
 
 class WeatherWidget(WidgetCard):
@@ -862,7 +817,7 @@ class LauncherWidgets(QObject):
             layout.setSpacing(9)
 
         self.clock = ClockWidget(config, self.left_column)
-        self.system = SystemWidget(self.pool, self.left_column)
+        self.system = SystemWidget(self.left_column)
         self.tasks = TasksWidget(task_service, hooks, self.left_column)
         self.weather = WeatherWidget(config, self.pool, self.right_column)
         self.cat = CatWidget(self.pool, self.right_column)

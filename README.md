@@ -5,112 +5,130 @@
 <br>
 
 [![Latest release](https://img.shields.io/github/v/release/okyanus-11/SeekR?display_name=tag&style=for-the-badge&color=8b5cf6)](https://github.com/okyanus-11/SeekR/releases/latest)
-[![CI](https://img.shields.io/github/actions/workflow/status/okyanus-11/SeekR/ci.yml?branch=main&label=build%20%26%20tests&style=for-the-badge)](https://github.com/okyanus-11/SeekR/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/okyanus-11/SeekR?style=for-the-badge)](LICENSE)
-[![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-357ec7?style=for-the-badge&logo=windows&logoColor=white)](#requirements)
+[![Platform](https://img.shields.io/badge/Windows-10%20%7C%2011-357ec7?style=for-the-badge&logo=windows&logoColor=white)](#requirements)
+[![Built with Python](https://img.shields.io/badge/Python-3.10%2B-3776ab?style=for-the-badge&logo=python&logoColor=white)](#development)
 
 <br>
 
-<a href="https://github.com/okyanus-11/SeekR/releases/latest"><img src="https://img.shields.io/badge/↓%20DOWNLOAD%20SEEKR-Latest%20Release-8b5cf6?style=for-the-badge&logo=windows&logoColor=white" alt="Download the latest SeekR release"></a>
+<a href="https://github.com/okyanus-11/SeekR/releases/latest"><img src="https://img.shields.io/badge/⬇%20GET%20SEEKR-Latest%20Release-8b5cf6?style=for-the-badge&logo=windows&logoColor=white" alt="Download the latest SeekR release"></a>
 
 <br>
-<sub><a href="https://github.com/okyanus-11/SeekR/releases">Releases</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="docs/INSTALLATION.md">Install guide</a> · <a href="docs/TROUBLESHOOTING.md">Troubleshooting</a> · <a href="https://github.com/okyanus-11/SeekR/issues">Issues</a></sub>
+<sub><a href="https://github.com/okyanus-11/SeekR/releases">All releases</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="docs/INSTALLATION.md">Installation guide</a> · <a href="https://github.com/okyanus-11/SeekR/issues">Report a bug</a></sub>
 
 <br><br>
 
-<kbd>Alt</kbd> + <kbd>Space</kbd> &nbsp; → &nbsp; Type anything &nbsp; → &nbsp; <kbd>Enter</kbd>
+<kbd>Alt</kbd> + <kbd>Space</kbd> &nbsp; → &nbsp; Search &nbsp; → &nbsp; <kbd>Enter</kbd>
 
 </div>
 
 ---
 
-## Your desktop, one shortcut away.
+## A better way to get things done.
 
-**SeekR is a keyboard-first launcher for Windows.** Open apps, find files, run commands, and reach useful tools from one fast dropdown — without breaking your flow.
+SeekR is a keyboard-first Windows launcher that puts your apps, files, commands, and everyday tools one shortcut away.
 
-Press `Alt + Space`, start typing, and let fuzzy search find what you mean. SeekR stays out of the way until you need it.
+It opens as a **dropdown from the top of your screen**. Type what you need, pick a result, and get straight back to what you were doing.
 
-<div align="center">
-
-| **LAUNCH** | **SEARCH** | **GET THINGS DONE** |
+| ⚡ **Launch** | 🔎 **Find** | 🧰 **Do** |
 |:---:|:---:|:---:|
-| Apps, commands and workflows | Files, folders and the web | Calculations, notes and system tools |
+| Open apps and tools in seconds. | Search files, folders, and the web. | Calculate, automate, organize, and control. |
 
-</div>
-
-## What you can do
+## Why SeekR?
 
 <table>
 <tr>
 <td width="50%" valign="top">
 
-### ⚡ Launch at speed
-- Global hotkey: `Alt + Space` by default
-- Top-anchored dropdown on the active display
-- Fuzzy matching with typo tolerance
+### ⚡ A launcher that stays out of your way
+- Top-anchored dropdown with slide animations
+- Global hotkey — `Alt + Space` by default
+- Fuzzy matching and typo tolerance
 - Recent and frequent result ranking
-- Keyboard-first result and action navigation
+- Keyboard-first navigation
 
 </td>
 <td width="50%" valign="top">
 
-### 🔎 Find almost anything
-- Start Menu apps and custom app folders
+### 🔍 Search beyond your apps
+- Start Menu apps and configured folders
 - Indexed files and folders
-- Optional text-content search in chosen roots
-- Browser bookmarks
+- Optional local text-content search
 - Calculator expressions
-- Web, Wikipedia, YouTube and GitHub search
+- Web, Wikipedia, YouTube, and GitHub
+- Supported browser bookmarks
 
 </td>
 </tr>
 <tr>
 <td width="50%" valign="top">
 
-### 🧰 Built-in tools
-- Calculator, dictionary, translation and unit conversion
-- JSON, Base64, URL, regex, hash and color utilities
-- Screenshots, system information and process inspection
-- Clipboard history, notes and bookmarks
-- Tasks, snippets, workflows and command chains
-- SSH profiles with Windows OpenSSH, window management and power actions
-- Database backup, restore and diagnostics
+### 🧰 A toolkit built in
+- Calculator, dictionary, and translation
+- Unit and local-time conversion
+- JSON, Base64, URL, regex, hash, and color tools
+- Screenshots and system information
+- Process inspection and window controls
 
 </td>
 <td width="50%" valign="top">
 
-### 🎛️ Make it yours
-- Graphite, Light, AMOLED, Catppuccin Mocha, Dracula and Nord themes
-- Custom accent color and typography
-- Adjustable launcher size and widget layout
-- Configurable hotkey, search behavior and refresh intervals
-- Reduced-motion option and keyboard-focus styling
-- Stable, opaque launcher surface for reliable desktop rendering
+### 🚀 Your own workflow
+- Notes, tasks, bookmarks, and text snippets
+- Multi-step local workflows
+- Command chains with failure handling
+- SSH profiles using Windows OpenSSH
+- SQLite backup and restore
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 🎨 Make it yours
+- Graphite, Light, AMOLED, Catppuccin Mocha, Dracula, and Nord
+- Accent colors, transparency, and typography
+- Adjustable launcher and widget layout
+- Configurable refresh and animation behavior
+
+</td>
+<td width="50%" valign="top">
+
+### 🐈 Useful at a glance
+- Clock and CPU / memory cards
+- Weather for a configured location
+- Daily cat photo displayed inside the launcher
+- Windows media-session controls (where supported)
+- Local task summary
 
 </td>
 </tr>
 </table>
 
-## The launcher widgets
+## The dropdown
 
-Optional cards sit beside the search results. Enable only the ones you want, adjust their size and refresh intervals, and reorder the two rails.
+No centered pop-up interrupting your screen. SeekR slides down from the top edge of the active display and retracts when dismissed. The search field is ready immediately, with optional widget cards alongside your results.
 
-| Widget | What it shows |
+### Optional widgets
+
+| Widget | Details |
 |---|---|
-| **Clock** | Local time, date and a configurable focus timer |
-| **System** | CPU, memory, storage, battery and network activity |
-| **Weather** | Current conditions for a configured location |
-| **Daily cat** | A cat photo displayed inside SeekR and cached locally |
+| **Clock** | Local time, updated on-device |
+| **System** | CPU and memory usage |
+| **Weather** | Current conditions for a configured city |
+| **Daily cat** | A cat photo shown inside SeekR and cached locally |
 | **Media** | Current Windows media session and playback controls, where supported |
-| **Tasks** | A compact summary of open and overdue local tasks |
+| **Task summary** | A compact view of your local tasks |
 
-Weather uses [Open-Meteo](https://open-meteo.com/). Cat photos come from [TheCatAPI](https://thecatapi.com/). Network-backed cards fetch in the background and retain useful cached content when a refresh fails. Fresh network data requires an internet connection.
+Each widget can be enabled individually. Card dimensions, refresh intervals, and left/right ordering are configurable. Network-backed widgets retain their last successful content when a refresh fails.
 
-## Search that feels natural
+<sub>Weather data comes from Open-Meteo. Daily cat photos come from TheCatAPI. Fresh network content requires an internet connection; cached content can remain available offline.</sub>
 
-Type a name, phrase or keyword prefix. Here are a few examples:
+## Search examples
 
-| Query | Result |
+Type a normal query or use a keyword prefix:
+
+| Try this | What it does |
 |---|---|
 | `discord` | Find an installed application |
 | `file: invoice` | Search indexed files |
@@ -131,9 +149,9 @@ Type a name, phrase or keyword prefix. Here are a few examples:
 | `chain: taskmgr then explorer` | Run a command chain |
 | `task: installer` | Search local tasks |
 | `wm: minimize all` | Manage application windows |
-| `update: check` | Check official SeekR releases |
+| `update: check` | Check the official releases page |
 
-Prefixes are case-insensitive. Without a prefix, SeekR can also recognize calculator expressions and rank matching apps and files.
+Keywords are case-insensitive. Without a prefix, SeekR can still recognize calculator expressions and rank matching applications and files.
 
 ## Keyboard shortcuts
 
@@ -151,22 +169,22 @@ Prefixes are case-insensitive. Without a prefix, SeekR can also recognize calcul
 | `Esc` | Clear action selection, then hide |
 | Right-click a result | Open its context menu |
 
-If another application already owns `Alt + Space`, choose a different combination in **Settings → General**.
+If another application already uses `Alt + Space`, choose another shortcut in **Settings → General**.
 
 ## Get started
 
-1. Open the **[latest release](https://github.com/okyanus-11/SeekR/releases/latest)**.
-2. Download `SeekR-Setup-<version>.exe` for a per-user installation, or `SeekR.exe` for the portable build.
+1. Open the **[latest SeekR release](https://github.com/okyanus-11/SeekR/releases/latest)**.
+2. Download `SeekR-Setup-<version>.exe` for a per-user installation, or `SeekR.exe` for the portable version.
 3. Launch SeekR and press **Alt + Space**.
-4. Search for an app, try `calc: 42 * 42`, or explore **Tools**.
+4. Search for an app, try `calc: 42 * 42`, or explore the built-in tools.
 
-The installer does not require administrator privileges or a separate Python installation. It creates a Start Menu shortcut. Uninstalling removes the application but preserves your local SeekR data.
+The installer does not require administrator privileges or a separate Python installation. It creates a Start Menu shortcut. Uninstalling removes the app but preserves your local SeekR data.
 
-**New to SeekR?** Start with the [installation guide](docs/INSTALLATION.md). If something goes wrong, see [troubleshooting](docs/TROUBLESHOOTING.md).
+**Need help?** See the [installation and upgrade guide](docs/INSTALLATION.md) or [troubleshooting notes](docs/TROUBLESHOOTING.md).
 
-## Privacy by design
+## Privacy & local data
 
-SeekR keeps its working data on your device. Configuration, database, logs, notes and optional clipboard history are stored locally.
+SeekR keeps its working data on your device. Configuration, database, logs, notes, and optional clipboard history are stored locally.
 
 - Clipboard monitoring is **off by default** and requires opt-in.
 - Clipboard text and optional PNG captures are stored locally **without encryption**.
@@ -174,24 +192,19 @@ SeekR keeps its working data on your device. Configuration, database, logs, note
 - Sensitive-content detection is heuristic, not a guarantee that every secret will be caught.
 - Application usage ranking and file-content search are opt-in.
 - Diagnostics reports are generated only when requested and are not uploaded. Logs are excluded by default; redaction is best-effort.
-- Update checks read official GitHub release metadata. Downloads and installation remain explicit user actions.
 
-On Windows, user data lives under `%APPDATA%\\SeekR`. Uninstalling the app preserves this folder. Keep backups private.
+On Windows, user data lives under `%APPDATA%\\SeekR`. Uninstalling the application preserves this folder. Keep backups private.
 
 ## Requirements
 
 | | |
 |---|---|
-| **Supported desktop OS** | 64-bit Windows 10 / Windows 11 |
+| **Supported OS** | 64-bit Windows 10 / Windows 11 |
 | **End-user setup** | Installer or portable executable; Python not required |
 | **Development** | Python 3.10+ (Python 3.12 recommended) |
 | **Core stack** | Python · PySide6 · SymPy · psutil · SQLite |
 
-Linux is used in CI for source-mode testing and development; it is not currently a supported end-user desktop platform. macOS is not supported or tested.
-
-## Localization
-
-The launcher shell and shared navigation are available in English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese and Simplified Chinese. Localization is partial; some longer descriptions, tool content, dialogs and dynamic messages may remain in English.
+Linux is used in CI and supports source-mode development and testing. macOS is not currently supported or tested.
 
 ## Development
 
@@ -204,16 +217,16 @@ python -m pip install -r requirements-dev.txt
 python main.py
 ```
 
-Run the tests:
+Run the test suite:
 
 ```bash
-python -m pytest -q
+pytest
 ```
 
 For headless Linux:
 
 ```bash
-QT_QPA_PLATFORM=offscreen python -m pytest -q
+QT_QPA_PLATFORM=offscreen pytest
 ```
 
 Build a Windows executable:
@@ -222,19 +235,47 @@ Build a Windows executable:
 python build.py
 ```
 
-See [Architecture](docs/ARCHITECTURE.md) for the codebase overview and [Installation](docs/INSTALLATION.md) for packaging details.
+For the codebase design, see [Architecture](docs/ARCHITECTURE.md). For packaging, see [Installation](docs/INSTALLATION.md).
 
-## Release status
+## Release quality & transparency
 
-**Latest published release: v2.0.2.** SeekR 2.0.3 is a Python/PySide6 release candidate on main; it is not published yet. See the [2.0.3 candidate notes](docs/RELEASE_NOTES_2.0.3.md). Candidate CI covers Windows and Ubuntu tests, portable and installer builds, packaged UI rendering, a 3-minute stability soak, reinstall/uninstall, and upgrade preservation from v2.0.2. The release workflow only publishes a matching version tag, after manual Windows sign-off.
+**Latest release: v2.0.2**
 
-A separate Rust/Slint native implementation is being developed alongside the stable Python application and now carries the 2.0.3 identity (`Cargo.toml`, `PRODUCT_VERSION`). It is still not the downloadable SeekR release: it has no installer, tray/monitor integration or widget dashboard yet. See [the Rust migration status](docs/RUST_MIGRATION.md), the [feature parity matrix](docs/RUST_PARITY_MATRIX.md) and the [version policy](docs/VERSION_POLICY.md) before trying the preview.
+The v2.0.2 GitHub Actions release pipeline completed successfully:
 
-Automated checks are not a substitute for testing on a real desktop. Mixed-DPI and multi-monitor behavior, sleep/resume, upgrading from an older installer while preserving user data, accessibility, and long-duration interactive stability still require hands-on validation. Follow the open [Windows post-release checklist](https://github.com/okyanus-11/SeekR/issues/1) for what remains. Windows executables are currently unsigned and may trigger a SmartScreen warning.
+- Ubuntu, Windows Latest, and Windows Server 2022 test suites passed.
+- Portable and onedir Windows builds completed.
+- Packaged launcher UI verification passed.
+- Inno Setup installer compiled successfully with corrected 2.0.2 product metadata and upgrade-directory handling.
+- Fresh installation, Windows Installed apps version/path registration, Start Menu shortcut target, installed-app launch, UI verification, and uninstallation passed.
+- SHA-256 checksums were generated and release assets published.
+
+The installer smoke test now checks more than whether setup exits successfully: it verifies the registered version, install location, and shortcut target. Automated checks do **not** replace physical Windows testing. Mixed-DPI and multi-monitor behavior, sleep/resume, a real upgrade from 1.x with user-data preservation, long-duration stability, and accessibility review still need hands-on verification. Windows executables are unsigned and may trigger a SmartScreen warning.
+
+See the [Windows audit](docs/WINDOWS_AUDIT.md) and [manual test checklist](docs/WINDOWS_MANUAL_TEST.md) for evidence and remaining checks.
+
+## Roadmap
+
+| Version | Planned focus |
+|---|---|
+| **2.0.2** · Released | Top dropdown launcher |
+| **2.0.3** · Planned | Search improvements, widget customization, bug fixes |
+| **2.1.0** | System Monitor, Clipboard History, Focus Timer |
+| **2.2.0** | Smarter search and personalization |
+| **2.3.0** | Automation |
+| **3.0.0** | Plugin ecosystem |
+
+Third-party plugins, plugin execution, marketplace installation, permissions, and the public plugin SDK are not included in 2.0.2.
+
+## Localization
+
+The launcher shell and shared navigation are available in nine languages: English, Turkish, Spanish, French, German, Italian, Brazilian Portuguese, Japanese, and Simplified Chinese.
+
+Localization is partial; some longer descriptions, tool content, dialogs, and dynamic messages remain in English.
 
 ## Contributing
 
-Bug reports and practical suggestions are welcome. Check [existing issues](https://github.com/okyanus-11/SeekR/issues) before opening a new one. Include reproduction steps and environment details, but never attach passwords, private clipboard contents or personal notes.
+Bug reports and thoughtful suggestions are welcome. Check the [existing issues](https://github.com/okyanus-11/SeekR/issues) before opening a new one. Include reproduction steps and environment details, but never attach passwords, private clipboard contents, or personal notes.
 
 ## License
 
@@ -246,7 +287,7 @@ SeekR is released under the [MIT License](LICENSE).
 
 **Less searching. More doing.**
 
-<sub>Made with Python, PySide6, SymPy, psutil and SQLite.</sub>
+<sub>Made with Python, PySide6, SymPy, psutil, and SQLite.</sub>
 
 <br>
 

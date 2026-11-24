@@ -187,7 +187,6 @@ QWidget {{
     color: {text};
     background: transparent;
 }}
-QWidget#LauncherWindow {{ background: {window}; }}
 QMainWindow, QDialog, QWidget#WindowRoot, QWidget#PageRoot {{
     background: {window};
 }}

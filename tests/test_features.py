@@ -822,26 +822,3 @@ def test_clipboard_copy_handles_missing_image_payload(config, db, tmp_path):
         "image_path": str(missing_image),
         "text": "[Image]",
     }) is False
-
-
-
-def test_dictionary_response_is_size_bounded(monkeypatch):
-    import pytest
-
-    class Response:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_args):
-            return False
-
-        def read(self, limit):
-            return b"x" * limit
-
-    monkeypatch.setattr(
-        dictionary.urllib.request,
-        "urlopen",
-        lambda *_args, **_kwargs: Response(),
-    )
-    with pytest.raises(dictionary.DictionaryError, match="oversized response"):
-        dictionary._fetch_definition("algorithm")

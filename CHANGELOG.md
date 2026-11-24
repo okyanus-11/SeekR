@@ -1,44 +1,5 @@
 # Changelog
 
-## [Unreleased] — native Rust 2.0.3
-
-### Added
-
-- Interactive native result list (selection, hover, click, scroll, status line) replacing the single text block.
-- Background search worker with 70 ms debounce, generation IDs and stale-result rejection.
-- `time:`, `app:` and `file:` search modes plus automatic arithmetic in plain queries.
-- Single-instance activation and the global `Alt+Space` hotkey.
-- Feature parity matrix and version identity policy (`docs/RUST_PARITY_MATRIX.md`, `docs/VERSION_POLICY.md`).
-
-### Fixed
-
-- The Rust crate did not compile outside Windows (type inference in the file index); Ubuntu CI now guards this.
-- Registered third-party search providers were excluded from every query.
-
-### Changed
-
-- `Cargo.toml` and `PRODUCT_VERSION` now identify the native build as 2.0.3; the published Python fallback remains v2.0.2.
-
-## [2.0.3] - 2026-11-24
-
-### Fixed
-
-- Keep the Windows launcher surface opaque and use position-only dropdown animation to avoid stale repaints from layered windows.
-- Prevent delayed focus-loss events and interrupted hide animations from undoing a fresh show request.
-- Initialize result row sizing before the first visible show so a background search result can render during hidden startup.
-- Buffer single-instance show requests without blocking the GUI event loop.
-- Bound dictionary-service response reads and identify requests with the current application version.
-
-### Changed
-
-- Collect system-widget metrics on a worker thread so slow Windows providers cannot block launcher input or repainting.
-
-### Validation
-
-- Add Windows regression coverage for repeated hide/show/search/render cycles, system-widget worker execution, and pre-show result rendering.
-- Add packaged 3-minute stability, reinstall/uninstall, and v2.0.2 upgrade/data-preservation gates to the Windows workflow.
-- Keep the Rust/Slint crate separate as an experimental preview; v2.0.3 packages the Python/PySide6 application.
-
 ## [2.0.2] - 2026-11-20
 
 ### Fixed

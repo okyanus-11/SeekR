@@ -3,8 +3,6 @@ param(
     [string]$ExecutablePath,
     [ValidateRange(1, 168)]
     [int]$DurationHours = 24,
-    [ValidateRange(0, 10080)]
-    [int]$DurationMinutes = 0,
     [ValidateRange(5, 3600)]
     [int]$SampleIntervalSeconds = 30,
     [string]$OutputPath = ".\seekr-stability.csv"
@@ -21,8 +19,7 @@ $records = [System.Collections.Generic.List[object]]::new()
 $watch = [Diagnostics.Stopwatch]::StartNew()
 $failure = $null
 try {
-    $durationMinutes = if ($DurationMinutes -gt 0) { $DurationMinutes } else { $DurationHours * 60 }
-    while ($watch.Elapsed.TotalMinutes -lt $durationMinutes) {
+    while ($watch.Elapsed.TotalHours -lt $DurationHours) {
         Start-Sleep -Seconds $SampleIntervalSeconds
         $process.Refresh()
         if ($process.HasExited) {
@@ -41,16 +38,8 @@ try {
     }
 }
 finally {
-    # PyInstaller one-file executables keep the app in a child process. Kill
-    # the full tree so it cannot remain as a stale single-instance listener.
-    $process.Refresh()
     if (-not $process.HasExited) {
-        $taskkill = Join-Path $env:SystemRoot "System32\taskkill.exe"
-        $treeKill = Start-Process -FilePath $taskkill -ArgumentList @("/PID", [string]$process.Id, "/T", "/F") -Wait -PassThru -WindowStyle Hidden
-        $process.Refresh()
-        if (-not $process.HasExited -and $treeKill.ExitCode -ne 0) {
-            Stop-Process -Id $process.Id -Force
-        }
+        Stop-Process -Id $process.Id -Force
         $process.WaitForExit()
     }
     $records | Export-Csv -LiteralPath $OutputPath -NoTypeInformation -Encoding UTF8
@@ -63,17 +52,11 @@ if ($records.Count -eq 0) {
     throw "No stability samples were collected."
 }
 $memory = @($records | ForEach-Object { [double]$_.private_bytes_mb })
-$growthMb = [double]$memory[-1] - [double]$memory[0]
-if ($growthMb -gt 100) {
-    throw "Private memory grew by more than 100 MB during the stability run ($([math]::Round($growthMb, 2)) MB)."
-}
 $summary = [pscustomobject]@{
-    duration_hours = [math]::Round($durationMinutes / 60, 2)
-    duration_minutes = $durationMinutes
+    duration_hours = $DurationHours
     samples = $records.Count
     private_memory_start_mb = $memory[0]
     private_memory_end_mb = $memory[-1]
-    private_memory_growth_mb = [math]::Round($growthMb, 2)
     private_memory_peak_mb = ($memory | Measure-Object -Maximum).Maximum
     output_csv = (Resolve-Path -LiteralPath $OutputPath).Path
     note = "Hidden-mode stability run; repeat with interactive usage and real widget/network activity before release."

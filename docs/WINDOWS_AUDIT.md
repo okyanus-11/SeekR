@@ -451,27 +451,3 @@ Windows 10 and Windows 11 machines and record the results:
    redirected profile, 125%/150%/200% DPI, and a second monitor.
 7. Measure the packaged build on representative hardware and record the OS,
    hardware, workload and methodology in `docs/WINDOWS_PERFORMANCE.md`.
-
-## Fourth post-validation fix: nonblocking instance activation (2026-11-22)
-
-A rapid second launch could stall the already-running launcher's Qt event loop.
-The local-server accept handler waited synchronously for the rest of the
-four-byte `show` command, and the request reader could perform another
-synchronous wait. Those waits ran on the primary application's GUI thread.
-
-The server now buffers incoming bytes across `readyRead` notifications and
-emits the activation signal only after the complete `show` command arrives.
-It never waits for more client data in the GUI thread.
-
-Regression coverage now includes:
-- a deliberately split command, proving an incomplete request does not block
-  Qt's event loop;
-- repeated requests from separate client processes;
-- the existing launcher hide/show and activation lifecycle tests.
-
-CI for commit `b23c1af` passed on Windows 2022, Windows latest and Ubuntu:
-340 passed / 4 skipped on each Windows runner and 342 passed / 2 skipped on
-Ubuntu. The Windows executable and installer were built; the packaged UI
-smoke test, install, launch and uninstall checks all passed. A physical
-desktop/manual hardware check is still distinct from automated runner
-validation.
