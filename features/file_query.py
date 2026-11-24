@@ -35,6 +35,22 @@ class FileQuery:
     size_max_bytes: int | None = None
 
 
+def _local_timestamp(value: datetime) -> float:
+    """Epoch seconds for a naive local datetime.
+
+    ``datetime.timestamp()`` raises ``OSError`` on Windows for some local
+    times near the epoch (for example 1970-01-02 00:00 in UTC+3), while
+    ``time.mktime`` converts the same value. A file-query filter must never
+    crash because a caller supplied an unusual reference time.
+    """
+    try:
+        return time.mktime(value.timetuple()) + value.microsecond / 1_000_000
+    except (OverflowError, OSError, ValueError):
+        # Some platforms cannot represent pre-epoch local times at all; fall
+        # back to a plain UTC offset so the filter still returns a bound.
+        return (value - datetime(1970, 1, 1)).total_seconds()
+
+
 def parse_file_query(query: str, now: float | None = None) -> FileQuery:
     text = (query or "").strip()
     extension = ""
@@ -56,10 +72,10 @@ def parse_file_query(query: str, now: float | None = None) -> FileQuery:
             local_now = datetime.fromtimestamp(current)
             today_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
             if period == "today":
-                modified_after = today_start.timestamp()
+                modified_after = _local_timestamp(today_start)
             else:
-                modified_after = (today_start - timedelta(days=1)).timestamp()
-                modified_before = today_start.timestamp()
+                modified_after = _local_timestamp(today_start - timedelta(days=1))
+                modified_before = _local_timestamp(today_start)
         else:
             days = {"last week": 7, "last month": 30}[period]
             modified_after = current - days * 86400

@@ -18,6 +18,7 @@ def test_parse_size_filter_and_preserve_unknown_words():
 
 
 def test_parse_smaller_than_and_yesterday():
+    import time
     from datetime import datetime, timedelta
 
     now = 200_000
@@ -27,8 +28,18 @@ def test_parse_smaller_than_and_yesterday():
     assert parsed.text == ""
     assert parsed.size_operator == "<"
     assert parsed.size_bytes == 2048
-    assert parsed.modified_after == (today_start - timedelta(days=1)).timestamp()
-    assert parsed.modified_before == today_start.timestamp()
+    # datetime.timestamp() itself raises OSError on Windows for this local
+    # day, so compute the expected bounds with time.mktime as well.
+    assert parsed.modified_after == time.mktime((today_start - timedelta(days=1)).timetuple())
+    assert parsed.modified_before == time.mktime(today_start.timetuple())
+
+
+def test_modified_period_never_raises_near_the_epoch():
+    """Regression: Windows datetime.timestamp() raises for some local days."""
+    parsed = parse_file_query("modified yesterday", now=200_000)
+    assert parsed.modified_after is not None
+    assert parsed.modified_before is not None
+    assert parsed.modified_before > parsed.modified_after
 
 
 def test_unrecognised_query_is_unchanged():
