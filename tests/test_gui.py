@@ -1166,3 +1166,17 @@ def test_widget_fetch_task_emits_failure_for_network_errors(monkeypatch):
     task.run()
 
     assert failures == [("weather", "simulated offline network")]
+
+
+def test_dialog_parent_ignores_deleted_qt_objects(qapp):
+    """A Python wrapper whose C++ object is gone must not crash dialogs."""
+    import shiboken6
+
+    from PySide6.QtWidgets import QWidget
+
+    widget = QWidget()
+    widget.show()
+    qapp.processEvents()
+    assert SeekRApplication._live_window(widget) is widget
+    shiboken6.delete(widget)
+    assert SeekRApplication._live_window(widget) is None

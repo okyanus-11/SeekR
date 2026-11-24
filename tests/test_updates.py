@@ -28,6 +28,25 @@ def test_version_key_compares_numeric_components():
     assert version_key("2.0.0-rc.2") > version_key("2.0.0-rc.1")
 
 
+def test_version_key_orders_four_part_maintenance_releases():
+    assert version_key("2.0.2.1") > version_key("2.0.2")
+    assert version_key("2.0.2.1") > version_key("2.0.2.0")
+    assert version_key("2.0.3") > version_key("2.0.2.1")
+    assert version_key("2.0.2.1-beta.1") < version_key("2.0.2.1")
+    assert version_key("v2.0.2.1") == version_key("2.0.2.1")
+
+
+def test_update_check_accepts_a_four_part_release_tag(config, monkeypatch):
+    payload = {
+        "tag_name": "v2.0.2.1",
+        "html_url": RELEASE_PAGE + "/tag/v2.0.2.1",
+        "assets": [],
+    }
+    monkeypatch.setattr("urllib.request.urlopen", lambda *_args, **_kwargs: FakeResponse(payload))
+    info = UpdateService(config).check_latest()
+    assert info["latest_version"] == "2.0.2.1"
+
+
 def test_update_check_detects_new_release_and_records_timestamp(config, monkeypatch):
     payload = {
         "tag_name": "v2.1.0",

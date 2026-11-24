@@ -8,6 +8,8 @@ import time
 from pathlib import Path
 from typing import Any, Optional
 
+import shiboken6
+
 from PySide6.QtCore import QObject, QThread, QThreadPool, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 from PySide6.QtWidgets import QApplication, QFileDialog, QMenu, QSystemTrayIcon
@@ -418,13 +420,26 @@ class SeekRApplication(QObject, UIHooks):
                 self.tray.setVisible(wanted)
 
     # -------------------------------------------------------------------- hooks
+    @staticmethod
+    def _live_window(window):
+        """Return a window only while its Qt object still exists.
+
+        A Python wrapper can outlive the C++ object (for example after
+        ``deleteLater`` or during shutdown), and ``isVisible()`` then raises
+        ``RuntimeError`` instead of returning ``False``.
+        """
+        if window is None or not shiboken6.isValid(window):
+            return None
+        try:
+            return window if window.isVisible() else None
+        except RuntimeError:
+            return None
+
     def _dialog_parent(self):
-        if self.launcher is not None and self.launcher.isVisible():
-            return self.launcher
-        if self._settings_window is not None and self._settings_window.isVisible():
-            return self._settings_window
-        if self._tools_window is not None and self._tools_window.isVisible():
-            return self._tools_window
+        for window in (self.launcher, self._settings_window, self._tools_window):
+            live = self._live_window(window)
+            if live is not None:
+                return live
         return None
 
     def open_path(self, path: str) -> bool:

@@ -26,6 +26,7 @@ CHECK_INTERVAL_SECONDS = 24 * 60 * 60
 MAX_UPDATE_ASSET_BYTES = 1_000_000_000
 _VERSION_RE = re.compile(
     r"^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+    r"(?:\.(0|[1-9]\d*))?"
     r"(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$",
     re.IGNORECASE,
 )
@@ -54,15 +55,21 @@ def _is_official_asset_url(value: str) -> bool:
 
 
 def version_key(value: str) -> tuple:
-    """Return a SemVer-like key; a final release sorts after its prereleases."""
-    match = _VERSION_RE.fullmatch(str(value).strip())
+    """Return a comparable key; a final release sorts after its prereleases.
+
+    Accepts both ``major.minor.patch`` and the four-part maintenance form
+    ``2.0.2.1`` used by fix releases, so ``2.0.2.1`` sorts above ``2.0.2``
+    (and above any ``2.0.2.1-beta``).
+    """
+    text = str(value).strip()
+    match = _VERSION_RE.fullmatch(text)
     if not match:
-        numbers = [int(part) for part in re.findall(r"\d+", str(value))]
-        return tuple(numbers or [0])
-    base = tuple(int(match.group(index)) for index in (1, 2, 3))
-    prerelease = match.group(4)
+        numbers = [int(part) for part in re.findall(r"\d+", text)]
+        return tuple(numbers or [0]) + (1, ())
+    major, minor, patch, build, prerelease = match.groups()
+    base = (int(major), int(minor), int(patch), int(build or 0))
     if prerelease is None:
-        return base + (1,)
+        return base + (1, ())
     identifiers = tuple(
         (0, int(part)) if part.isdigit() else (1, part.lower())
         for part in prerelease.split(".")

@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.2.1] - 2026-11-24
+
+Maintenance release on top of 2.0.2.
+
+### Fixed
+
+- Stop the System widget from blocking the GUI thread: CPU, memory, storage, battery and network counters are now collected on the thread pool, applied on the GUI thread, and paused while the launcher is hidden. This matches the reported freeze after roughly two minutes of use.
+- Remove blocking `waitForReadyRead()` calls from the single-instance server so a client that connects without an immediate payload can no longer stall the launcher; incoming `show` payloads are buffered across chunks instead.
+- Make `today` / `yesterday` file-query filters reliable on Windows: local midnight is converted with `time.mktime` plus a UTC fallback instead of `datetime.timestamp()`, which raises `OSError` for some local days near the epoch.
+- Accept four-part versions in the update checker and order them correctly, so `2.0.2.1` sorts above `2.0.2` and its own prereleases instead of being rejected as an invalid release.
+
+### Tests
+
+- Full suite on Windows now passes (334 passed, 4 skipped, 0 failed); 2.0.2 shipped with one failing file-query test on this path.
+- Added regressions for four-part version ordering, four-part release tags, and near-epoch date filters.
+
 ## [2.0.2] - 2026-11-20
 
 ### Fixed
