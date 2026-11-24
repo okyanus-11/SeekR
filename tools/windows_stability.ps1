@@ -41,8 +41,16 @@ try {
     }
 }
 finally {
+    # PyInstaller one-file executables keep the app in a child process. Kill
+    # the full tree so it cannot remain as a stale single-instance listener.
+    $process.Refresh()
     if (-not $process.HasExited) {
-        Stop-Process -Id $process.Id -Force
+        $taskkill = Join-Path $env:SystemRoot "System32\taskkill.exe"
+        $treeKill = Start-Process -FilePath $taskkill -ArgumentList @("/PID", [string]$process.Id, "/T", "/F") -Wait -PassThru -WindowStyle Hidden
+        $process.Refresh()
+        if (-not $process.HasExited -and $treeKill.ExitCode -ne 0) {
+            Stop-Process -Id $process.Id -Force
+        }
         $process.WaitForExit()
     }
     $records | Export-Csv -LiteralPath $OutputPath -NoTypeInformation -Encoding UTF8
