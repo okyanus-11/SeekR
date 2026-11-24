@@ -226,7 +226,7 @@ See [Architecture](docs/ARCHITECTURE.md) for the codebase overview and [Installa
 
 ## Release status
 
-**Latest published release: v2.0.2.** The main branch contains post-release maintenance changes that are not included in the v2.0.2 installer or portable download. The main-branch workflow runs the test suite on Windows and Ubuntu, builds the Windows packages, and verifies a fresh installation; those checks do not retroactively change the published v2.0.2 assets.
+**Latest published release: v2.0.2.** SeekR 2.0.3 is a Python/PySide6 release candidate on main; it is not published yet. See the [2.0.3 candidate notes](docs/RELEASE_NOTES_2.0.3.md). Candidate CI covers Windows and Ubuntu tests, portable and installer builds, packaged UI rendering, a 3-minute stability soak, reinstall/uninstall, and upgrade preservation from v2.0.2. The release workflow only publishes a matching version tag, after manual Windows sign-off.
 
 A separate Rust/Slint native preview is being developed alongside the stable Python application. It is not the downloadable SeekR release and does not yet have feature parity, a supported installer, or end-user release status. See [the Rust migration status](docs/RUST_MIGRATION.md) before trying the preview.
 
