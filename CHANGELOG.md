@@ -1,5 +1,24 @@
 # Changelog
 
+## [Unreleased] — native Rust 2.0.3
+
+### Added
+
+- Interactive native result list (selection, hover, click, scroll, status line) replacing the single text block.
+- Background search worker with 70 ms debounce, generation IDs and stale-result rejection.
+- `time:`, `app:` and `file:` search modes plus automatic arithmetic in plain queries.
+- Single-instance activation and the global `Alt+Space` hotkey.
+- Feature parity matrix and version identity policy (`docs/RUST_PARITY_MATRIX.md`, `docs/VERSION_POLICY.md`).
+
+### Fixed
+
+- The Rust crate did not compile outside Windows (type inference in the file index); Ubuntu CI now guards this.
+- Registered third-party search providers were excluded from every query.
+
+### Changed
+
+- `Cargo.toml` and `PRODUCT_VERSION` now identify the native build as 2.0.3; the published Python fallback remains v2.0.2.
+
 ## [2.0.3] - 2026-11-24
 
 ### Fixed

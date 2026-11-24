@@ -41,16 +41,36 @@ The current native slice includes:
   settings and unknown keys.
 - Atomic settings replacement, malformed-file protection, and regression tests.
 
-The native preview is still not feature-complete. Search results are displayed
-as text; Previous/Next controls select which result is activated. The widget controls currently
-edit persisted preferences; only the clock has a live data preview. The full
-widget dashboard and its other data providers are not ported. The global hotkey, tray, single-instance lifecycle,
-active-monitor dropdown behavior, complete settings/tools surfaces, database
-integration, installer and end-user packaging remain release blockers.
+Current native slice, updated for the 2.0.3 takeover:
 
-CI now runs Clippy, unit tests and optimized Windows builds on both
-windows-2022 and windows-latest. This validates compilation and core logic,
-not real desktop interaction or long-duration stability.
+- Results render as a real interactive list (rows, selection, hover, click,
+  scroll) rather than one formatted text block.
+- Search runs on a worker thread with a 70 ms debounce, generation IDs and
+  stale-result rejection, so old queries can never overwrite the current list.
+- Explicit `calc:`, `time:`, `app:` and `file:` modes plus automatic arithmetic
+  (`6 * 7` returns 42); unknown prefixes stay plain queries instead of
+  returning placeholders.
+- Deterministic ranking, duplicate removal, provider error/panic containment.
+- Single-instance activation via a named mutex; a second launch focuses the
+  existing window. Verified on Windows.
+- Global `Alt+Space` hotkey via `RegisterHotKey` on a dedicated message-loop
+  thread.
+- `Cargo.toml` and `PRODUCT_VERSION` now carry the native 2.0.3 identity; see
+  [VERSION_POLICY.md](VERSION_POLICY.md).
+
+The native preview is still not feature-complete. Only the clock widget has live
+ data; the widget controls edit persisted preferences but no dashboard renders
+System/Tasks/Weather/Cat/Media yet. Tray icon, active-monitor placement and
+DPI handling, startup integration, the full settings/tools surfaces, the
+SQLite layer and its migration, and Windows installer/portable packaging remain
+release blockers. See [RUST_PARITY_MATRIX.md](RUST_PARITY_MATRIX.md) for the
+row-by-row status and verification gaps.
+
+CI runs Clippy, unit tests and optimized Windows builds on both windows-2022
+and windows-latest, and now also checks formatting, Clippy and tests on Ubuntu
+so Linux-only compile breaks are caught (the crate previously did not build off
+Windows). This validates compilation and core logic, not real desktop
+interaction or long-duration stability.
 
 ## Release gates
 

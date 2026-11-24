@@ -1,11 +1,10 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use serde_json::Value;
 use tempfile::NamedTempFile;
-
 
 /// Resolve the per-user configuration file without writing into the install directory.
 pub fn config_path() -> PathBuf {
@@ -17,15 +16,23 @@ pub fn config_path() -> PathBuf {
     {
         let base = std::env::var_os("APPDATA")
             .map(PathBuf::from)
-            .or_else(|| std::env::var_os("USERPROFILE").map(|home| PathBuf::from(home).join("AppData").join("Roaming")))
+            .or_else(|| {
+                std::env::var_os("USERPROFILE")
+                    .map(|home| PathBuf::from(home).join("AppData").join("Roaming"))
+            })
             .unwrap_or_else(|| PathBuf::from("."));
         base.join("SeekR").join("config.json")
     }
 
     #[cfg(target_os = "macos")]
     {
-        let base = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
-        base.join("Library").join("Application Support").join("SeekR").join("config.json")
+        let base = std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."));
+        base.join("Library")
+            .join("Application Support")
+            .join("SeekR")
+            .join("config.json")
     }
 
     #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
@@ -56,7 +63,8 @@ pub struct WidgetPreferences {
 
 impl Default for WidgetPreferences {
     fn default() -> Self {
-        let enabled = WIDGETS.iter()
+        let enabled = WIDGETS
+            .iter()
             .map(|name| ((*name).to_string(), !matches!(*name, "media")))
             .collect();
         Self {
@@ -80,10 +88,18 @@ impl WidgetPreferences {
             self.card_height = value.min(u16::MAX as u64) as u16;
         }
         if let Some(value) = self.legacy.get("left_order").and_then(Value::as_array) {
-            self.left_order = value.iter().filter_map(Value::as_str).map(str::to_owned).collect();
+            self.left_order = value
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_owned)
+                .collect();
         }
         if let Some(value) = self.legacy.get("right_order").and_then(Value::as_array) {
-            self.right_order = value.iter().filter_map(Value::as_str).map(str::to_owned).collect();
+            self.right_order = value
+                .iter()
+                .filter_map(Value::as_str)
+                .map(str::to_owned)
+                .collect();
         }
 
         self.rail_width = self.rail_width.clamp(160, 320);
@@ -94,21 +110,30 @@ impl WidgetPreferences {
         let mut left = Vec::new();
         let mut right = Vec::new();
         for name in self.left_order.drain(..) {
-            if WIDGETS.contains(&name.as_str()) && seen.insert(name.clone()) { left.push(name); }
+            if WIDGETS.contains(&name.as_str()) && seen.insert(name.clone()) {
+                left.push(name);
+            }
         }
         for name in self.right_order.drain(..) {
-            if WIDGETS.contains(&name.as_str()) && seen.insert(name.clone()) { right.push(name); }
+            if WIDGETS.contains(&name.as_str()) && seen.insert(name.clone()) {
+                right.push(name);
+            }
         }
         for name in WIDGETS {
-            if seen.insert((*name).to_string()) { right.push((*name).to_string()); }
+            if seen.insert((*name).to_string()) {
+                right.push((*name).to_string());
+            }
         }
         self.left_order = left;
         self.right_order = right;
 
         for name in WIDGETS {
-            self.enabled.entry((*name).to_string()).or_insert(!matches!(*name, "media"));
+            self.enabled
+                .entry((*name).to_string())
+                .or_insert(!matches!(*name, "media"));
         }
-        self.enabled.retain(|name, _| WIDGETS.contains(&name.as_str()));
+        self.enabled
+            .retain(|name, _| WIDGETS.contains(&name.as_str()));
 
         // Keep legacy flat keys synchronized for safe downgrade/dual-version use.
         for (old_key, new_key) in [
@@ -142,13 +167,19 @@ pub struct AppConfig {
 
 impl Default for AppConfig {
     fn default() -> Self {
-        Self { schema_version: 1, widgets: WidgetPreferences::default(), legacy: BTreeMap::new() }
+        Self {
+            schema_version: 1,
+            widgets: WidgetPreferences::default(),
+            legacy: BTreeMap::new(),
+        }
     }
 }
 
 impl AppConfig {
     pub fn load(path: &Path) -> io::Result<Self> {
-        if !path.exists() { return Ok(Self::default()); }
+        if !path.exists() {
+            return Ok(Self::default());
+        }
         let contents = fs::read_to_string(path)?;
         let raw: Value = serde_json::from_str(&contents)
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
@@ -180,7 +211,8 @@ impl AppConfig {
     }
 
     pub fn save_atomic(&self, path: &Path) -> io::Result<()> {
-        let parent = path.parent()
+        let parent = path
+            .parent()
             .filter(|p| !p.as_os_str().is_empty())
             .unwrap_or(Path::new("."));
         fs::create_dir_all(parent)?;
@@ -205,7 +237,9 @@ mod tests {
     #[test]
     fn widget_dimensions_and_refresh_are_bounded() {
         let mut settings = WidgetPreferences {
-            rail_width: 1, card_height: u16::MAX, refresh_seconds: 0,
+            rail_width: 1,
+            card_height: u16::MAX,
+            refresh_seconds: 0,
             ..WidgetPreferences::default()
         };
         settings.normalize();
@@ -222,7 +256,11 @@ mod tests {
             ..WidgetPreferences::default()
         };
         settings.normalize();
-        let all: Vec<_> = settings.left_order.iter().chain(&settings.right_order).collect();
+        let all: Vec<_> = settings
+            .left_order
+            .iter()
+            .chain(&settings.right_order)
+            .collect();
         assert_eq!(all.len(), WIDGETS.len());
         assert_eq!(all.iter().collect::<HashSet<_>>().len(), WIDGETS.len());
         assert!(all.iter().all(|name| WIDGETS.contains(&name.as_str())));
@@ -249,7 +287,10 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("config.json");
         fs::write(&path, "{broken").unwrap();
-        assert_eq!(AppConfig::load(&path).unwrap_err().kind(), io::ErrorKind::InvalidData);
+        assert_eq!(
+            AppConfig::load(&path).unwrap_err().kind(),
+            io::ErrorKind::InvalidData
+        );
         assert_eq!(fs::read_to_string(path).unwrap(), "{broken");
     }
 
