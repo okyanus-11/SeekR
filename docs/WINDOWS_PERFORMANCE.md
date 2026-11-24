@@ -62,4 +62,4 @@ Run a hidden-mode resource/stability sample with:
 
 The script records process lifetime, CPU time, working set, private bytes, thread count and handle count to CSV. A process exit before the requested duration is treated as failure. This is only a hidden-mode baseline; a release candidate still needs a separate interactive run with real search, widgets, network failures and multi-monitor use.
 
-For a short packaged-process check, use DurationMinutes 3 with a 30-second sample interval. The CI installer job uses this mode and fails if the process exits or private memory grows by more than 100 MB.
+For a short packaged-process check, use DurationMinutes 3 with a 30-second sample interval. The CI installer job samples the onedir executable in dist/SeekR, the payload used by the installer, so CPU and private-memory measurements represent the app rather than the one-file bootstrap stub. The job fails if the process exits or private memory grows by more than 100 MB.

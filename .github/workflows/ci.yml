@@ -117,7 +117,7 @@ jobs:
           }
           $config | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $profile "config.json") -Encoding utf8
           $env:SEEKR_HOME = $profile
-          $exe = (Resolve-Path ".\release\SeekR.exe").Path
+          $exe = (Resolve-Path ".\dist\SeekR\SeekR.exe").Path
           $output = Join-Path $env:RUNNER_TEMP "SeekR-stability-$env:GITHUB_RUN_ID.csv"
           & .\tools\windows_stability.ps1 -ExecutablePath $exe -DurationMinutes 3 -SampleIntervalSeconds 30 -OutputPath $output
       - name: Install Inno Setup
